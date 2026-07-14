@@ -13,8 +13,7 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
     let token;
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      // AJOUT DU .trim() ICI pour nettoyer les espaces invisibles copier/coller
-      token = req.headers.authorization.split(' ')[1].trim(); 
+      token = req.headers.authorization.split(' ')[1].trim();
     }
 
     if (!token) {
@@ -22,12 +21,11 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
       return;
     }
 
-    // Décodage avec la clé en dur pour le test
     const decoded = jwt.verify(token, 'CleSuperSecreteDeMonProjet2026') as { id: number; role: string };
 
     req.user = {
       id: decoded.id,
-      role: decoded.role
+      role: decoded.role,
     };
 
     next();
@@ -35,4 +33,14 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
     console.log("--> Le middleware a rejeté le token à cause de :", error instanceof Error ? error.message : error);
     res.status(401).json({ error: 'Jeton invalide ou expiré.' });
   }
+};
+
+export const restrictTo = (...roles: string[]) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      res.status(403).json({ error: 'Accès interdit. Vous n’avez pas les autorisations nécessaires.' });
+      return;
+    }
+    next();
+  };
 };

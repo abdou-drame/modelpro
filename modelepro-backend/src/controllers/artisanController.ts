@@ -78,3 +78,37 @@ export const updateArtisanProfile = async (req: AuthenticatedRequest, res: Respo
     res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour du profil.' });
   }
 };
+// 3. Récupération du profil de l'artisan connecté (pour l'application mobile)
+export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+
+    if (role !== 'artisan') {
+      res.status(403).json({ error: 'Accès interdit. Seul un artisan peut accéder à ces informations.' });
+      return;
+    }
+
+    // On récupère l'artisan avec ses informations d'utilisateur associées
+    const artisan = await Artisan.findOne({
+      where: { userId }, // Note : s'assure que ton champ est bien camelCase 'userId' ou snake_case 'user_id' selon ton modèle
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['nom', 'prenom', 'telephone', 'email']
+        }
+      ]
+    });
+
+    if (!artisan) {
+      res.status(404).json({ error: 'Profil artisan introuvable.' });
+      return;
+    }
+
+    res.status(200).json(artisan);
+  } catch (error) {
+    console.error('Erreur lors de la récupération du profil :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération du profil.' });
+  }
+};
