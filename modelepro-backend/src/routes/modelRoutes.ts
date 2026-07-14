@@ -1,12 +1,19 @@
 import { Router } from 'express';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
-import { createModel, getMyModels, deleteModel } from '../controllers/modelController';
+import { createModel, getMyModels, deleteModel, getAllModels, getModelById } from '../controllers/modelController';
 
 const router = Router();
 
-router.use(protect, restrictTo('artisan'));
-router.post('/', createModel);
-router.get('/my-models', getMyModels);
-router.delete('/:id', deleteModel);
+// Public endpoints
+router.get('/', getAllModels);
+
+// Protected artisan endpoints
+router.get('/my-models', protect, restrictTo('artisan'), getMyModels);
+
+// Public endpoint for individual model lookup
+router.get('/:id', getModelById);
+
+router.post('/', protect, restrictTo('artisan'), createModel);
+router.delete('/:id', protect, restrictTo('artisan'), deleteModel);
 
 export default router;

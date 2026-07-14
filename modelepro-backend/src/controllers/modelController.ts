@@ -3,6 +3,31 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Artisan } from '../models/Artisan';
 import { Creation } from '../models/Creation';
 
+export const getAllModels = async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const creations = await Creation.findAll({ include: [{ model: Artisan, as: 'artisan' }] });
+    res.status(200).json(creations);
+  } catch (error) {
+    console.error('Erreur récupération du catalogue :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération du catalogue.' });
+  }
+};
+
+export const getModelById = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const creation = await Creation.findByPk(id, { include: [{ model: Artisan, as: 'artisan' }] });
+    if (!creation) {
+      res.status(404).json({ error: 'Modèle introuvable.' });
+      return;
+    }
+    res.status(200).json(creation);
+  } catch (error) {
+    console.error('Erreur récupération du modèle :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération du modèle.' });
+  }
+};
+
 export const createModel = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;

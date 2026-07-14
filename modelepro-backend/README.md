@@ -39,6 +39,28 @@ npm run dev
 - `POST /api/v1/auth/login` : connexion
 - `PUT /api/v1/artisans/profile` : mise à jour du profil artisan (protégée par JWT)
 
+## Routes API détaillées
+
+Endpoints pour la v1 (base path: `/api/v1`)
+
+- Auth
+	- `POST /auth/register` : créer un compte
+	- `POST /auth/login` : se connecter
+
+- Modèles (protected, rôle `artisan`)
+	- `POST /models` : ajouter un modèle au catalogue (artisan authentifié)
+	- `GET /models/my-models` : lister les modèles de l'artisan connecté
+	- `DELETE /models/:id` : supprimer un modèle (vérifie la propriété)
+
+- Artisan - tableau de bord (protected, rôle `artisan`)
+	- `GET /artisans/appointments` : lister les demandes de rendez-vous reçues
+	- `PATCH /artisans/appointments/:id/status` : mettre à jour le statut d'un rendez-vous (`confirme` | `annule`)
+	- `GET /artisans/orders` : lister les commandes reçues
+	- `GET /artisans/orders/:id` : obtenir le détail complet d'une commande
+	- `PATCH /artisans/orders/:id/status` : mettre à jour le statut de fabrication (`en_cours` | `en_finition` | `prete` | `livree`)
+	- `GET /artisans/stats` : récupérer les statistiques de l'artisan (`chiffreAffaires`, `commandesEnCours`, `noteGlobale`)
+
+
 ## Middleware JWT
 
 Le middleware `protect` dans `src/middlewares/authMiddleware.ts` :

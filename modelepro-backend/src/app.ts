@@ -10,11 +10,14 @@ import './models/Creation';
 import './models/Appointment';
 import './models/Order';
 import './models/Review';
+import './models/Metier';
+import './models/Claim';
 
 // Importation des routes v1
 import authRoutes from './routes/authRoutes';
 import artisanRoutes from './routes/artisanRoutes';
 import modelRoutes from './routes/modelRoutes';
+import clientRoutes from './routes/clientRoutes';
 
 dotenv.config();
 
@@ -27,6 +30,7 @@ app.use(express.json());
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/artisans', artisanRoutes);
 app.use('/api/v1/models', modelRoutes);
+app.use('/api/v1', clientRoutes);
 
 // Route de test pour la santé de l'API
 app.get('/api/health', (req: Request, res: Response) => {
