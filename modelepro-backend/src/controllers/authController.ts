@@ -37,6 +37,22 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         return;
       }
       await Client.create({ userId: newUser.id, localisation });
+
+      // Générer le jeton JWT pour connecter directement le client après inscription
+      const token = generateToken(newUser.id, newUser.role);
+
+      res.status(201).json({
+        message: 'Compte client créé avec succès !',
+        token,
+        user: {
+          id: newUser.id,
+          nom: newUser.nom,
+          prenom: newUser.prenom,
+          telephone: newUser.telephone,
+          role: newUser.role
+        }
+      });
+      return;
     } else if (role === 'artisan') {
       if (!métier || !atelier || !localisation) {
         res.status(400).json({ error: "Le métier, l'atelier et la localisation sont obligatoires pour un artisan." });
@@ -50,22 +66,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         description,
         localisation
       });
+
+      res.status(201).json({
+        message: 'Compte artisan créé avec succès et en attente de validation.',
+        user: {
+          id: newUser.id,
+          nom: newUser.nom,
+          prenom: newUser.prenom,
+          telephone: newUser.telephone,
+          role: newUser.role
+        }
+      });
+      return;
     }
 
-    // Générer le jeton JWT pour connecter directement l'utilisateur après inscription
-    const token = generateToken(newUser.id, newUser.role);
-
-    res.status(201).json({
-      message: 'Compte créé avec succès !',
-      token,
-      user: {
-        id: newUser.id,
-        nom: newUser.nom,
-        prenom: newUser.prenom,
-        telephone: newUser.telephone,
-        role: newUser.role
-      }
-    });
+    res.status(400).json({ error: 'Rôle invalide lors de l\'inscription.' });
   } catch (error) {
     console.error('Erreur lors de l\'inscription :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de l\'inscription.' });
@@ -88,6 +103,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (user.statut === 'suspendu') {
       res.status(403).json({ error: 'Votre compte a été suspendu par l\'administrateur.' });
       return;
+    }
+
+    // Si c'est un artisan, vérifier le statut de validation du profil artisan
+    if (user.role === 'artisan') {
+      const artisanProfile = await Artisan.findOne({ where: { userId: user.id } });
+      if (!artisanProfile) {
+        res.status(403).json({ error: 'Profil artisan introuvable. Contactez le support.' });
+        return;
+      }
+
+      if (artisanProfile.statutValidation !== 'valide') {
+        res.status(403).json({ error: 'Votre profil artisan est en attente de validation.' });
+        return;
+      }
     }
 
     // Valider le mot de passe
