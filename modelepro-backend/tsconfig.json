@@ -11,6 +11,7 @@
     "strictNullChecks": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
+    "types": ["node", "jest"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,

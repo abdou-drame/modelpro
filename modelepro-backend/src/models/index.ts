@@ -1,0 +1,23 @@
+import './User';
+import './Client';
+import './Artisan';
+import './Creation';
+import './Appointment';
+import './Order';
+import './Review';
+import './Metier';
+import './Claim';
+import './Message';
+import './Notification';
+
+export { User } from './User';
+export { Client } from './Client';
+export { Artisan } from './Artisan';
+export { Creation } from './Creation';
+export { Appointment } from './Appointment';
+export { Order } from './Order';
+export { Review } from './Review';
+export { Metier } from './Metier';
+export { Claim } from './Claim';
+export { Message } from './Message';
+export { Notification } from './Notification';

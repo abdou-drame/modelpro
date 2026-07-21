@@ -6,6 +6,8 @@ export interface AuthenticatedRequest extends Request {
     id: number;
     role: string;
   };
+  file?: any;
+  files?: any;
 }
 
 export const protect = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {

@@ -3,18 +3,22 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.JEST_WORKER_ID) || process.env.DB_DIALECT === 'sqlite';
+
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'modelpro',
-  process.env.DB_USER || 'postgres',
-  process.env.DB_PASSWORD || '',
+  isTestEnv ? ':memory:' : (process.env.DB_NAME || 'modelpro'),
+  isTestEnv ? '' : (process.env.DB_USER || 'postgres'),
+  isTestEnv ? '' : (process.env.DB_PASSWORD || ''),
   {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
-    dialect: 'postgres',
-    logging: false, // Évite de surcharger la console avec les requêtes SQL brutes
+    dialect: isTestEnv ? 'sqlite' : 'postgres',
+    storage: isTestEnv ? ':memory:' : undefined,
+    dialectModule: isTestEnv ? require('sqlite3') : undefined,
+    logging: false,
     define: {
-      timestamps: true, // Génère automatiquement createdAt et updatedAt
-      underscored: true, // Utilise snake_case pour les noms de colonnes en base (ex: user_id)
+      timestamps: true,
+      underscored: true,
     },
   }
 );
