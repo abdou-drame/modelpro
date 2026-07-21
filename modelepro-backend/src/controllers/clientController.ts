@@ -24,10 +24,10 @@ export const createAppointment = async (req: AuthenticatedRequest, res: Response
     if (!clientId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
     if (req.user?.role !== 'client') return res.status(403).json({ error: 'Accès réservé aux clients.' });
 
-    const { artisanId, date, heure, notes } = req.body;
+    const { artisanId, date, heure, notes, type } = req.body;
     if (!artisanId || !date || !heure) return res.status(400).json({ error: 'artisanId, date et heure requis.' });
 
-    const appointment = await Appointment.create({ artisanId, clientId, date, heure, notes, statut: 'pending' });
+    const appointment = await Appointment.create({ artisanId, clientId, date, heure, notes, type, statut: 'demande' });
     res.status(201).json(appointment);
   } catch (error) {
     console.error('Erreur création rendez-vous :', error);
@@ -41,10 +41,21 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
     if (!clientId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
     if (req.user?.role !== 'client') return res.status(403).json({ error: 'Accès réservé aux clients.' });
 
-    const { artisanId, mesures, photoTissu, consignes, prix } = req.body;
+    const { artisanId, mesures, photoTissu, consignes, prix, customizationText, customizationPhoto } = req.body;
     if (!artisanId) return res.status(400).json({ error: 'artisanId requis.' });
 
-    const order = await Order.create({ artisanId, clientId, mesures, photoTissu, consignes, prix: prix || 0, statut: 'en_cours' });
+    const order = await Order.create({
+      artisanId,
+      clientId,
+      mesures,
+      photoTissu,
+      consignes,
+      prix: prix || 0,
+      customizationText,
+      customizationPhoto,
+      statut: 'en_cours',
+      paymentStatus: 'unpaid'
+    });
     res.status(201).json(order);
   } catch (error) {
     console.error('Erreur création commande :', error);

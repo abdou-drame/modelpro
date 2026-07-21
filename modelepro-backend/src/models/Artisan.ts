@@ -12,6 +12,9 @@ export class Artisan extends Model {
   declare experience: number | null;
   declare noteMoyenne: number | null;
   declare statutValidation: 'en_attente' | 'valide' | 'rejete';
+  // Phase 2
+  declare horaires: string | null;
+  declare zone: string | null;
 }
 
 Artisan.init(
@@ -59,6 +62,15 @@ Artisan.init(
     localisation: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    // Phase 2
+    horaires: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    zone: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
   },
   {

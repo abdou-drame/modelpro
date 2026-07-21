@@ -9,7 +9,7 @@ export class Claim extends Model {
   declare clientId: number;
   declare sujet: string;
   declare description: string | null;
-  declare statut: 'en_attente' | 'resolu';
+  declare statut: 'en_attente' | 'en_cours' | 'resolu' | 'rejete';
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -42,7 +42,7 @@ Claim.init(
       allowNull: true,
     },
     statut: {
-      type: DataTypes.ENUM('en_attente', 'resolu'),
+      type: DataTypes.ENUM('en_attente', 'en_cours', 'resolu', 'rejete'),
       defaultValue: 'en_attente',
       allowNull: false,
     },

@@ -2,11 +2,56 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Artisan } from '../models/Artisan';
 import { Creation } from '../models/Creation';
+import sequelize from '../config/database';
 
-export const getAllModels = async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+import { Op } from 'sequelize';
+
+export const getAllModels = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const creations = await Creation.findAll({ include: [{ model: Artisan, as: 'artisan' }] });
-    res.status(200).json(creations);
+    const { metierId, artisanId, minPrice, maxPrice, search, page = 1, limit = 20 } = req.query;
+    
+    const condition: any = {};
+    if (artisanId) condition.artisanId = Number(artisanId);
+    if (minPrice || maxPrice) {
+      condition.prixEstimatif = {};
+      if (minPrice) condition.prixEstimatif[Op.gte] = Number(minPrice);
+      if (maxPrice) condition.prixEstimatif[Op.lte] = Number(maxPrice);
+    }
+    if (search) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      condition[Op.or] = [
+        { titre: { [likeOp]: `%${search}%` } },
+        { description: { [likeOp]: `%${search}%` } }
+      ];
+    }
+    
+    // Pour metierId, il faut filtrer sur la table artisan incluse
+    const artisanCondition: any = {};
+    // Note: metier dans Artisan est une string. Si metierId est passé, soit adapter la BD, soit chercher par métier (string)
+    // Ici on suppose que le paramètre s'appelle metier ou metierId.
+    if (metierId) artisanCondition.métier = String(metierId);
+
+    const offset = (Number(page) - 1) * Number(limit);
+
+    const { count, rows } = await Creation.findAndCountAll({
+      where: condition,
+      include: [
+        { 
+          model: Artisan, 
+          as: 'artisan',
+          where: Object.keys(artisanCondition).length > 0 ? artisanCondition : undefined
+        }
+      ],
+      limit: Number(limit),
+      offset
+    });
+
+    res.status(200).json({
+      data: rows,
+      total: count,
+      page: Number(page),
+      totalPages: Math.ceil(count / Number(limit))
+    });
   } catch (error) {
     console.error('Erreur récupération du catalogue :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération du catalogue.' });

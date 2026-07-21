@@ -54,7 +54,7 @@ describe('Client app - étapes 15 à 22', () => {
   it('16. GET /models retourne le catalogue', async () => {
     const res = await request(app).get('/api/v1/models');
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 
   it('17. GET /models/:id retourne le détail du modèle avec artisan', async () => {

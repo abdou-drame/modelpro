@@ -50,13 +50,16 @@ DB_PASSWORD=ton_mot_de_passe
 
 ---
 
-### 👤 Client — `clientController`
+### 👤 Client & Utilisateur
 | Méthode | Route | Rôle |
 |---------|-------|------|
+| `GET` | `/users/me` | Récupère le profil de l'utilisateur connecté |
+| `PUT` | `/users/me` | Met à jour le profil (nom, téléphone, email...) |
 | `GET` | `/metiers` | Liste les métiers d'artisans disponibles |
-| `GET` | `/models` | Catalogue public des créations |
+| `GET` | `/artisans/:id` | Profil public détaillé d'un artisan (avec catalogue / avis) |
+| `GET` | `/models` | Catalogue public avec filtres (search, metierId, minPrice, maxPrice...) |
 | `GET` | `/models/:id` | Détail d'une création |
-| `POST` | `/appointments` | Prendre rendez-vous avec un artisan |
+| `POST` | `/appointments` | Prendre rendez-vous avec un artisan (avec `type`) |
 | `POST` | `/orders` | Passer une commande |
 | `GET` | `/orders/my-orders` | Mes commandes (client connecté) |
 | `POST` | `/reviews` | Laisser un avis sur un artisan |
@@ -64,17 +67,20 @@ DB_PASSWORD=ton_mot_de_passe
 
 ---
 
-### 🧵 Artisan — `artisanController`
+### 🧵 Artisan — Dashboard
 | Méthode | Route | Rôle |
 |---------|-------|------|
 | `POST` | `/models` | Créer une création (photo Multer) |
 | `GET` | `/models/my-models` | Mes créations |
 | `DELETE` | `/models/:id` | Supprimer une de mes créations |
 | `GET` | `/artisans/appointments` | Mes rendez-vous |
-| `PATCH` | `/artisans/appointments/:id/status` | Confirmer / annuler un RDV |
+| `PATCH` | `/artisans/appointments/:id/status` | Changer le statut d'un RDV |
+| `PATCH` | `/artisans/appointments/:id/reschedule`| Reporter un RDV (proposer une nouvelle date) |
 | `GET` | `/artisans/orders` | Mes commandes reçues |
 | `GET` | `/artisans/orders/:id` | Détail d'une commande |
 | `PATCH` | `/artisans/orders/:id/status` | Changer le statut d'une commande |
+| `PATCH` | `/artisans/orders/:id/delivery-date` | Mettre à jour la date de réception + motif |
+| `PATCH` | `/artisans/orders/:id/payment` | Gérer le paiement et l'acompte |
 | `GET` | `/artisans/stats` | Statistiques (revenus, commandes, notes) |
 
 ---
@@ -97,13 +103,17 @@ DB_PASSWORD=ton_mot_de_passe
 
 ---
 
-### 🛡️ Admin — `adminController`
+### 🛡️ Admin — Dashboard
 | Méthode | Route | Rôle |
 |---------|-------|------|
 | `GET` | `/admin/pending-artisans` | Artisans en attente de validation |
 | `PATCH` | `/admin/artisans/:id/verify` | Valider un artisan |
 | `DELETE` | `/admin/models/:id` | Supprimer une création |
 | `GET` | `/admin/claims` | Liste des réclamations |
+| `PATCH` | `/admin/claims/:id/status` | Gérer le statut d'une réclamation (attente, résolu, rejeté...) |
+| `POST` | `/admin/metiers` | Créer une nouvelle catégorie de métier |
+| `PUT` | `/admin/metiers/:id` | Modifier une catégorie de métier existante |
+| `DELETE`| `/admin/metiers/:id` | Supprimer une catégorie de métier |
 | `GET` | `/admin/stats` | Statistiques globales de la plateforme |
 
 ---

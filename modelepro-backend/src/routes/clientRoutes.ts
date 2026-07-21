@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 import { getMetiers, createAppointment, createOrder, getMyOrders, createReview, createClaim } from '../controllers/clientController';
+import { getPublicArtisanProfile } from '../controllers/userController';
 
 const router = Router();
 
 // Public
 router.get('/metiers', getMetiers);
+router.get('/artisans/:id', getPublicArtisanProfile);
 
 // Models public endpoints are in modelRoutes
 

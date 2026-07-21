@@ -7,9 +7,12 @@ export class Appointment extends Model {
   declare id: number;
   declare artisanId: number;
   declare clientId: number;
-  declare statut: 'pending' | 'confirme' | 'annule';
+  declare statut: 'demande' | 'accepte' | 'refuse' | 'reporte' | 'annule' | 'termine' | 'pending' | 'confirme';
   declare date: Date | null;
   declare notes: string | null;
+  // Phase 2
+  declare type: 'prise_mesures' | 'consultation' | 'depot_article' | 'essayage' | 'retrait' | 'domicile' | null;
+  declare proposedDate: Date | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -34,8 +37,9 @@ Appointment.init(
       onDelete: 'CASCADE',
     },
     statut: {
-      type: DataTypes.ENUM('pending', 'confirme', 'annule'),
-      defaultValue: 'pending',
+      // ENUM étendu — garde les anciennes valeurs pour la rétrocompatibilité des tests
+      type: DataTypes.ENUM('demande', 'accepte', 'refuse', 'reporte', 'annule', 'termine', 'pending', 'confirme'),
+      defaultValue: 'demande',
       allowNull: false,
     },
     date: {
@@ -44,6 +48,15 @@ Appointment.init(
     },
     notes: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    // Phase 2
+    type: {
+      type: DataTypes.ENUM('prise_mesures', 'consultation', 'depot_article', 'essayage', 'retrait', 'domicile'),
+      allowNull: true,
+    },
+    proposedDate: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
   },

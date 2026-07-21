@@ -6,6 +6,7 @@ import { Claim } from '../models/Claim';
 import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
 import { User } from '../models/User';
+import { Metier } from '../models/Metier';
 
 export const getPendingArtisans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -100,5 +101,87 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
   } catch (error) {
     console.error('Erreur lors du calcul des statistiques :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors du calcul des statistiques.' });
+  }
+};
+
+export const updateClaimStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const { statut } = req.body;
+    
+    const allowedStatuses = ['en_attente', 'en_cours', 'resolu', 'rejete'];
+    if (!statut || !allowedStatuses.includes(statut)) {
+      res.status(400).json({ error: 'Statut invalide.' });
+      return;
+    }
+
+    const claim = await Claim.findByPk(Number(id));
+    if (!claim) {
+      res.status(404).json({ error: 'Réclamation introuvable.' });
+      return;
+    }
+
+    claim.statut = statut;
+    await claim.save();
+
+    res.status(200).json(claim);
+  } catch (error) {
+    console.error('Erreur mise à jour de la réclamation :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour.' });
+  }
+};
+
+export const createMetier = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { nom, description } = req.body;
+    if (!nom) {
+      res.status(400).json({ error: 'Le nom du métier est requis.' });
+      return;
+    }
+    const metier = await Metier.create({ nom, description });
+    res.status(201).json(metier);
+  } catch (error) {
+    console.error('Erreur création métier :', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+export const updateMetier = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const { nom, description } = req.body;
+    
+    const metier = await Metier.findByPk(id);
+    if (!metier) {
+      res.status(404).json({ error: 'Métier introuvable.' });
+      return;
+    }
+    
+    if (nom) metier.nom = nom;
+    if (description !== undefined) metier.description = description;
+    
+    await metier.save();
+    res.status(200).json(metier);
+  } catch (error) {
+    console.error('Erreur mise à jour métier :', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+export const deleteMetier = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const metier = await Metier.findByPk(id);
+    
+    if (!metier) {
+      res.status(404).json({ error: 'Métier introuvable.' });
+      return;
+    }
+    
+    await metier.destroy();
+    res.status(200).json({ message: 'Métier supprimé avec succès.' });
+  } catch (error) {
+    console.error('Erreur suppression métier :', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

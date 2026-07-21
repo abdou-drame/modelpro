@@ -23,6 +23,7 @@ import clientRoutes from './routes/clientRoutes';
 import adminRoutes from './routes/adminRoutes';
 import messageRoutes from './routes/messageRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import userRoutes from './routes/userRoutes';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use(cors());
 app.use(express.json());
 
 // Points de terminaison (Endpoints)s de l'application
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/artisans', artisanRoutes);
 app.use('/api/v1/models', modelRoutes);

@@ -12,6 +12,14 @@ export class Order extends Model {
   declare consignes: string | null;
   declare prix: number;
   declare statut: 'en_cours' | 'en_finition' | 'prete' | 'livree';
+  // Phase 2
+  declare deliveryDate: Date | null;
+  declare deliveryDateReason: string | null;
+  declare totalPrice: number | null;
+  declare depositAmount: number | null;
+  declare paymentStatus: 'unpaid' | 'deposit_paid' | 'fully_paid';
+  declare customizationText: string | null;
+  declare customizationPhoto: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -56,6 +64,36 @@ Order.init(
       type: DataTypes.ENUM('en_cours', 'en_finition', 'prete', 'livree'),
       allowNull: false,
       defaultValue: 'en_cours',
+    },
+    // Phase 2
+    deliveryDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    deliveryDateReason: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    totalPrice: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    depositAmount: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    paymentStatus: {
+      type: DataTypes.ENUM('unpaid', 'deposit_paid', 'fully_paid'),
+      allowNull: false,
+      defaultValue: 'unpaid',
+    },
+    customizationText: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    customizationPhoto: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
   },
   {

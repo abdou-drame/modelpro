@@ -58,7 +58,7 @@ export const updateArtisanProfile = async (req: AuthenticatedRequest, res: Respo
       return;
     }
 
-    const { nom, prenom, telephone, métier, atelier, description, localisation } = req.body;
+    const { nom, prenom, telephone, métier, atelier, description, localisation, horaires, zone } = req.body;
 
     // Mise à jour de la table commune 'users'
     await User.update(
@@ -68,7 +68,7 @@ export const updateArtisanProfile = async (req: AuthenticatedRequest, res: Respo
 
     // Mise à jour de la table spécifique 'artisans'
     await Artisan.update(
-      { métier, atelier, description, localisation },
+      { métier, atelier, description, localisation, horaires, zone },
       { where: { userId } }
     );
 
