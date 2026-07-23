@@ -19,6 +19,9 @@ export class Artisan extends Model {
   declare documentValidation: string | null;
   declare nombreAvis: number;
   declare motifRejet: string | null;
+  // Module 7.10 - Abonnement artisan
+  declare statutAbonnement: 'inactif' | 'actif' | 'expire';
+  declare dateFinAbonnement: Date | null;
 }
 
 Artisan.init(
@@ -91,6 +94,16 @@ Artisan.init(
     },
     motifRejet: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    // Module 7.10
+    statutAbonnement: {
+      type: DataTypes.ENUM('inactif', 'actif', 'expire'),
+      defaultValue: 'inactif',
+      allowNull: false,
+    },
+    dateFinAbonnement: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
   },

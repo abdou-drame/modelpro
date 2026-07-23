@@ -6,6 +6,7 @@ import { Artisan } from '../models/Artisan';
 import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
 import { Claim } from '../models/Claim';
+import { Metier } from '../models/Metier';
 import { generateToken } from '../utils/auth';
 
 let adminToken: string;
@@ -15,6 +16,7 @@ let pendingArtisanId: number;
 let pendingArtisanUserId: number;
 let creationId: number;
 let orderId: number;
+let metierId: number;
 
 beforeAll(async () => {
   await sequelize.sync({ force: true });
@@ -68,12 +70,16 @@ beforeAll(async () => {
   });
   creationId = creation.id;
 
+  const pastDate = new Date();
+  pastDate.setDate(pastDate.getDate() - 5);
+
   const order = await Order.create({
     artisanId: pendingArtisanId,
     clientId: clientUser.id,
     mesures: 'Taille L',
     prix: 25000,
     statut: 'en_cours',
+    deliveryDate: pastDate,
   });
   orderId = order.id;
 
@@ -85,6 +91,13 @@ beforeAll(async () => {
     statut: 'en_attente',
   });
 
+  const metier = await Metier.create({
+    nom: 'Broderie',
+    description: 'Artisanat de broderie',
+    actif: true,
+  });
+  metierId = metier.id;
+
   adminToken = generateToken(adminUser.id, 'admin');
   clientToken = generateToken(clientUser.id, 'client');
   artisanToken = generateToken(artisanUser.id, 'artisan');
@@ -94,7 +107,7 @@ afterAll(async () => {
   await sequelize.close();
 });
 
-describe('Back-office administration', () => {
+describe('Back-office administration & statistiques (Section 12)', () => {
   it('refuse l’accès aux routes admin sans authentification, pour un client et pour un artisan', async () => {
     const routes = [
       { method: 'get', path: '/api/v1/admin/pending-artisans' },
@@ -141,6 +154,44 @@ describe('Back-office administration', () => {
     expect(response.body.message).toMatch(/validé/i);
   });
 
+  it('permet à l’administrateur d’identifier les commandes en retard', async () => {
+    const response = await request(app)
+      .get('/api/v1/admin/orders/overdue')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body.length).toBeGreaterThanOrEqual(1);
+    expect(response.body[0].id).toBe(orderId);
+  });
+
+  it('permet à l’administrateur de désactiver un métier / une catégorie', async () => {
+    const response = await request(app)
+      .patch(`/api/v1/admin/metiers/${metierId}/toggle`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.metier.actif).toBe(false);
+  });
+
+  it('permet à l’administrateur de consulter l’ensemble des paiements et abonnements', async () => {
+    const response = await request(app)
+      .get('/api/v1/admin/payments')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+  });
+
+  it('permet à l’administrateur de consulter l’ensemble des rendez-vous', async () => {
+    const response = await request(app)
+      .get('/api/v1/admin/appointments')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+  });
+
   it('permet à l’administrateur de supprimer définitivement un modèle', async () => {
     const response = await request(app)
       .delete(`/api/v1/admin/models/${creationId}`)
@@ -149,7 +200,7 @@ describe('Back-office administration', () => {
     expect([200, 204]).toContain(response.status);
   });
 
-  it('permet à l’administrateur de lire les réclamations et les statistiques', async () => {
+  it('permet à l’administrateur de lire les réclamations et les statistiques complètes', async () => {
     const claimsResponse = await request(app)
       .get('/api/v1/admin/claims')
       .set('Authorization', `Bearer ${adminToken}`);
@@ -162,9 +213,13 @@ describe('Back-office administration', () => {
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(statsResponse.status).toBe(200);
-    expect(statsResponse.body).toHaveProperty('totalArtisansActifs');
-    expect(statsResponse.body).toHaveProperty('totalClients');
-    expect(statsResponse.body).toHaveProperty('totalCommandes');
-    expect(statsResponse.body).toHaveProperty('chiffreAffairesTotal');
+    expect(statsResponse.body).toHaveProperty('tableauDeBord');
+    expect(statsResponse.body).toHaveProperty('statistiquesAvancees');
+    expect(statsResponse.body.tableauDeBord).toHaveProperty('totalArtisansActifs');
+    expect(statsResponse.body.tableauDeBord).toHaveProperty('totalClients');
+    expect(statsResponse.body.tableauDeBord).toHaveProperty('totalCommandes');
+    expect(statsResponse.body.tableauDeBord).toHaveProperty('commandesEnRetardCount');
+    expect(statsResponse.body.statistiquesAvancees).toHaveProperty('metiersPlusDemandes');
+    expect(statsResponse.body.statistiquesAvancees).toHaveProperty('artisansMieuxNotes');
   });
 });

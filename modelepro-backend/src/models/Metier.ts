@@ -5,6 +5,7 @@ export class Metier extends Model {
   declare id: number;
   declare nom: string;
   declare description: string | null;
+  declare actif: boolean;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -23,6 +24,11 @@ Metier.init(
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    actif: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+      allowNull: false,
     },
   },
   {

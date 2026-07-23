@@ -147,21 +147,28 @@ Ce document présente l'audit complet du code backend (Express.js, TypeScript, S
 - [ ✅ ] **10.4 Mes réclamations (client connecté)** — Implémentée (`clientController.getMyClaims` via `GET /claims/my-claims`).
 - [ ✅ ] **10.5 Traitement d'une réclamation par l'admin** — Implémenté (`adminController.updateClaimStatus`).
 
-### MODULE 11 — PAIEMENTS
-- [ ✅ ] **11.1 Enregistrer un paiement lié à une commande** — Implémenté (`paymentController.createPayment`).
-- [ ✅ ] **11.2 Statuts et mise à jour automatique de la commande (`unpaid`, `deposit_paid`, `fully_paid`)** — Implémentée.
-- [ ✅ ] **11.3 Liste des paiements d'une commande** — Implémentée (`paymentController.getPaymentsByOrder`).
+### MODULE 11 — PAIEMENTS (Module 7.10)
+- [ ✅ ] **11.1 Acompte à la commande** — Implémenté (`paymentController.createPayment` avec `type = 'acompte'`).
+- [ ✅ ] **11.2 Paiement du solde à la réception** — Implémenté (`type = 'solde'`).
+- [ ✅ ] **11.3 Paiement intégral** — Implémenté (`type = 'integral'`).
+- [ ✅ ] **11.4 Frais de service de la plateforme** — Implémentés (`type = 'frais_service'`).
+- [ ✅ ] **11.5 Abonnement artisan** — Implémenté (`type = 'abonnement'`, mise à jour auto `statutAbonnement` et prolongation `dateFinAbonnement`).
+- [ ✅ ] **11.6 Moyens de paiement (Wave, Orange Money, Free Money, Espèces)** — Implémentés (`wave`, `orange_money`, `free_money`, `especes`).
+- [ ✅ ] **11.7 Résumé financier décomposé** — Implémenté (`paymentController.getPaymentSummary` via `GET /api/v1/payments/summary/:orderId`).
+- [ ✅ ] **11.8 Statuts et mise à jour automatique de la commande (`unpaid`, `deposit_paid`, `fully_paid`)** — Implémentée.
+- [ ✅ ] **11.9 Liste des paiements d'une commande** — Implémentée (`paymentController.getPaymentsByOrder`).
 
-### MODULE 12 — ADMINISTRATION (BACK-OFFICE)
-- [ ✅ ] **12.1 Liste de tous les utilisateurs (admin)** — Implémentée (`adminController.getAllUsers`).
-- [ ✅ ] **12.2 Suspension / activation d'un compte utilisateur (admin)** — Implémentée (`adminController.toggleUserStatus`).
-- [ ✅ ] **12.3 Liste de tous les artisans en attente de validation (admin)** — Implémentée (`adminController.getPendingArtisans`).
-- [ ✅ ] **12.4 Valider un artisan avec notification** — Implémentée (`adminController.verifyArtisan`).
-- [ ✅ ] **12.5 Rejeter un artisan avec motif et notification** — Implémentée (`adminController.rejectArtisan`).
-- [ ✅ ] **12.6 Liste de toutes les commandes (admin)** — Implémentée (`adminController.getAllOrders`).
-- [ ✅ ] **12.7 Liste de toutes les réclamations (admin)** — Implémentée (`adminController.getClaims`).
-- [ ✅ ] **12.8 Traiter une réclamation (admin)** — Implémenté (`adminController.updateClaimStatus`).
-- [ ✅ ] **12.9 Statistiques globales complètes (users, artisans, clients, commandes, claims, CA)** — Implémentée (`adminController.getStats`).
+### MODULE 12 — ADMINISTRATION (BACK-OFFICE ET STATISTIQUES)
+- [ ✅ ] **12.1 Tableau de bord** — Nombre d’utilisateurs, artisans, clients, commandes, rendez-vous, réclamations, CA et abonnements (`adminController.getStats`).
+- [ ✅ ] **12.2 Gestion clients & utilisateurs** — Lister, rechercher par nom/tél/email, filtrer par rôle et suspendre/activer (`adminController.getAllUsers`, `toggleUserStatus`).
+- [ ✅ ] **12.3 Gestion artisans** — Valider, rejeter avec motif, suspendre, modifier le statut, contrôler les profils (`adminController.getPendingArtisans`, `getAllArtisansAdmin`, `verifyArtisan`, `rejectArtisan`).
+- [ ✅ ] **12.4 Gestion métiers** — Créer, modifier, désactiver/activer et supprimer une catégorie ou un métier (`adminController.createMetier`, `updateMetier`, `toggleMetierStatus`, `deleteMetier`).
+- [ ✅ ] **12.5 Gestion modèles** — Lister et modérer les photos et contenus du catalogue (`adminController.getAllModelsAdmin`, `deleteModelForce`).
+- [ ✅ ] **12.6 Gestion commandes & retards** — Suivre les statuts de fabrication, identifier les retards avec l'indicateur `estEnRetard` et l'endpoint dédié (`adminController.getAllOrders`, `getOverdueOrders`).
+- [ ✅ ] **12.7 Gestion rendez-vous** — Consulter l'ensemble des demandes de RDV et les annulations (`adminController.getAllAppointmentsAdmin`).
+- [ ✅ ] **12.8 Gestion réclamations** — Qualifier, traiter et clôturer les litiges (`adminController.getClaims`, `updateClaimStatus`).
+- [ ✅ ] **12.9 Gestion paiements** — Suivre les abonnements artisans, les frais de service et commissions (`adminController.getAllPaymentsAdmin`).
+- [ ✅ ] **12.10 Statistiques avancées** — Métiers les plus demandés, artisans les mieux notés (`noteMoyenne`), commandes en retard (`adminController.getStats`).
 
 ### MODULE 13 — UPLOAD DE FICHIERS
 - [ ✅ ] **13.1 Upload de photos (Multer)** — Implémenté.

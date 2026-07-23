@@ -211,8 +211,11 @@ Toutes les réponses d'erreur retournent un objet standard : `{ "error": "Messag
 | `PATCH` | `/artisans/orders/:id/status` | Artisan | `{ statut }` | Mettre à jour le statut de fabrication |
 | `PATCH` | `/artisans/orders/:id/payment` | Artisan | `{ paymentStatus, depositAmount }` | Mettre à jour les paramètres de paiement |
 | `PATCH` | `/artisans/orders/:id/delivery-date` | Artisan | `{ deliveryDate, deliveryDateReason }` | Fixer/ajuster la date de livraison |
-| `POST` | `/payments` | Client | `{ orderId, montant, type, moyen }` | Enregistrer une transaction de paiement |
+| `POST` | `/payments` | Connecté | `{ orderId?, artisanId?, montant, type, moyen, referenceTransaction?, statut? }` | Enregistrer une transaction (acompte, solde, intégral, frais de service, abonnement) via Wave, OM, Free Money, Espèces |
 | `GET` | `/payments/order/:orderId` | Connecté | - | Liste des paiements d'une commande |
+| `GET` | `/payments/summary/:orderId` | Connecté | - | Résumé financier d'une commande (totalPrice, acompte, solde, reste à payer, frais) |
+| `GET` | `/payments/subscriptions/my` | Artisan | - | Historique des abonnements et statut d'abonnement de l'artisan |
+| `PATCH` | `/payments/:id/status` | Connecté | `{ statut }` | Mettre à jour le statut d'un paiement (confirme, echoue, rembourse) |
 
 ### F. Avis, Réclamations & Transverses
 | Méthode | Route | Accès | Body / Query | Description |
@@ -231,15 +234,22 @@ Toutes les réponses d'erreur retournent un objet standard : `{ "error": "Messag
 ### G. Back-Office Admin
 | Méthode | Route | Accès | Body / Query | Description |
 |---|---|---|---|---|
-| `GET` | `/admin/users` | Admin | - | Liste de tous les utilisateurs |
-| `PATCH` | `/admin/users/:id/status` | Admin | `{ statut: 'actif'\|'suspendu' }` | Activer ou suspendre un utilisateur |
-| `GET` | `/admin/pending-artisans` | Admin | - | Liste des artisans en attente |
-| `PATCH` | `/admin/artisans/:id/verify` | Admin | - | Approuver un profil artisan |
-| `PATCH` | `/admin/artisans/:id/reject` | Admin | `{ motifRejet }` | Rejeter un profil artisan avec motif |
-| `GET` | `/admin/orders` | Admin | - | Liste de toutes les commandes |
-| `GET` | `/admin/claims` | Admin | - | Liste de tous les litiges |
-| `PATCH` | `/admin/claims/:id/status` | Admin | `{ statut: 'en_cours'\|'resolu'\|'rejete' }` | Traiter une réclamation |
-| `POST` | `/admin/metiers` | Admin | `{ nom, description }` | Ajouter un métier |
-| `PUT` | `/admin/metiers/:id` | Admin | `{ nom, description }` | Modifier un métier |
+| `GET` | `/admin/stats` | Admin | - | Tableau de bord analytique & Statistiques avancées (métiers demandés, artisans notés, retards) |
+| `GET` | `/admin/users` | Admin | `?search=X&role=Y&statut=Z` | Rechercher, lister et consulter tous les utilisateurs (Clients/Artisans/Admins) |
+| `PATCH` | `/admin/users/:id/status` | Admin | `{ statut: 'actif'\|'suspendu' }` | Activer ou suspendre un compte utilisateur |
+| `GET` | `/admin/artisans` | Admin | - | Liste de tous les artisans avec statuts de validation et abonnements |
+| `GET` | `/admin/pending-artisans` | Admin | - | Liste des artisans en attente de validation |
+| `PATCH` | `/admin/artisans/:id/verify` | Admin | - | Valider un profil artisan avec notification |
+| `PATCH` | `/admin/artisans/:id/reject` | Admin | `{ motifRejet }` | Rejeter un profil artisan avec motif et notification |
+| `POST` | `/admin/metiers` | Admin | `{ nom, description, actif? }` | Ajouter un métier / catégorie |
+| `PUT` | `/admin/metiers/:id` | Admin | `{ nom, description, actif? }` | Modifier un métier / catégorie |
+| `PATCH` | `/admin/metiers/:id/toggle` | Admin | - | Activer ou désactiver une catégorie de métier |
 | `DELETE` | `/admin/metiers/:id` | Admin | - | Supprimer un métier |
-| `GET` | `/admin/stats` | Admin | - | Statistiques globales de la plateforme |
+| `GET` | `/admin/models` | Admin | - | Modération des contenus & photos du catalogue de modèles |
+| `DELETE` | `/admin/models/:id` | Admin | - | Supprimer/modérer définitivement un modèle |
+| `GET` | `/admin/orders` | Admin | - | Suivre l'intégralité des commandes et les indicateurs de retard (`estEnRetard`) |
+| `GET` | `/admin/orders/overdue` | Admin | - | Consulter spécifiquement la liste des commandes en retard |
+| `GET` | `/admin/appointments` | Admin | - | Consulter l'ensemble des demandes de rendez-vous et annulations |
+| `GET` | `/admin/claims` | Admin | - | Consulter et qualifier la liste de tous les litiges / réclamations |
+| `PATCH` | `/admin/claims/:id/status` | Admin | `{ statut: 'en_attente'\|'en_cours'\|'resolu'\|'rejete' }` | Qualifier, traiter et clôturer une réclamation |
+| `GET` | `/admin/payments` | Admin | - | Suivi global des paiements, frais de service, commissions et abonnements |
