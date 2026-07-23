@@ -5,7 +5,7 @@ import { User } from './User';
 export class Notification extends Model {
   declare id: number;
   declare userId: number;
-  declare type: 'nouveau_message' | 'demande_rdv' | 'rdv_statut' | 'commande_statut' | 'rappel' | 'notation';
+  declare type: 'nouveau_message' | 'demande_rdv' | 'rdv_statut' | 'commande_statut' | 'rappel' | 'notation' | 'paiement';
   declare titre: string;
   declare description: string;
   declare lu: boolean;
@@ -28,7 +28,7 @@ Notification.init(
       onDelete: 'CASCADE',
     },
     type: {
-      type: DataTypes.ENUM('nouveau_message', 'demande_rdv', 'rdv_statut', 'commande_statut', 'rappel', 'notation'),
+      type: DataTypes.ENUM('nouveau_message', 'demande_rdv', 'rdv_statut', 'commande_statut', 'rappel', 'notation', 'paiement'),
       allowNull: false,
     },
     titre: {

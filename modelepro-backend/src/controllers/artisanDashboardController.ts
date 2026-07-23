@@ -75,8 +75,7 @@ export const updateAppointmentStatus = async (req: AuthenticatedRequest, res: Re
       return;
     }
 
-    const { statut } = req.body;
-    // Permettre aussi 'accepte', 'refuse', 'termine' selon le nouveau modèle
+    const { statut, motifRefus } = req.body;
     const allowedStatuses = ['confirme', 'annule', 'accepte', 'refuse', 'termine'];
     if (!statut || !allowedStatuses.includes(statut)) {
       res.status(400).json({ error: 'Statut invalide.' });
@@ -84,6 +83,9 @@ export const updateAppointmentStatus = async (req: AuthenticatedRequest, res: Re
     }
 
     appointment.statut = statut;
+    if (statut === 'refuse' && motifRefus) {
+      appointment.motifRefus = motifRefus;
+    }
     await appointment.save();
 
     // Notifier le client du changement de statut du RDV
@@ -91,7 +93,7 @@ export const updateAppointmentStatus = async (req: AuthenticatedRequest, res: Re
       appointment.clientId,
       'rdv_statut',
       'Mise à jour de votre rendez-vous',
-      `Votre rendez-vous a été marqué comme : ${statut}.`,
+      `Votre rendez-vous a été marqué comme : ${statut}${motifRefus ? `. Motif : ${motifRefus}` : ''}.`,
       appointment.id
     );
 
@@ -226,7 +228,7 @@ export const getOrderDetails = async (req: AuthenticatedRequest, res: Response):
   }
 };
 
-const orderStatuses = ['en_cours', 'en_finition', 'prete', 'livree'];
+const orderStatuses = ['en_attente', 'acceptee', 'en_cours', 'en_finition', 'prete', 'livree', 'annulee'];
 
 export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -259,13 +261,16 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const { statut } = req.body;
+    const { statut, motifAnnulation } = req.body;
     if (!statut || !orderStatuses.includes(statut)) {
-      res.status(400).json({ error: 'Statut invalide. Valeurs autorisées : en_cours, en_finition, prete, livree.' });
+      res.status(400).json({ error: 'Statut invalide.' });
       return;
     }
 
-    order.statut = statut;
+    order.statut = statut as any;
+    if (statut === 'annulee' && motifAnnulation) {
+      order.motifAnnulation = motifAnnulation;
+    }
     await order.save();
 
     await createNotification(

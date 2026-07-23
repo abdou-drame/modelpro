@@ -1,6 +1,6 @@
 import { Notification } from '../models/Notification';
 
-type NotifType = 'nouveau_message' | 'demande_rdv' | 'rdv_statut' | 'commande_statut' | 'rappel' | 'notation';
+type NotifType = 'nouveau_message' | 'demande_rdv' | 'rdv_statut' | 'commande_statut' | 'rappel' | 'notation' | 'paiement';
 
 /**
  * Helper réutilisable pour créer une notification en base.

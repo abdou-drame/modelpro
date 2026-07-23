@@ -7,7 +7,50 @@ import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
+import { createNotification } from '../services/notificationService';
 
+// 1. Liste de tous les utilisateurs (Admin)
+export const getAllUsers = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const users = await User.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']],
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Erreur getAllUsers :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des utilisateurs.' });
+  }
+};
+
+// 2. Suspension / activation d'un compte utilisateur (Admin)
+export const toggleUserStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { statut } = req.body;
+
+    if (!statut || !['actif', 'suspendu'].includes(statut)) {
+      res.status(400).json({ error: 'Statut invalide (actif ou suspendu).' });
+      return;
+    }
+
+    const user = await User.findByPk(Number(id));
+    if (!user) {
+      res.status(404).json({ error: 'Utilisateur introuvable.' });
+      return;
+    }
+
+    user.statut = statut;
+    await user.save();
+
+    res.status(200).json({ message: `Le compte a été marqué comme ${statut}.`, user });
+  } catch (error) {
+    console.error('Erreur toggleUserStatus :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// 3. Liste des artisans en attente
 export const getPendingArtisans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const artisans = await User.findAll({
@@ -30,6 +73,7 @@ export const getPendingArtisans = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
+// 4. Valider un artisan avec notification
 export const verifyArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -47,10 +91,74 @@ export const verifyArtisan = async (req: AuthenticatedRequest, res: Response): P
 
     await artisanProfile.update({ statutValidation: 'valide' });
 
+    // Notification à l'artisan
+    await createNotification(
+      artisanProfile.userId,
+      'rdv_statut',
+      'Profil artisan validé !',
+      'Votre profil artisan a été validé par l\'administration. Vous pouvez maintenant recevoir des commandes.',
+      artisanProfile.id
+    );
+
     res.status(200).json({ message: 'Profil artisan validé avec succès.' });
   } catch (error) {
     console.error('Erreur lors de la validation de l’artisan :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la validation de l’artisan.' });
+  }
+};
+
+// 5. Rejeter un artisan avec motif et notification
+export const rejectArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { motifRejet } = req.body;
+
+    const artisanProfile = await Artisan.findOne({
+      where: {
+        [Op.or]: [{ userId: id }, { id }],
+      },
+    });
+
+    if (!artisanProfile) {
+      res.status(404).json({ error: 'Profil artisan introuvable.' });
+      return;
+    }
+
+    await artisanProfile.update({
+      statutValidation: 'rejete',
+      motifRejet: motifRejet || null,
+    });
+
+    // Notification à l'artisan
+    await createNotification(
+      artisanProfile.userId,
+      'rdv_statut',
+      'Profil artisan non validé',
+      `Votre profil n'a pas été validé. Motif : ${motifRejet || 'Dossier incomplet.'}`,
+      artisanProfile.id
+    );
+
+    res.status(200).json({ message: 'Profil artisan rejeté avec motif.', artisanProfile });
+  } catch (error) {
+    console.error('Erreur rejectArtisan :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors du rejet de l\'artisan.' });
+  }
+};
+
+// 6. Liste de toutes les commandes (Admin)
+export const getAllOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const orders = await Order.findAll({
+      include: [
+        { model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] },
+        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error('Erreur getAllOrders :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des commandes.' });
   }
 };
 
@@ -73,6 +181,7 @@ export const deleteModelForce = async (req: AuthenticatedRequest, res: Response)
 export const getClaims = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const claims = await Claim.findAll({
+      include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] }],
       order: [['createdAt', 'DESC']],
     });
 
@@ -85,18 +194,22 @@ export const getClaims = async (req: AuthenticatedRequest, res: Response): Promi
 
 export const getStats = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const [totalArtisansActifs, totalClients, totalCommandes, chiffreAffairesTotal] = await Promise.all([
+    const [totalUsers, totalArtisansActifs, totalClients, totalCommandes, totalClaims, chiffreAffairesTotal] = await Promise.all([
+      User.count(),
       Artisan.count({ where: { statutValidation: 'valide' } }),
       User.count({ where: { role: 'client' } }),
       Order.count(),
+      Claim.count(),
       Order.sum('prix') || 0,
     ]);
 
     res.status(200).json({
+      totalUsers,
       totalArtisansActifs,
       totalClients,
       totalCommandes,
-      chiffreAffairesTotal,
+      totalClaims,
+      chiffreAffairesTotal: Number(chiffreAffairesTotal || 0),
     });
   } catch (error) {
     console.error('Erreur lors du calcul des statistiques :', error);

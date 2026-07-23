@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Importation de tous les modèles pour la synchronisation PostgreSQL / tests
 import './models/User';
@@ -14,6 +15,7 @@ import './models/Metier';
 import './models/Claim';
 import './models/Message';
 import './models/Notification';
+import './models/Payment';
 
 // Importation des routes v1
 import authRoutes from './routes/authRoutes';
@@ -24,6 +26,7 @@ import adminRoutes from './routes/adminRoutes';
 import messageRoutes from './routes/messageRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import userRoutes from './routes/userRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 
 dotenv.config();
 
@@ -31,6 +34,9 @@ const app: Application = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Servir les fichiers téléversés de façon statique
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Points de terminaison (Endpoints)s de l'application
 app.use('/api/v1/users', userRoutes);
@@ -40,6 +46,7 @@ app.use('/api/v1/models', modelRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1', clientRoutes);
 app.post('/api/v1/messages', messageRoutes);
 

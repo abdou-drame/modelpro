@@ -7,12 +7,17 @@ export class Order extends Model {
   declare id: number;
   declare artisanId: number;
   declare clientId: number;
+  declare modeleId: number | null;
   declare mesures: string | null;
   declare photoTissu: string | null;
   declare consignes: string | null;
   declare prix: number;
-  declare statut: 'en_cours' | 'en_finition' | 'prete' | 'livree';
-  // Phase 2
+  declare statut: 'en_attente' | 'acceptee' | 'en_cours' | 'en_finition' | 'prete' | 'livree' | 'annulee';
+  // Phase 2 & V1
+  declare couleur: string | null;
+  declare taille: string | null;
+  declare matiere: string | null;
+  declare motifAnnulation: string | null;
   declare deliveryDate: Date | null;
   declare deliveryDateReason: string | null;
   declare totalPrice: number | null;
@@ -43,6 +48,12 @@ Order.init(
       references: { model: 'users', key: 'id' },
       onDelete: 'CASCADE',
     },
+    modeleId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'creations', key: 'id' },
+      onDelete: 'SET NULL',
+    },
     mesures: {
       type: DataTypes.TEXT,
       allowNull: true,
@@ -61,9 +72,25 @@ Order.init(
       defaultValue: 0,
     },
     statut: {
-      type: DataTypes.ENUM('en_cours', 'en_finition', 'prete', 'livree'),
+      type: DataTypes.ENUM('en_attente', 'acceptee', 'en_cours', 'en_finition', 'prete', 'livree', 'annulee'),
       allowNull: false,
-      defaultValue: 'en_cours',
+      defaultValue: 'en_attente',
+    },
+    couleur: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    taille: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    matiere: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    motifAnnulation: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     // Phase 2
     deliveryDate: {

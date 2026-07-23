@@ -15,6 +15,10 @@ export class Artisan extends Model {
   // Phase 2
   declare horaires: string | null;
   declare zone: string | null;
+  declare photosAtelier: string | null;
+  declare documentValidation: string | null;
+  declare nombreAvis: number;
+  declare motifRejet: string | null;
 }
 
 Artisan.init(
@@ -70,6 +74,23 @@ Artisan.init(
     },
     zone: {
       type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    photosAtelier: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    documentValidation: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    nombreAvis: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      allowNull: false,
+    },
+    motifRejet: {
+      type: DataTypes.TEXT,
       allowNull: true,
     },
   },

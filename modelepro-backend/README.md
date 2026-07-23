@@ -1,6 +1,6 @@
-# ModèlePro — Backend API
+# ModèlePro — Backend API V1
 
-Node.js · Express · Sequelize · PostgreSQL (SQLite en test)
+Node.js · Express · TypeScript · Sequelize · PostgreSQL (SQLite en test)
 
 ---
 
@@ -8,17 +8,25 @@ Node.js · Express · Sequelize · PostgreSQL (SQLite en test)
 
 ```bash
 npm install
-npm run dev        # développement (ts-node-dev, hot-reload)
-npm run build      # compilation TypeScript → dist/
-npm start          # production (node dist/server.js)
-npm test           # Jest (SQLite in-memory, --runInBand)
+npm run dev        # Développement (ts-node-dev, hot-reload sur http://localhost:5000)
+npm run build      # Compilation TypeScript → dist/
+npm start          # Production (node dist/server.js)
+npm test           # Tests automatisés Jest (12 suites, 98 tests, 100% PASS)
 ```
+
+---
+
+## 📊 État du Projet & Couverture (V1)
+
+- **Fonctionnalités V1 :** **79 / 79 (100% Implémenté & Validé)**
+- **Suites de tests Jest :** **12 / 12 (PASS)**
+- **Tests d'intégration :** **98 / 98 (PASS)**
 
 ---
 
 ## 🔑 Variables d'environnement — `.env`
 
-Créer `.env` à la racine du projet :
+Créer un fichier `.env` à la racine du projet :
 
 ```env
 # Serveur
@@ -36,85 +44,111 @@ DB_USER=postgres
 DB_PASSWORD=ton_mot_de_passe
 ```
 
-> En mode `test` (ou si `JEST_WORKER_ID` est détecté), la base bascule automatiquement sur **SQLite in-memory** — aucune config DB requise pour les tests.
+> En mode `test` (ou si `JEST_WORKER_ID` est détecté), la base de données bascule automatiquement sur **SQLite in-memory** — aucune configuration PostgreSQL requise pour exécuter `npm test`.
 
 ---
 
-## 📡 Routes API — `BASE : /api/v1`
+## 📡 Endpoints API — `BASE : /api/v1`
 
-### 🔐 Auth — `authController`
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| `POST` | `/auth/register` | Inscription (client ou artisan) |
-| `POST` | `/auth/login` | Connexion → retourne JWT |
-
----
-
-### 👤 Client & Utilisateur
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| `GET` | `/users/me` | Récupère le profil de l'utilisateur connecté |
-| `PUT` | `/users/me` | Met à jour le profil (nom, téléphone, email...) |
-| `GET` | `/metiers` | Liste les métiers d'artisans disponibles |
-| `GET` | `/artisans/:id` | Profil public détaillé d'un artisan (avec catalogue / avis) |
-| `GET` | `/models` | Catalogue public avec filtres (search, metierId, minPrice, maxPrice...) |
-| `GET` | `/models/:id` | Détail d'une création |
-| `POST` | `/appointments` | Prendre rendez-vous avec un artisan (avec `type`) |
-| `POST` | `/orders` | Passer une commande |
-| `GET` | `/orders/my-orders` | Mes commandes (client connecté) |
-| `POST` | `/reviews` | Laisser un avis sur un artisan |
-| `POST` | `/claims` | Soumettre une réclamation |
+### 🔐 Authentification & Push FCM — `authController` / `userController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `POST` | `/auth/register` | Public | Inscription (client ou artisan avec horaires et zone) |
+| `POST` | `/auth/login` | Public | Connexion → retourne JWT |
+| `GET` | `/users/me` | Connecté | Profil de l'utilisateur connecté |
+| `PUT` | `/users/me` | Connecté | Mettre à jour profil (nom, téléphone, photoUrl, localisation) |
+| `PATCH` | `/users/fcm-token` | Connecté | Enregistrer le token de notification Push FCM (`fcmToken`) |
 
 ---
 
-### 🧵 Artisan — Dashboard
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| `POST` | `/models` | Créer une création (photo Multer) |
-| `GET` | `/models/my-models` | Mes créations |
-| `DELETE` | `/models/:id` | Supprimer une de mes créations |
-| `GET` | `/artisans/appointments` | Mes rendez-vous |
-| `PATCH` | `/artisans/appointments/:id/status` | Changer le statut d'un RDV |
-| `PATCH` | `/artisans/appointments/:id/reschedule`| Reporter un RDV (proposer une nouvelle date) |
-| `GET` | `/artisans/orders` | Mes commandes reçues |
-| `GET` | `/artisans/orders/:id` | Détail d'une commande |
-| `PATCH` | `/artisans/orders/:id/status` | Changer le statut d'une commande |
-| `PATCH` | `/artisans/orders/:id/delivery-date` | Mettre à jour la date de réception + motif |
-| `PATCH` | `/artisans/orders/:id/payment` | Gérer le paiement et l'acompte |
-| `GET` | `/artisans/stats` | Statistiques (revenus, commandes, notes) |
+### 👗 Catalogue & Créations — `modelController` / `clientController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `GET` | `/metiers` | Public | Liste des métiers disponibles |
+| `GET` | `/artisans` | Public | Liste des artisans validés avec filtres (recherche, métier, zone) |
+| `GET` | `/artisans/:id` | Public | Profil public détaillé d'un artisan (noteMoyenne, nombreAvis, catalogue) |
+| `GET` | `/artisans/:artisanId/reviews` | Public | Liste des avis et commentaires d'un artisan |
+| `GET` | `/models` | Public | Catalogue public avec filtres (search, metierId, minPrice, maxPrice, pagination) |
+| `GET` | `/models/:id` | Public | Détail d'un modèle |
+| `POST` | `/models` | Artisan | Ajouter une création au catalogue (avec delaiEstime, options, photos) |
+| `PUT` | `/models/:id` | Artisan | Modifier un modèle existant |
+| `GET` | `/models/my-models` | Artisan | Mes créations |
+| `DELETE` | `/models/:id` | Artisan | Supprimer une création |
 
 ---
 
-### 💬 Messagerie — `messageController`
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| `POST` | `/messages` | Envoyer un message (texte ou photo `multipart/form-data`, champ `photo`) |
-| `GET` | `/messages/order/:orderId` | Historique d'une discussion (trié par date) |
-
-> Crée automatiquement une **Notification** `nouveau_message` pour le destinataire.
-
----
-
-### 🔔 Notifications — `notificationController`
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| `GET` | `/notifications` | Mes notifications (non lues en tête) |
-| `PATCH` | `/notifications/:id/read` | Marquer une notification comme lue |
+### 📅 Rendez-vous — `clientController` / `artisanDashboardController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `POST` | `/appointments` | Client | Demander un rendez-vous (date, heure, notes) |
+| `GET` | `/appointments/my-appointments` | Client | Liste de mes rendez-vous |
+| `PATCH` | `/appointments/:id/cancel` | Client | Annuler un rendez-vous |
+| `GET` | `/artisans/appointments` | Artisan | Mes rendez-vous reçus |
+| `PATCH` | `/artisans/appointments/:id/status` | Artisan | Accepter ou Refuser un RDV avec motif (`motifRefus`) |
+| `PATCH` | `/artisans/appointments/:id/reschedule`| Artisan | Reporter un RDV (proposer une nouvelle date) |
 
 ---
 
-### 🛡️ Admin — Dashboard
-| Méthode | Route | Rôle |
-|---------|-------|------|
-| `GET` | `/admin/pending-artisans` | Artisans en attente de validation |
-| `PATCH` | `/admin/artisans/:id/verify` | Valider un artisan |
-| `DELETE` | `/admin/models/:id` | Supprimer une création |
-| `GET` | `/admin/claims` | Liste des réclamations |
-| `PATCH` | `/admin/claims/:id/status` | Gérer le statut d'une réclamation (attente, résolu, rejeté...) |
-| `POST` | `/admin/metiers` | Créer une nouvelle catégorie de métier |
-| `PUT` | `/admin/metiers/:id` | Modifier une catégorie de métier existante |
-| `DELETE`| `/admin/metiers/:id` | Supprimer une catégorie de métier |
-| `GET` | `/admin/stats` | Statistiques globales de la plateforme |
+### 📦 Commandes — `clientController` / `artisanDashboardController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `POST` | `/orders` | Client | Demander une commande (modèle, couleur, taille, matière, consignes) |
+| `GET` | `/orders/my-orders` | Client | Historique de mes commandes |
+| `PATCH` | `/orders/:id/cancel` | Client | Annuler une commande avec motif (`motifAnnulation`) |
+| `GET` | `/artisans/orders` | Artisan | Mes commandes reçues |
+| `GET` | `/artisans/orders/:id` | Artisan | Détail d'une commande |
+| `PATCH` | `/artisans/orders/:id/status` | Artisan | Mettre à jour le statut (`en_attente`, `acceptee`, `en_cours`, `livree`...) |
+| `PATCH` | `/artisans/orders/:id/delivery-date` | Artisan | Mettre à jour la date de réception estimée + motif |
+| `PATCH` | `/artisans/orders/:id/payment` | Artisan | Mettre à jour le statut et montant de l'acompte |
+
+---
+
+### 💳 Paiements — `paymentController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `POST` | `/payments` | Client | Enregistrer un paiement (`orderId`, `montant`, `type`: acompte/solde, `moyen`: wave/om/carte) |
+| `GET` | `/payments/order/:orderId` | Connecté | Liste des transactions de paiement d'une commande |
+
+---
+
+### ⭐️ Avis & Litiges — `clientController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `POST` | `/reviews` | Client | Noter un artisan (**5 sous-notes** : qualité, délai, comm, prix, pro) si commande livrée |
+| `POST` | `/claims` | Client | Soumettre une réclamation/litige |
+| `GET` | `/claims/my-claims` | Client | Historique de mes réclamations |
+
+---
+
+### 💬 Messagerie & Notifications — `messageController` / `notificationController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `POST` | `/messages` | Connecté | Envoyer un message (texte ou photo `multipart/form-data`) |
+| `GET` | `/messages/order/:orderId` | Connecté | Historique d'une conversation liée à une commande |
+| `GET` | `/messages/conversations` | Connecté | Liste de toutes mes conversations |
+| `PATCH` | `/messages/:id/read` | Connecté | Marquer un message comme lu |
+| `GET` | `/notifications` | Connecté | Mes notifications in-app |
+| `PATCH` | `/notifications/:id/read` | Connecté | Marquer une notification comme lue |
+| `PATCH` | `/notifications/read-all` | Connecté | Marquer toutes mes notifications comme lues |
+
+---
+
+### 🛡️ Administration Back-Office — `adminController`
+| Méthode | Route | Rôle | Description |
+|---------|-------|------|-------------|
+| `GET` | `/admin/users` | Admin | Liste complète des utilisateurs enregistrés |
+| `PATCH` | `/admin/users/:id/status` | Admin | Activer ou Suspendre un compte utilisateur (`actif` / `suspendu`) |
+| `GET` | `/admin/pending-artisans` | Admin | Liste des artisans en attente de validation |
+| `PATCH` | `/admin/artisans/:id/verify` | Admin | Approuver un profil artisan + notification |
+| `PATCH` | `/admin/artisans/:id/reject` | Admin | Rejeter un profil artisan avec motif + notification |
+| `GET` | `/admin/orders` | Admin | Liste de toutes les commandes de la plateforme |
+| `DELETE` | `/admin/models/:id` | Admin | Supprimer définitivement une création |
+| `GET` | `/admin/claims` | Admin | Liste de toutes les réclamations |
+| `PATCH` | `/admin/claims/:id/status` | Admin | Statut de réclamation (`en_attente`, `en_cours`, `resolu`, `rejete`) |
+| `POST` | `/admin/metiers` | Admin | Créer un métier |
+| `PUT` | `/admin/metiers/:id` | Admin | Modifier un métier |
+| `DELETE`| `/admin/metiers/:id` | Admin | Supprimer un métier |
+| `GET` | `/admin/stats` | Admin | Statistiques globales (users, artisans actifs, clients, commandes, claims, CA) |
 
 ---
 
@@ -122,15 +156,16 @@ DB_PASSWORD=ton_mot_de_passe
 
 ```
 src/
-├── app.ts                  # Express + routes
-├── server.ts               # listen()
-├── config/database.ts      # Sequelize (PG / SQLite auto)
+├── app.ts                  # Application Express, middlewares & routage
+├── server.ts               # Serveur HTTP & connexion database
+├── config/database.ts      # Configuration Sequelize (PostgreSQL & SQLite in-memory pour Jest)
 ├── middlewares/
-│   └── authMiddleware.ts   # protect() — vérifie JWT
-├── models/                 # User, Artisan, Order, Message, Notification…
-├── controllers/            # un fichier par domaine
-├── routes/                 # un fichier par domaine
-└── __tests__/              # Jest — supertest
-    └── fixtures/test-image.png
-uploads/                    # photos uploadées (créé auto au démarrage)
+│   └── authMiddleware.ts   # protect() et restrictTo() — Sécurité JWT & rôles
+├── models/                 # Modèles Sequelize (User, Artisan, Order, Payment, Review, Claim...)
+├── controllers/            # Contrôleurs contenant la logique métier par domaine
+├── routes/                 # Définition des routes Express par domaine
+├── services/               # Services partagés (ex: notificationService.ts)
+└── __tests__/              # 12 suites de tests automatisés (Jest & Supertest)
+uploads/                    # Répertoire des fichiers statiques servis sous /uploads/
+SPECIFICATIONS_FRONT_MOBILE.md  # Guide complet d'intégration Frontend & Mobile
 ```

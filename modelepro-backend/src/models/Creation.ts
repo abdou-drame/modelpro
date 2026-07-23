@@ -9,6 +9,11 @@ export class Creation extends Model {
   declare description: string | null;
   declare photoUrl: string | null;
   declare prixEstimatif: number | null;
+  declare delaiEstime: string | null;
+  declare options: string | null;
+  declare categorie: string | null;
+  declare photos: string | null;
+  declare nombreCommandes: number;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -41,6 +46,27 @@ Creation.init(
     prixEstimatif: {
       type: DataTypes.INTEGER,
       allowNull: true,
+    },
+    delaiEstime: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    options: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    categorie: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    photos: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    nombreCommandes: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      allowNull: false,
     },
   },
   {

@@ -8,6 +8,11 @@ export class Review extends Model {
   declare artisanId: number;
   declare clientId: number;
   declare note: number;
+  declare noteQualite: number | null;
+  declare noteDelai: number | null;
+  declare noteCommunication: number | null;
+  declare notePrix: number | null;
+  declare noteProfessionnalisme: number | null;
   declare commentaire: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -35,6 +40,26 @@ Review.init(
     note: {
       type: DataTypes.INTEGER,
       allowNull: false,
+    },
+    noteQualite: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    noteDelai: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    noteCommunication: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    notePrix: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    noteProfessionnalisme: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     commentaire: {
       type: DataTypes.TEXT,

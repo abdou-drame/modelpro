@@ -13,6 +13,7 @@ export class Appointment extends Model {
   // Phase 2
   declare type: 'prise_mesures' | 'consultation' | 'depot_article' | 'essayage' | 'retrait' | 'domicile' | null;
   declare proposedDate: Date | null;
+  declare motifRefus: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -57,6 +58,10 @@ Appointment.init(
     },
     proposedDate: {
       type: DataTypes.DATE,
+      allowNull: true,
+    },
+    motifRefus: {
+      type: DataTypes.TEXT,
       allowNull: true,
     },
   },

@@ -1,6 +1,6 @@
 # Document de Spécifications d'Intégration Frontend & Mobile — ModèlePro
 
-Ce document est destiné aux équipes de développement (Web & Mobile) responsables de l'intégration de la plateforme ModèlePro avec l'API Backend. 
+Ce document est destiné aux équipes de développement (Web & Mobile) responsables de l'intégration de la plateforme ModèlePro avec l'API Backend V1.
 
 ---
 
@@ -20,19 +20,24 @@ Toutes les requêtes de l'application doivent cibler la racine de l'API avec le 
     *   **Web :** `HttpOnly cookies` ou `localStorage` (avec stratégie de rafraîchissement adéquate si pertinent).
 *   **Expiration :** Gérer l'expiration silencieusement (renvoie au login en cas de code 401 sur requête API).
 
-### C. Gestion des Réponses & Erreurs HTTP
+### C. Notifications Push (FCM)
+*   **Enregistrement du token FCM :** Chaque fois qu'un utilisateur se connecte ou met à jour ses jetons Push, l'application mobile doit envoyer le jeton via `PATCH /users/fcm-token` :
+    ```json
+    { "fcmToken": "votre_token_fcm_mobile" }
+    ```
+
+### D. Gestion des Réponses & Erreurs HTTP
 Toutes les réponses d'erreur retournent un objet standard : `{ "error": "Message explicatif" }`.
 *   **`200/201`** : Succès.
-*   **`400`** : Requête invalide (paramètres manquants, format inattendu).
+*   **`400`** : Requête invalide (paramètres manquants, note hors intervalle 1-5, format inattendu).
 *   **`401`** : Non autorisé (absence de token ou token expiré).
 *   **`403`** : Accès refusé (tentative d'accès à la route d'un rôle non autorisé, ex: Client sur une route Artisan).
 *   **`404`** : Ressource introuvable.
-*   **`500`** : Erreur interne du serveur (bug technique backend).
+*   **`500`** : Erreur interne du serveur.
 
-### D. Uploads de Formulaires Lourds
-L'API utilise **Multer** pour la gestion des images `multipart/form-data`.
-*   **Payload `FormData` requis** pour : Création de modèles (`/models`), Messagerie avec photo (`/messages`, avec champ `photo`), Personnalisations (`customizationPhoto`).
-*   Envoyez la data en précisant le Content-Type `multipart/form-data` manuellement ou laissez Axios/Fetch s'en charger selon la plateforme.
+### E. Uploads & Fichiers Statiques
+*   **Multer** gère les uploads multipart/form-data pour les images (`image/*`).
+*   Les fichiers téléversés sont servis statiquement par le serveur backend sous l'URL `/uploads/<nom_fichier>`.
 
 ---
 
@@ -41,126 +46,200 @@ L'API utilise **Multer** pour la gestion des images `multipart/form-data`.
 ### A. Espace Client
 
 #### Authentification & Profil
-*   **Flux :** Écrans d'inscription (`POST /auth/register` avec role `client`) -> Connexion (`POST /auth/login`).
-*   **Profil :** Afficher et mettre à jour le profil avec `GET /users/me` et `PUT /users/me`.
+*   **Flux :** Inscription (`POST /auth/register` avec role `client`) -> Connexion (`POST /auth/login`).
+*   **Profil :** Afficher et mettre à jour le profil avec `GET /users/me` et `PUT /users/me` (nom, prenom, telephone, email, photoUrl, localisation).
+*   **Token Push :** Envoyer le token FCM via `PATCH /users/fcm-token`.
 
 #### Catalogue & Recherche
 *   **Route de liste :** `GET /models`
-*   **Query Params :** Implémenter l'interface de filtrage en ajoutant `?page=1&limit=20&search=keyword&metierId=123&minPrice=5000&maxPrice=15000` à l'URL.
-*   **UX Cible :** Scroll infini reprenant la variable `totalPages`, affichage masonry ou liste.
+*   **Query Params :** `?page=1&limit=20&search=mot_cle&metierId=couture&minPrice=5000&maxPrice=50000&artisanId=12`
+*   **Détail Modèle :** `GET /models/:id` (inclut l'artisan, les options, delaiEstime, photoUrl, photos, categorie).
 
-#### Prise de Rendez-vous
-*   **Parcours :** Sur le profil public artisan (`GET /artisans/:id`), le client clique sur "Prendre RDV".
-*   **Données (Body JSON) :**
+#### Prise & Suivi de Rendez-vous
+*   **Soumettre un RDV :** `POST /appointments` avec body JSON :
     ```json
     {
       "artisanId": 42,
       "date": "2026-10-15",
       "heure": "14:30",
       "type": "prise_mesures", 
-      "notes": "Mesures pour un ensemble basin."
+      "notes": "Mesures pour un ensemble bazin."
     }
     ```
-    *Les valeurs de `type` sont : `prise_mesures`, `consultation`, `depot_article`, `essayage`, `retrait`, `domicile`.*
-*   **Statuts reçus :** Le frontend gérera les statuts évolutifs (`demande`, `accepte`, `reporte`, etc.). Afficher un bouton "Accepter/Refuser la contre-proposition" si statut = `reporte`.
+*   **Mes RDV :** `GET /appointments/my-appointments`.
+*   **Annuler un RDV :** `PATCH /appointments/:id/cancel`.
 
 #### Gestion des Commandes
-*   **Passage :** `POST /orders` avec possibilité d'ajouter `customizationText` (instructions) et `customizationPhoto` (modèle inspirant).
-*   **Suivi :** Sur la liste de `GET /orders/my-orders`, afficher élégamment la `deliveryDate`, le `paymentStatus` (`unpaid`, `deposit_paid`, `fully_paid`), et l'acompte payé (`depositAmount`).
+*   **Passer une commande :** `POST /orders`
+    ```json
+    {
+      "artisanId": 42,
+      "modeleId": 10,
+      "prix": 35000,
+      "couleur": "Bleu Roi",
+      "taille": "XL",
+      "matiere": "Bazin Rich",
+      "consignes": "Broderie dorée au col",
+      "mesures": "Épaules: 45cm, Poitrine: 100cm"
+    }
+    ```
+*   **Mes commandes :** `GET /orders/my-orders`
+*   **Annuler une commande :** `PATCH /orders/:id/cancel` avec `{ "motifAnnulation": "Raison" }`.
 
-#### Messagerie, Avis & Réclamations
-*   **Chat :** `GET /messages/order/:orderId` pour charger l'historique et `POST /messages` en `multipart/form-data` avec le champ texte `contenu` et le champ fichier `photo`.
-*   **Notation :** `POST /reviews` en fin de parcours de commande (`statut = livree`).
-*   **Litiges :** Formulaire rattaché à une commande spécifique appelant `POST /claims`.
+#### Messagerie, Notifications & Paiements
+*   **Conversations :** Liste des conversations via `GET /messages/conversations`.
+*   **Discussion d'une commande :** Historique `GET /messages/order/:orderId`, Envoi `POST /messages` (`orderId`, `texte`, `photo`).
+*   **Marquer un message comme lu :** `PATCH /messages/:id/read`.
+*   **Notifications :** Liste `GET /notifications`, Marquer lue `PATCH /notifications/:id/read`, Tout lire `PATCH /notifications/read-all`.
+*   **Paiements :** Enregistrer un paiement `POST /payments` (`orderId`, `montant`, `type`: 'acompte'|'solde', `moyen`: 'wave'|'om'|'carte'), lister les paiements d'une commande `GET /payments/order/:orderId`.
+
+#### Avis & Réclamations
+*   **Déposer un avis (5 sous-notes) :** Stricte condition : commande au statut `livree`.
+    `POST /reviews` :
+    ```json
+    {
+      "artisanId": 42,
+      "noteQualite": 5,
+      "noteDelai": 4,
+      "noteCommunication": 5,
+      "notePrix": 4,
+      "noteProfessionnalisme": 5,
+      "commentaire": "Superbe travail !"
+    }
+    ```
+*   **Avis d'un artisan :** `GET /artisans/:artisanId/reviews`.
+*   **Soumettre une réclamation :** `POST /claims` (`orderId`, `sujet`, `description`, `photoPreuve`).
+*   **Mes réclamations :** `GET /claims/my-claims`.
 
 ---
 
 ### B. Espace Artisan
 
-#### Tableau de Bord
-*   **Vue principale affichant les métriques clés** (`GET /artisans/stats`) : Revenu global généré, commandes vivantes, et note moyenne de réputation.
+#### Tableau de Bord & Profil
+*   **Statistiques :** `GET /artisans/stats` (revenus, commandes en cours, note moyenne, nombre d'avis).
+*   **Mon Profil Artisan :** `GET /artisans/me` et `PUT /artisans/me` (atelier, description, experience, horaires, zone, photosAtelier, documentValidation).
 
 #### Gestion du Catalogue
-*   **Parcours :** Consulter son catalogue (`GET /models/my-models`), et possibiliter d'uploader de nouvelles créations (`POST /models`) avec accès à la caméra / pellicule mobile (`multipart/form-data`).
-*   **Suppression :** Boutons d'édition supprimant les références via `DELETE /models/:id`.
+*   **Mes modèles :** `GET /models/my-models`.
+*   **Ajouter un modèle :** `POST /models` (`titre`, `description`, `photoUrl`, `prixEstimatif`, `delaiEstime`, `options`, `categorie`, `photos`).
+*   **Modifier un modèle :** `PUT /models/:id`.
+*   **Supprimer un modèle :** `DELETE /models/:id`.
 
-#### Gestion des Commandes & Échéances
-*   **Déroulement :** Un artisan reçoit une commande entrante via `GET /artisans/orders`.
-*   **Validation et Paiement :** L'artisan peut réclamer une avance et noter l'acompte via `PATCH /artisans/orders/:id/payment` avec `paymentStatus: 'deposit_paid'` et `depositAmount: 15000`.
-*   **Échéancier :** L'artisan fixe et ajuste la date de rendu (ex: retards fournisseurs) via `PATCH /artisans/orders/:id/delivery-date` en incluant un champ facultatif `deliveryDateReason` pour justifier le délai au client.
-
-#### Gestion de l'Agenda
-*   **Parcours RDV :** L'artisan voit ses requêtes entrantes (`GET /artisans/appointments`). 
-*   **Proposer une alternative :** En cas d'indisponibilité, utiliser une pop-up "Proposer une autre date" tapant `PATCH /artisans/appointments/:id/reschedule` avec body `{ "proposedDate": "2026-10-16T18:00:00Z" }`.
+#### Commandes & Agenda
+*   **Commandes reçues :** `GET /artisans/orders` et détail `GET /artisans/orders/:id`.
+*   **Changer le statut :** `PATCH /artisans/orders/:id/status` (`statut`: 'acceptee' | 'en_cours' | 'en_finition' | 'prete' | 'livree' | 'annulee').
+*   **Mettre à jour le paiement :** `PATCH /artisans/orders/:id/payment` (`paymentStatus`, `depositAmount`).
+*   **Date de livraison :** `PATCH /artisans/orders/:id/delivery-date` (`deliveryDate`, `deliveryDateReason`).
+*   **Rendez-vous reçus :** `GET /artisans/appointments`.
+*   **Statut RDV :** `PATCH /artisans/appointments/:id/status` (`statut`: 'accepte' | 'refuse', `motifRefus`).
+*   **Reporter RDV :** `PATCH /artisans/appointments/:id/reschedule` (`proposedDate`).
 
 ---
 
 ## 3. Spécifications du Back-Office Web (Admin)
 
-Pensé pour un dashboard Web (Vue.js, React SPA, Nuxt...). Privilégiez des DataGrids pour une bonne lisibilité des masses de données.
-
-*   **Validation des Artisans :** Liste `GET /admin/pending-artisans`. Un bouton "Approuver" lance `PATCH /admin/artisans/:id/verify`. Essentiel pour maintenir une qualité de service.
-*   **Gestion du Référentiel Métiers :** CRUD complet au sein du module de paramètres pour administrer les sous-domaines via `POST/PUT/DELETE /admin/metiers/:id`.
-*   **Modération & Litiges :** Accès global à `GET /admin/claims`. Sur affichage du litige d'une commande, l'admin peut gérer l'état en appelant `PATCH /admin/claims/:id/status` (passant le statut en `en_cours`, `resolu` ou `rejete`).
-*   **Dashboard Global :** Page d'accueil appelant `GET /admin/stats` pour visualiser le `chiffreAffairesTotal`, le `totalArtisansActifs` et le volumétrique des utilisateurs/commandes.
+*   **Gestion des Utilisateurs :**
+    *   Liste globale : `GET /admin/users`
+    *   Activer / Suspendre : `PATCH /admin/users/:id/status` (`statut`: 'actif' | 'suspendu')
+*   **Modération des Artisans :**
+    *   Artisans en attente : `GET /admin/pending-artisans`
+    *   Valider un artisan : `PATCH /admin/artisans/:id/verify`
+    *   Rejeter un artisan : `PATCH /admin/artisans/:id/reject` (`motifRejet`)
+*   **Commandes & Litiges :**
+    *   Liste de toutes les commandes : `GET /admin/orders`
+    *   Liste des réclamations : `GET /admin/claims`
+    *   Traiter une réclamation : `PATCH /admin/claims/:id/status` (`statut`: 'en_cours' | 'resolu' | 'rejete')
+*   **Référentiel Métiers :**
+    *   Créer (`POST /admin/metiers`), Modifier (`PUT /admin/metiers/:id`), Supprimer (`DELETE /admin/metiers/:id`)
+*   **Statistiques Globales :**
+    *   `GET /admin/stats` (renvoie `totalUsers`, `totalArtisansActifs`, `totalClients`, `totalCommandes`, `totalClaims`, `chiffreAffairesTotal`).
 
 ---
 
 ## 4. Dictionnaire des Endpoints (API Reference)
 
-*Rappel : Tous les endpoints sont préfixés par `/api/v1`.*
+*Préfixe de toutes les routes : `/api/v1`*
 
-### A. Auth & Profil (Commun)
-| Méthode | Route | Accès | Paramètres Body / Query (Exemples) | Description |
+### A. Auth & Utilisateurs
+| Méthode | Route | Accès | Body / Query | Description |
 |---|---|---|---|---|
-| `POST` | `/auth/register` | Public | `{ nom, prenom, role (client/artisan), email, password... }` | Création de compte |
-| `POST` | `/auth/login` | Public | `{ email, password }` | Authentification JWT |
-| `GET` | `/users/me` | Authentifié | - | Informations de session profil |
-| `PUT` | `/users/me` | Authentifié | `{ nom, telephone... }` | Mise à jour données civiles |
+| `POST` | `/auth/register` | Public | `{ nom, prenom, telephone, email, password, role }` | Inscription client/artisan |
+| `POST` | `/auth/login` | Public | `{ telephone/email, password }` | Connexion JWT |
+| `GET` | `/users/me` | Connecté | - | Profil utilisateur connecté |
+| `PUT` | `/users/me` | Connecté | `{ nom, prenom, telephone, photoUrl, localisation }` | Mise à jour profil |
+| `PATCH` | `/users/fcm-token` | Connecté | `{ fcmToken }` | Enregistrement du token FCM Push |
 
-### B. Espace Client
-| Méthode | Route | Accès | Paramètres Body / Query (Exemples) | Description |
+### B. Métiers & Artisans
+| Méthode | Route | Accès | Body / Query | Description |
 |---|---|---|---|---|
 | `GET` | `/metiers` | Public | - | Liste de tous les métiers |
-| `GET` | `/artisans/:id` | Public | - | Profil public d'un artisan |
-| `GET` | `/models` | Public | `?search=X&minPrice=1&metierId=3&page=1` | Recherche/Catalogue |
-| `POST` | `/appointments` | Client | `{ artisanId, date, heure, type, notes }` | Soumet un RDV |
-| `POST` | `/orders` | Client | `{ artisanId, mesures, customText... }` | Soumet une commande |
-| `GET` | `/orders/my-orders`| Client | - | Historique d'achats |
-| `POST` | `/claims` | Client | `{ orderId, sujet, description }` | Signaler un litige/réclamation |
-| `POST` | `/reviews` | Client | `{ artisanId, note, commentaire }` | Noter une prestation |
+| `GET` | `/artisans` | Public | `?search=X&metier=Y&zone=Z` | Rechercher des artisans validés |
+| `GET` | `/artisans/:id` | Public | - | Profil public artisan avec note & nombre avis |
+| `GET` | `/artisans/:id/reviews` | Public | - | Liste des avis reçus par l'artisan |
+| `GET` | `/artisans/me` | Artisan | - | Profil propre de l'artisan connecté |
+| `PUT` | `/artisans/me` | Artisan | `{ atelier, description, experience... }` | Mise à jour profil artisan |
+| `GET` | `/artisans/stats` | Artisan | - | Statistiques portail artisan |
 
-### C. Espace Artisan
-| Méthode | Route | Accès | Paramètres Body / Query (Exemples) | Description |
+### C. Catalogue & Modèles
+| Méthode | Route | Accès | Body / Query | Description |
 |---|---|---|---|---|
-| `GET` | `/artisans/stats` | Artisan | - | KPis du portail Artisan |
-| `POST` | `/models` | Artisan | `multipart/form-data` (`titre`, `photo`) | Ajoute produit au catalogue |
-| `GET` | `/models/my-models`| Artisan | - | Obtenir son catalogue |
-| `DELETE`| `/models/:id` | Artisan | - | Retire un produit de la vente |
-| `GET` | `/artisans/orders` | Artisan | - | Toutes ses commandes reçues |
-| `PATCH` | `/artisans/orders/:id/status` | Artisan | `{ statut: 'prete' }` | Changer état fabrication |
-| `PATCH` | `/artisans/orders/:id/payment`| Artisan | `{ paymentStatus: 'deposit_paid', depositAmount }` | Récupérer et pointer des fonds |
-| `PATCH` | `/artisans/orders/:id/delivery-date` | Artisan | `{ deliveryDate, deliveryDateReason }` | Reporter ou borner échéance |
-| `GET` | `/artisans/appointments` | Artisan | - | Les requêtes de visite |
-| `PATCH` | `/artisans/appointments/:id/reschedule` | Artisan | `{ proposedDate }` | Reporte en proposant une date |
-| `PATCH` | `/artisans/appointments/:id/status` | Artisan | `{ statut: 'accepte' }` | Accepter/Terminer un RDV |
+| `GET` | `/models` | Public | `?search=X&minPrice=A&maxPrice=B&page=1` | Recherche & catalogue modèles |
+| `GET` | `/models/:id` | Public | - | Détail d'un modèle |
+| `GET` | `/models/my-models` | Artisan | - | Liste des modèles de l'artisan connecté |
+| `POST` | `/models` | Artisan | `{ titre, description, photoUrl, prixEstimatif, delaiEstime, options, categorie, photos }` | Ajouter une création au catalogue |
+| `PUT` | `/models/:id` | Artisan | `{ titre, description, prixEstimatif... }` | Modifier un modèle existant |
+| `DELETE` | `/models/:id` | Artisan | - | Supprimer un modèle du catalogue |
 
-### D. Espace Admin
-| Méthode | Route | Accès | Paramètres Body / Query (Exemples) | Description |
+### D. Rendez-vous
+| Méthode | Route | Accès | Body / Query | Description |
 |---|---|---|---|---|
-| `GET` | `/admin/stats` | Admin | - | Dashbord financier / volumétrique |
-| `GET` | `/admin/pending-artisans` | Admin | - | Liste artisans à revoir |
-| `PATCH` | `/admin/artisans/:id/verify` | Admin | - | Confère statut `valide` |
-| `POST` | `/admin/metiers` | Admin | `{ nom, description }` | Ajoute un métier au système |
-| `PUT` | `/admin/metiers/:id` | Admin | `{ nom... }` | Modifier métier existant |
-| `DELETE`| `/admin/metiers/:id` | Admin | - | Supprimer dictionnaire métier |
-| `GET` | `/admin/claims` | Admin | - | Litiges entrants |
-| `PATCH` | `/admin/claims/:id/status`| Admin | `{ statut: 'en_cours' }` | Traiter la médiation litige |
+| `POST` | `/appointments` | Client | `{ artisanId, date, heure, notes }` | Prise de RDV |
+| `GET` | `/appointments/my-appointments` | Client | - | Mes RDV client |
+| `PATCH` | `/appointments/:id/cancel` | Client | - | Annuler un RDV |
+| `GET` | `/artisans/appointments` | Artisan | - | Liste des RDV reçus par l'artisan |
+| `PATCH` | `/artisans/appointments/:id/status` | Artisan | `{ statut: 'accepte'\|'refuse', motifRefus }` | Valider ou refuser un RDV |
+| `PATCH` | `/artisans/appointments/:id/reschedule` | Artisan | `{ proposedDate }` | Reporter un RDV |
 
-### E. Transverses (Messages & Notifications)
-| Méthode | Route | Accès | Paramètres Body / Query (Exemples) | Description |
+### E. Commandes & Paiements
+| Méthode | Route | Accès | Body / Query | Description |
 |---|---|---|---|---|
-| `POST` | `/messages` | Tous | `multipart/form-data` (`orderId`, `contenu`, `photo`) | Chat contextuel lié à commande |
-| `GET` | `/messages/order/:id` | Tous | - | Historique d'une bulle de chat |
-| `GET` | `/notifications` | Tous | - | Mes alertes push In-app |
-| `PATCH` | `/notifications/:id/read` | Tous | - | Acquitter l'alerte |
+| `POST` | `/orders` | Client | `{ artisanId, modeleId, prix, couleur, taille, matiere, consignes, mesures }` | Passer une commande |
+| `GET` | `/orders/my-orders` | Client | - | Liste des commandes client |
+| `PATCH` | `/orders/:id/cancel` | Client | `{ motifAnnulation }` | Annuler une commande avec motif |
+| `GET` | `/artisans/orders` | Artisan | - | Commandes reçues par l'artisan |
+| `GET` | `/artisans/orders/:id` | Artisan | - | Détail d'une commande |
+| `PATCH` | `/artisans/orders/:id/status` | Artisan | `{ statut }` | Mettre à jour le statut de fabrication |
+| `PATCH` | `/artisans/orders/:id/payment` | Artisan | `{ paymentStatus, depositAmount }` | Mettre à jour les paramètres de paiement |
+| `PATCH` | `/artisans/orders/:id/delivery-date` | Artisan | `{ deliveryDate, deliveryDateReason }` | Fixer/ajuster la date de livraison |
+| `POST` | `/payments` | Client | `{ orderId, montant, type, moyen }` | Enregistrer une transaction de paiement |
+| `GET` | `/payments/order/:orderId` | Connecté | - | Liste des paiements d'une commande |
+
+### F. Avis, Réclamations & Transverses
+| Méthode | Route | Accès | Body / Query | Description |
+|---|---|---|---|---|
+| `POST` | `/reviews` | Client | `{ artisanId, noteQualite, noteDelai, noteCommunication, notePrix, noteProfessionnalisme, commentaire }` | Déposer un avis 5 sous-notes |
+| `POST` | `/claims` | Client | `{ orderId, sujet, description, photoPreuve }` | Soumettre un litige |
+| `GET` | `/claims/my-claims` | Client | - | Historique de mes réclamations |
+| `POST` | `/messages` | Connecté | `multipart/form-data` (`orderId`, `texte`, `photo`) | Envoyer un message |
+| `GET` | `/messages/order/:orderId` | Connecté | - | Messages d'une commande |
+| `GET` | `/messages/conversations` | Connecté | - | Liste de mes conversations |
+| `PATCH` | `/messages/:id/read` | Connecté | - | Marquer un message comme lu |
+| `GET` | `/notifications` | Connecté | - | Mes notifications |
+| `PATCH` | `/notifications/:id/read` | Connecté | - | Marquer une notification comme lue |
+| `PATCH` | `/notifications/read-all` | Connecté | - | Marquer toutes les notifications comme lues |
+
+### G. Back-Office Admin
+| Méthode | Route | Accès | Body / Query | Description |
+|---|---|---|---|---|
+| `GET` | `/admin/users` | Admin | - | Liste de tous les utilisateurs |
+| `PATCH` | `/admin/users/:id/status` | Admin | `{ statut: 'actif'\|'suspendu' }` | Activer ou suspendre un utilisateur |
+| `GET` | `/admin/pending-artisans` | Admin | - | Liste des artisans en attente |
+| `PATCH` | `/admin/artisans/:id/verify` | Admin | - | Approuver un profil artisan |
+| `PATCH` | `/admin/artisans/:id/reject` | Admin | `{ motifRejet }` | Rejeter un profil artisan avec motif |
+| `GET` | `/admin/orders` | Admin | - | Liste de toutes les commandes |
+| `GET` | `/admin/claims` | Admin | - | Liste de tous les litiges |
+| `PATCH` | `/admin/claims/:id/status` | Admin | `{ statut: 'en_cours'\|'resolu'\|'rejete' }` | Traiter une réclamation |
+| `POST` | `/admin/metiers` | Admin | `{ nom, description }` | Ajouter un métier |
+| `PUT` | `/admin/metiers/:id` | Admin | `{ nom, description }` | Modifier un métier |
+| `DELETE` | `/admin/metiers/:id` | Admin | - | Supprimer un métier |
+| `GET` | `/admin/stats` | Admin | - | Statistiques globales de la plateforme |

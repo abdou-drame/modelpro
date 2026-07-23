@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
-import { createModel, getMyModels, deleteModel, getAllModels, getModelById } from '../controllers/modelController';
+import { createModel, updateModel, getMyModels, deleteModel, getAllModels, getModelById } from '../controllers/modelController';
 
 const router = Router();
 
@@ -14,6 +14,7 @@ router.get('/my-models', protect, restrictTo('artisan'), getMyModels);
 router.get('/:id', getModelById);
 
 router.post('/', protect, restrictTo('artisan'), createModel);
+router.put('/:id', protect, restrictTo('artisan'), updateModel);
 router.delete('/:id', protect, restrictTo('artisan'), deleteModel);
 
 export default router;

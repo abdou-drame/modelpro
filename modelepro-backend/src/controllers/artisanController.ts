@@ -1,31 +1,50 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { Op, fn, col } from 'sequelize';
 import sequelize from '../config/database';
 import { Artisan } from '../models/Artisan';
 import { User } from '../models/User';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 
-// 1. Moteur de recherche avancé (Localisation, casse, accents)
+const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// 1. Moteur de recherche avancé (Localisation, zone, métier, atelier) - Seuls les artisans VALIDÉS sont retournés
 export const searchArtisans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { metier, atelier, localisation } = req.query;
-    const artisanConditions: any = {};
+    const { metier, atelier, localisation, zone } = req.query;
+    const artisanConditions: any = {
+      statutValidation: 'valide',
+    };
+
+    const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
 
     if (metier) {
-      artisanConditions.métier = { [Op.iLike]: `%${metier}%` };
+      artisanConditions.métier = { [likeOp]: `%${metier}%` };
     }
 
     if (atelier) {
-      artisanConditions.atelier = { [Op.iLike]: `%${atelier}%` };
+      artisanConditions.atelier = { [likeOp]: `%${atelier}%` };
+    }
+
+    if (zone) {
+      artisanConditions.zone = { [likeOp]: `%${zone}%` };
     }
 
     if (localisation) {
-      artisanConditions[Op.and] = [
-        sequelize.where(
-          fn('unaccent', col('localisation')),
-          { [Op.iLike]: fn('unaccent', `%${localisation}%`) }
-        )
-      ];
+      if (sequelize.getDialect() === 'postgres') {
+        artisanConditions[Op.and] = [
+          sequelize.where(
+            fn('unaccent', col('localisation')),
+            { [Op.iLike]: fn('unaccent', `%${localisation}%`) }
+          )
+        ];
+      } else {
+        artisanConditions.localisation = { [Op.like]: `%${localisation}%` };
+      }
     }
 
     const artisans = await Artisan.findAll({
@@ -34,7 +53,7 @@ export const searchArtisans = async (req: AuthenticatedRequest, res: Response): 
         {
           model: User,
           as: 'user',
-          attributes: ['nom', 'prenom', 'telephone', 'email'],
+          attributes: ['nom', 'prenom', 'telephone', 'email', 'photoUrl'],
           where: { statut: 'actif' }
         }
       ]
@@ -78,7 +97,8 @@ export const updateArtisanProfile = async (req: AuthenticatedRequest, res: Respo
     res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour du profil.' });
   }
 };
-// 3. Récupération du profil de l'artisan connecté (pour l'application mobile)
+
+// 3. Récupération du profil de l'artisan connecté
 export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -89,14 +109,13 @@ export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
-    // On récupère l'artisan avec ses informations d'utilisateur associées
     const artisan = await Artisan.findOne({
-      where: { userId }, // Note : s'assure que ton champ est bien camelCase 'userId' ou snake_case 'user_id' selon ton modèle
+      where: { userId },
       include: [
         {
           model: User,
           as: 'user',
-          attributes: ['nom', 'prenom', 'telephone', 'email']
+          attributes: ['nom', 'prenom', 'telephone', 'email', 'photoUrl']
         }
       ]
     });
@@ -110,5 +129,76 @@ export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Pr
   } catch (error) {
     console.error('Erreur lors de la récupération du profil :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération du profil.' });
+  }
+};
+
+// 4. Upload de photos d'atelier (Artisan)
+export const uploadAtelierPhotos = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Utilisateur non authentifié.' }); return; }
+
+    const artisan = await Artisan.findOne({ where: { userId } });
+    if (!artisan) { res.status(404).json({ error: 'Profil artisan introuvable.' }); return; }
+
+    const files = req.files as Express.Multer.File[] | undefined;
+    const singleFile = req.file as Express.Multer.File | undefined;
+
+    const uploadedUrls: string[] = [];
+    const filesToProcess = files || (singleFile ? [singleFile] : []);
+
+    for (const f of filesToProcess) {
+      if (f.buffer) {
+        const fileName = `atelier-${Date.now()}-${f.originalname}`;
+        const destPath = path.join(uploadDir, fileName);
+        fs.writeFileSync(destPath, f.buffer);
+        uploadedUrls.push(`/uploads/${fileName}`);
+      }
+    }
+
+    if (uploadedUrls.length === 0) {
+      res.status(400).json({ error: 'Aucun fichier valide fourni.' });
+      return;
+    }
+
+    const currentPhotos = artisan.photosAtelier ? JSON.parse(artisan.photosAtelier) : [];
+    const updatedPhotos = [...currentPhotos, ...uploadedUrls];
+    artisan.photosAtelier = JSON.stringify(updatedPhotos);
+    await artisan.save();
+
+    res.status(200).json({ message: 'Photos de l\'atelier téléversées avec succès.', photos: updatedPhotos });
+  } catch (error) {
+    console.error('Erreur uploadAtelierPhotos :', error);
+    res.status(500).json({ error: 'Erreur serveur lors du téléversement.' });
+  }
+};
+
+// 5. Soumission d'un document de validation professionnel
+export const uploadValidationDocument = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Utilisateur non authentifié.' }); return; }
+
+    const artisan = await Artisan.findOne({ where: { userId } });
+    if (!artisan) { res.status(404).json({ error: 'Profil artisan introuvable.' }); return; }
+
+    const file = req.file as Express.Multer.File | undefined;
+    if (!file?.buffer) {
+      res.status(400).json({ error: 'Le fichier justificatif est requis.' });
+      return;
+    }
+
+    const fileName = `doc-${Date.now()}-${file.originalname}`;
+    const destPath = path.join(uploadDir, fileName);
+    fs.writeFileSync(destPath, file.buffer);
+
+    artisan.documentValidation = `/uploads/${fileName}`;
+    artisan.statutValidation = 'en_attente';
+    await artisan.save();
+
+    res.status(200).json({ message: 'Document de validation soumis avec succès.', documentValidation: artisan.documentValidation });
+  } catch (error) {
+    console.error('Erreur uploadValidationDocument :', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la soumission du document.' });
   }
 };

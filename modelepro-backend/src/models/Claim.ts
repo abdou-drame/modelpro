@@ -5,10 +5,11 @@ import { User } from './User';
 
 export class Claim extends Model {
   declare id: number;
-  declare orderId: number;
+  declare orderId: number | null;
   declare clientId: number;
   declare sujet: string;
   declare description: string | null;
+  declare preuvePhotoUrl: string | null;
   declare statut: 'en_attente' | 'en_cours' | 'resolu' | 'rejete';
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -23,9 +24,9 @@ Claim.init(
     },
     orderId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: { model: 'orders', key: 'id' },
-      onDelete: 'CASCADE',
+      onDelete: 'SET NULL',
     },
     clientId: {
       type: DataTypes.INTEGER,
@@ -39,6 +40,10 @@ Claim.init(
     },
     description: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    preuvePhotoUrl: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     statut: {

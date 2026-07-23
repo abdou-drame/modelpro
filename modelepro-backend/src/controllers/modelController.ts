@@ -87,7 +87,7 @@ export const createModel = async (req: AuthenticatedRequest, res: Response): Pro
       return;
     }
 
-    const { titre, description, photoUrl, prixEstimatif } = req.body;
+    const { titre, description, photoUrl, prixEstimatif, delaiEstime, options, categorie, photos } = req.body;
     if (!titre) {
       res.status(400).json({ error: 'Le titre du modèle est requis.' });
       return;
@@ -96,15 +96,66 @@ export const createModel = async (req: AuthenticatedRequest, res: Response): Pro
     const creation = await Creation.create({
       artisanId: artisan.id,
       titre,
-      description,
-      photoUrl,
-      prixEstimatif,
+      description: description || null,
+      photoUrl: photoUrl || null,
+      prixEstimatif: prixEstimatif ? Number(prixEstimatif) : null,
+      delaiEstime: delaiEstime || null,
+      options: options || null,
+      categorie: categorie || null,
+      photos: Array.isArray(photos) ? JSON.stringify(photos) : (typeof photos === 'string' ? photos : null),
     });
 
     res.status(201).json(creation);
   } catch (error) {
     console.error('Erreur création de modèle :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de l’ajout du modèle.' });
+  }
+};
+
+export const updateModel = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Utilisateur non authentifié.' });
+      return;
+    }
+
+    const artisan = await Artisan.findOne({ where: { userId } });
+    if (!artisan) {
+      res.status(404).json({ error: 'Profil artisan introuvable.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const creation = await Creation.findByPk(String(id));
+
+    if (!creation) {
+      res.status(404).json({ error: 'Modèle introuvable.' });
+      return;
+    }
+
+    if (creation.artisanId !== artisan.id) {
+      res.status(403).json({ error: 'Vous ne pouvez pas modifier un modèle qui n’appartient pas à votre catalogue.' });
+      return;
+    }
+
+    const { titre, description, photoUrl, prixEstimatif, delaiEstime, options, categorie, photos } = req.body;
+
+    if (titre !== undefined) creation.titre = titre;
+    if (description !== undefined) creation.description = description;
+    if (photoUrl !== undefined) creation.photoUrl = photoUrl;
+    if (prixEstimatif !== undefined) creation.prixEstimatif = prixEstimatif ? Number(prixEstimatif) : null;
+    if (delaiEstime !== undefined) creation.delaiEstime = delaiEstime;
+    if (options !== undefined) creation.options = options;
+    if (categorie !== undefined) creation.categorie = categorie;
+    if (photos !== undefined) creation.photos = Array.isArray(photos) ? JSON.stringify(photos) : photos;
+
+    await creation.save();
+
+    res.status(200).json(creation);
+  } catch (error) {
+    console.error('Erreur mise à jour du modèle :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour du modèle.' });
   }
 };
 

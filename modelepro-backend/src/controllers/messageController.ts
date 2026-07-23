@@ -125,12 +125,86 @@ export const getOrderMessages = async (req: AuthenticatedRequest, res: Response)
     const messages = await Message.findAll({
       where: { orderId },
       order: [['createdAt', 'ASC']],
-      include: [{ model: User, as: 'sender', attributes: ['id', 'nom', 'prenom', 'role'] }],
+      include: [{ model: User, as: 'sender', attributes: ['id', 'nom', 'prenom', 'role', 'photoUrl'] }],
     });
 
     return res.status(200).json(messages);
   } catch (error) {
     console.error('Erreur récupération messages :', error);
     return res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des messages.' });
+  }
+};
+
+/**
+ * GET /api/v1/messages/conversations
+ * Retourne la liste de toutes les conversations actives de l'utilisateur avec le dernier message.
+ */
+export const getConversations = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
+
+    const artisanProfile = await Artisan.findOne({ where: { userId } });
+
+    const orders = await Order.findAll({
+      where: {
+        [Op.or]: [
+          { clientId: userId },
+          ...(artisanProfile ? [{ artisanId: artisanProfile.id }] : [])
+        ]
+      },
+      include: [
+        { model: User, as: 'client', attributes: ['id', 'nom', 'prenom', 'photoUrl'] },
+        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['id', 'nom', 'prenom', 'photoUrl'] }] },
+      ]
+    });
+
+    const conversations = await Promise.all(orders.map(async (order) => {
+      const lastMessage = await Message.findOne({
+        where: { orderId: order.id },
+        order: [['createdAt', 'DESC']],
+      });
+      return {
+        orderId: order.id,
+        order,
+        lastMessage,
+      };
+    }));
+
+    // Ne garder que les conversations qui ont au moins un message ou trier par date
+    const activeConversations = conversations.filter(c => c.lastMessage !== null).sort((a, b) => {
+      const dateA = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const dateB = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    return res.status(200).json(activeConversations);
+  } catch (error) {
+    console.error('Erreur getConversations :', error);
+    return res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des conversations.' });
+  }
+};
+
+/**
+ * PATCH /api/v1/messages/:id/read
+ * Marque un message spécifique (ou tous les messages d'une commande) comme lu.
+ */
+export const markMessageAsRead = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
+
+    const messageId = Number(req.params.id);
+    const message = await Message.findByPk(messageId);
+
+    if (!message) return res.status(404).json({ error: 'Message introuvable.' });
+
+    message.lu = true;
+    await message.save();
+
+    return res.status(200).json(message);
+  } catch (error) {
+    console.error('Erreur markMessageAsRead :', error);
+    return res.status(500).json({ error: 'Une erreur est survenue.' });
   }
 };

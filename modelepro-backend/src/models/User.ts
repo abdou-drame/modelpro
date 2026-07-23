@@ -11,6 +11,8 @@ import sequelize from '../config/database';
   declare password: string;
   declare role: 'client' | 'artisan' | 'admin';
   declare statut: 'actif' | 'suspendu';
+  declare photoUrl: string | null;
+  declare fcmToken: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -52,6 +54,14 @@ User.init(
       type: DataTypes.ENUM('actif', 'suspendu'),
       defaultValue: 'actif',
       allowNull: false,
+    },
+    photoUrl: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    fcmToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
   },
   {

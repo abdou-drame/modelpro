@@ -7,7 +7,7 @@ import { hashPassword, comparePassword, generateToken } from '../utils/auth';
 // 1. INSCRIPTION (MÉTHODE POST)
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nom, prenom, telephone, email, password, role, localisation, métier, atelier, description } = req.body;
+    const { nom, prenom, telephone, email, password, role, localisation, métier, atelier, description, horaires, zone } = req.body;
 
     // Vérifier si le numéro de téléphone (identifiant unique de connexion) existe déjà
     const userExists = await User.findOne({ where: { telephone } });
@@ -64,7 +64,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         métier,
         atelier,
         description,
-        localisation
+        localisation,
+        horaires: horaires || null,
+        zone: zone || null
       });
 
       res.status(201).json({

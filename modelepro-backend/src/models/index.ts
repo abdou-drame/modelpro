@@ -9,6 +9,7 @@ import './Metier';
 import './Claim';
 import './Message';
 import './Notification';
+import './Payment';
 
 export { User } from './User';
 export { Client } from './Client';
@@ -21,3 +22,4 @@ export { Metier } from './Metier';
 export { Claim } from './Claim';
 export { Message } from './Message';
 export { Notification } from './Notification';
+export { Payment } from './Payment';

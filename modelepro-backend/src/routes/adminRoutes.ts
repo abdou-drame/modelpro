@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import {
+  getAllUsers,
+  toggleUserStatus,
   deleteModelForce,
   getClaims,
   getPendingArtisans,
   getStats,
   verifyArtisan,
+  rejectArtisan,
+  getAllOrders,
   createMetier,
   updateMetier,
   deleteMetier,
@@ -16,8 +20,14 @@ const router = Router();
 
 router.use(protect, restrictTo('admin'));
 
+router.get('/users', getAllUsers);
+router.patch('/users/:id/status', toggleUserStatus);
+
 router.get('/pending-artisans', getPendingArtisans);
 router.patch('/artisans/:id/verify', verifyArtisan);
+router.patch('/artisans/:id/reject', rejectArtisan);
+
+router.get('/orders', getAllOrders);
 router.delete('/models/:id', deleteModelForce);
 router.get('/claims', getClaims);
 router.patch('/claims/:id/status', updateClaimStatus);
