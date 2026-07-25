@@ -18,6 +18,8 @@ export function ModelCard({ model }: Props) {
       style={styles.card}
       onPress={() => router.push(`/(client)/model/${model.id}`)}
       activeOpacity={0.92}
+      accessibilityRole="button"
+      accessibilityLabel={`${model.titre}, par ${model.artisan.nomAtelier}${model.prixEstimatif != null ? `, à partir de ${formatPrice(model.prixEstimatif)}` : ''}`}
     >
       <View style={styles.imageWrapper}>
         <Image

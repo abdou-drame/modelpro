@@ -9,6 +9,8 @@ import { Plus, Pencil, Trash2, Scissors } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { artisanApi } from '@/lib/api/artisan'
 import { formatPrice } from '@/lib/utils/format'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { MyModel } from '@/lib/api/artisan'
 
@@ -109,20 +111,15 @@ export default function ArtisanCatalogueScreen() {
             />
           </View>
         )}
+        ListHeaderComponent={isLoading ? <SkeletonList count={4} type="model" /> : null}
         ListEmptyComponent={
           isLoading ? null : (
-            <View style={styles.empty}>
-              <Scissors size={48} color={colors.border} strokeWidth={1.5} />
-              <Text style={styles.emptyTitle}>Catalogue vide</Text>
-              <Text style={styles.emptySub}>Ajoutez votre premier modèle pour commencer</Text>
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => router.push('/(artisan)/catalogue/new')}
-              >
-                <Plus size={18} color={colors.white} strokeWidth={2.5} />
-                <Text style={styles.emptyBtnText}>Ajouter un modèle</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon={<Scissors size={36} color={colors.textMuted} strokeWidth={1.5} />}
+              title="Catalogue vide"
+              subtitle="Ajoutez votre premier modèle pour le rendre visible aux clients"
+              action={{ label: 'Ajouter un modèle', onPress: () => router.push('/(artisan)/catalogue/new') }}
+            />
           )
         }
       />
@@ -169,13 +166,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
   actionBtnDelete: { backgroundColor: 'rgba(193,18,31,0.7)' },
-  empty: { alignItems: 'center', paddingTop: 80, gap: spacing.md, paddingHorizontal: spacing.xl },
-  emptyTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text },
-  emptySub: { fontSize: fontSize.md, color: colors.textSub, textAlign: 'center', lineHeight: 22 },
-  emptyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.primary, borderRadius: radius.lg,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-  },
-  emptyBtnText: { color: colors.white, fontWeight: '600', fontSize: fontSize.base },
 })

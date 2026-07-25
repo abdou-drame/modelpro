@@ -6,6 +6,8 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 import { BlurView } from 'expo-blur'
 import { ShoppingBag } from 'lucide-react-native'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { artisanApi } from '@/lib/api/artisan'
 import { Badge } from '@/components/ui/Badge'
 import { formatDate, formatPrice, ORDER_STATUS_LABELS } from '@/lib/utils/format'
@@ -111,12 +113,14 @@ export default function ArtisanOrdersScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => <OrderRow order={item} index={index} />}
+        ListHeaderComponent={isLoading ? <SkeletonList count={3} type="order" /> : null}
         ListEmptyComponent={
           isLoading ? null : (
-            <View style={styles.empty}>
-              <ShoppingBag size={44} color={colors.border} strokeWidth={1.5} />
-              <Text style={styles.emptyTitle}>Aucune commande</Text>
-            </View>
+            <EmptyState
+              icon={<ShoppingBag size={36} color={colors.textMuted} strokeWidth={1.5} />}
+              title="Aucune commande"
+              subtitle={filter === 'all' ? 'Les commandes de vos clients apparaîtront ici' : `Aucune commande avec le statut sélectionné`}
+            />
           )
         }
       />
@@ -152,6 +156,4 @@ const styles = StyleSheet.create({
   date: { fontSize: fontSize.xs, color: colors.textMuted },
   delivery: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '600' },
   price: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary, marginLeft: 'auto' as any },
-  empty: { alignItems: 'center', paddingTop: 80, gap: spacing.md },
-  emptyTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text },
 })

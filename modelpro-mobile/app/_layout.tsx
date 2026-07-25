@@ -43,7 +43,18 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthGuard />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          animationDuration: 280,
+          contentStyle: { backgroundColor: '#F7F4EF' },
+        }}
+      >
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(client)" options={{ animation: 'none' }} />
+        <Stack.Screen name="(artisan)" options={{ animation: 'none' }} />
+      </Stack>
     </QueryClientProvider>
   )
 }

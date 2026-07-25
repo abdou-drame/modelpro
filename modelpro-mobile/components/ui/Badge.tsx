@@ -19,6 +19,9 @@ export function Badge({ label, variant = 'neutral', size = 'sm' }: Props) {
   const v = variants[variant]
   return (
     <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={label}
       style={{
         backgroundColor: v.bg,
         borderRadius: radius.full,

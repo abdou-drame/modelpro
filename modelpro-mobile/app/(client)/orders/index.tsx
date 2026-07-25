@@ -6,6 +6,8 @@ import { router } from 'expo-router'
 import { ChevronRight, ShoppingBag } from 'lucide-react-native'
 import { ordersApi } from '@/lib/api/orders'
 import { Badge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { formatDate, formatPrice, ORDER_STATUS_LABELS } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { Order } from '@/lib/api/orders'
@@ -74,19 +76,15 @@ export default function ClientOrdersScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => <OrderItem order={item} index={index} />}
+        ListHeaderComponent={isLoading ? <SkeletonList count={3} type="order" /> : null}
         ListEmptyComponent={
           isLoading ? null : (
-            <View style={styles.empty}>
-              <ShoppingBag size={48} color={colors.border} strokeWidth={1.5} />
-              <Text style={styles.emptyTitle}>Aucune commande</Text>
-              <Text style={styles.emptySub}>Parcourez le catalogue pour passer votre première commande</Text>
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => router.replace('/(client)')}
-              >
-                <Text style={styles.emptyBtnText}>Voir le catalogue</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon={<ShoppingBag size={36} color={colors.textMuted} strokeWidth={1.5} />}
+              title="Aucune commande"
+              subtitle="Parcourez le catalogue pour passer votre première commande"
+              action={{ label: 'Voir le catalogue', onPress: () => router.replace('/(client)') }}
+            />
           )
         }
       />
@@ -112,12 +110,4 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   date: { fontSize: fontSize.xs, color: colors.textMuted, flex: 1 },
   price: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
-  empty: { alignItems: 'center', paddingTop: 80, gap: spacing.md, paddingHorizontal: spacing.xl },
-  emptyTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text },
-  emptySub: { fontSize: fontSize.md, color: colors.textSub, textAlign: 'center', lineHeight: 22 },
-  emptyBtn: {
-    backgroundColor: colors.primary, borderRadius: radius.lg,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md, marginTop: spacing.sm,
-  },
-  emptyBtnText: { color: colors.white, fontWeight: '600', fontSize: fontSize.base },
 })

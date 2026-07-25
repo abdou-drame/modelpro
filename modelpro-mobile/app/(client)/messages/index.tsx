@@ -7,6 +7,8 @@ import { MessageCircle } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { messagesApi } from '@/lib/api/messages'
 import { useAuthStore } from '@/lib/store/authStore'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { formatRelative } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { Conversation } from '@/lib/api/messages'
@@ -91,17 +93,14 @@ export default function MessagesScreen() {
         renderItem={({ item, index }) => (
           <ConversationItem conv={item} userId={user?.id ?? 0} index={index} />
         )}
+        ListHeaderComponent={isLoading ? <SkeletonList count={4} type="message" /> : null}
         ListEmptyComponent={
           isLoading ? null : (
-            <View style={styles.empty}>
-              <View style={styles.emptyIcon}>
-                <MessageCircle size={36} color={colors.textMuted} strokeWidth={1.5} />
-              </View>
-              <Text style={styles.emptyTitle}>Aucun message</Text>
-              <Text style={styles.emptySub}>
-                Vos conversations apparaîtront ici après votre première commande
-              </Text>
-            </View>
+            <EmptyState
+              icon={<MessageCircle size={36} color={colors.textMuted} strokeWidth={1.5} />}
+              title="Aucun message"
+              subtitle="Vos conversations apparaîtront ici après votre première commande"
+            />
           )
         }
       />
@@ -197,30 +196,5 @@ const styles = StyleSheet.create({
   itemPreviewUnread: {
     color: colors.text,
     fontWeight: '600',
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 60,
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.full,
-    backgroundColor: colors.bgMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  emptySub: {
-    fontSize: fontSize.md,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 22,
   },
 })

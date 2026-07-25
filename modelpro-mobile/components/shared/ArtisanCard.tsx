@@ -26,6 +26,8 @@ export function ArtisanCard({ artisan }: Props) {
       style={styles.card}
       onPress={() => router.push(`/(client)/artisan/${artisan.id}`)}
       activeOpacity={0.93}
+      accessibilityRole="button"
+      accessibilityLabel={`Voir le profil de ${artisan.nomAtelier}, ${artisan.metier.nom}, note ${artisan.notemoyenne.toFixed(1)}`}
     >
       {/* Cover image */}
       <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
