@@ -48,7 +48,6 @@ app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1', clientRoutes);
-app.post('/api/v1/messages', messageRoutes);
 
 // Route de test pour la santé de l'API
 app.get('/api/health', (req: Request, res: Response) => {

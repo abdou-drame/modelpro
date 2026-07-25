@@ -23,7 +23,8 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
       return;
     }
 
-    const decoded = jwt.verify(token, 'CleSuperSecreteDeMonProjet2026') as { id: number; role: string };
+    const JWT_SECRET = process.env.JWT_SECRET || 'SUPER_SECRET_KEY_MODELE_PRO_2026_ESTM';
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; role: string };
 
     req.user = {
       id: decoded.id,
