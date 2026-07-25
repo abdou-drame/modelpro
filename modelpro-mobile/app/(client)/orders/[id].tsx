@@ -4,7 +4,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import { ArrowLeft, MessageCircle, XCircle } from 'lucide-react-native'
+import { ArrowLeft, MessageCircle, XCircle, CreditCard, Star, ShieldAlert } from 'lucide-react-native'
 import { ordersApi } from '@/lib/api/orders'
 import { OrderTimeline } from '@/components/shared/OrderTimeline'
 import { Badge } from '@/components/ui/Badge'
@@ -135,12 +135,45 @@ export default function OrderDetailScreen() {
             <Text style={styles.btnMessageText}>Contacter l'artisan</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.btnPay}
+            onPress={() => router.push({ pathname: '/(client)/payment', params: { orderId: String(orderId) } })}
+          >
+            <CreditCard size={18} color={colors.white} strokeWidth={2} />
+            <Text style={styles.btnPayText}>Paiement</Text>
+          </TouchableOpacity>
+
+          {order.statut === 'livree' && (
+            <TouchableOpacity
+              style={styles.btnReview}
+              onPress={() => router.push({
+                pathname: '/(client)/review',
+                params: {
+                  artisanId: String(order.artisan.id ?? ''),
+                  artisanName: order.artisan.nomAtelier,
+                  orderId: String(orderId),
+                },
+              })}
+            >
+              <Star size={16} color="#F59E0B" strokeWidth={2} />
+              <Text style={styles.btnReviewText}>Donner un avis</Text>
+            </TouchableOpacity>
+          )}
+
           {canCancel && (
             <TouchableOpacity style={styles.btnCancel} onPress={handleCancel}>
               <XCircle size={16} color={colors.error} strokeWidth={2} />
               <Text style={styles.btnCancelText}>Annuler</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={styles.btnClaim}
+            onPress={() => router.push({ pathname: '/(client)/claim', params: { orderId: String(orderId) } })}
+          >
+            <ShieldAlert size={15} color={colors.textMuted} strokeWidth={2} />
+            <Text style={styles.btnClaimText}>Signaler un problème</Text>
+          </TouchableOpacity>
         </Animated.View>
 
         <Text style={styles.date}>Commande passée le {formatDate(order.createdAt)}</Text>
@@ -186,10 +219,26 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg,
   },
   btnMessageText: { fontSize: fontSize.base, fontWeight: '600', color: colors.primary },
+  btnPay: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg,
+  },
+  btnPayText: { fontSize: fontSize.base, fontWeight: '700', color: colors.white },
+  btnReview: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: radius.lg, padding: spacing.md,
+    borderWidth: 1.5, borderColor: '#F59E0B',
+  },
+  btnReviewText: { fontSize: fontSize.sm, fontWeight: '600', color: '#F59E0B' },
   btnCancel: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
     borderWidth: 1.5, borderColor: colors.error, borderRadius: radius.lg, padding: spacing.md,
   },
   btnCancelText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.error },
+  btnClaim: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
+    padding: spacing.sm,
+  },
+  btnClaimText: { fontSize: fontSize.xs, fontWeight: '500', color: colors.textMuted },
   date: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
 })

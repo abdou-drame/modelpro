@@ -61,6 +61,15 @@ export default function ClientLayout() {
           tabBarIcon: ({ color }) => <Bell size={22} color={color} strokeWidth={1.8} />,
         }}
       />
+      {/* Hidden from tab bar */}
+      <Tabs.Screen name="artisan/[id]" options={{ href: null }} />
+      <Tabs.Screen name="model/[id]" options={{ href: null }} />
+      <Tabs.Screen name="order-form" options={{ href: null }} />
+      <Tabs.Screen name="orders/[id]" options={{ href: null }} />
+      <Tabs.Screen name="messages/[orderId]" options={{ href: null }} />
+      <Tabs.Screen name="payment" options={{ href: null }} />
+      <Tabs.Screen name="review" options={{ href: null }} />
+      <Tabs.Screen name="claim" options={{ href: null }} />
     </Tabs>
   )
 }

@@ -73,6 +73,7 @@ export default function ArtisanLayout() {
       <Tabs.Screen name="catalogue/new" options={{ href: null }} />
       <Tabs.Screen name="catalogue/[id]/edit" options={{ href: null }} />
       <Tabs.Screen name="messages/[orderId]" options={{ href: null }} />
+      <Tabs.Screen name="subscription" options={{ href: null }} />
     </Tabs>
   )
 }

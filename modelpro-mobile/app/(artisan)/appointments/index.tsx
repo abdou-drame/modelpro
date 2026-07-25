@@ -16,18 +16,26 @@ import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import { AppointmentStatus } from '@/constants/enums'
 import type { ArtisanAppointment } from '@/lib/api/artisan'
 
-const STATUS_VARIANT: Record<AppointmentStatus, 'neutral' | 'primary' | 'success' | 'error' | 'warning'> = {
+const STATUS_VARIANT: Partial<Record<AppointmentStatus, 'neutral' | 'primary' | 'success' | 'error' | 'warning'>> = {
   en_attente: 'warning',
   confirme: 'success',
-  annule: 'error',
+  annule_artisan: 'error',
+  annule_client: 'error',
+  refuse: 'error',
   reporte: 'neutral',
+  termine: 'success',
+  no_show: 'neutral',
 }
 
-const STATUS_LABELS: Record<AppointmentStatus, string> = {
+const STATUS_LABELS: Partial<Record<AppointmentStatus, string>> = {
   en_attente: 'En attente',
   confirme: 'Confirmé',
-  annule: 'Annulé',
+  annule_artisan: 'Annulé',
+  annule_client: 'Annulé client',
+  refuse: 'Refusé',
   reporte: 'Reporté',
+  termine: 'Terminé',
+  no_show: 'Absent',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -68,7 +76,7 @@ function AppointmentCard({ appt, onConfirm, onRefuse, onReschedule, index }: {
             <View style={[styles.typeDot, { backgroundColor: isPending ? colors.warning : colors.primary }]} />
             <Text style={styles.typeLabel}>{TYPE_LABELS[appt.type] ?? appt.type}</Text>
           </View>
-          <Badge label={STATUS_LABELS[appt.statut]} variant={STATUS_VARIANT[appt.statut]} />
+          <Badge label={STATUS_LABELS[appt.statut] ?? appt.statut} variant={STATUS_VARIANT[appt.statut] ?? 'neutral'} />
         </View>
 
         <Text style={styles.clientName}>
@@ -144,13 +152,13 @@ export default function ArtisanAppointmentsScreen() {
       { text: 'Retour', style: 'cancel' },
       {
         text: 'Annuler le RDV', style: 'destructive',
-        onPress: () => statusMutation.mutate({ id: appt.id, statut: 'annule' }),
+        onPress: () => statusMutation.mutate({ id: appt.id, statut: 'annule_artisan' }),
       },
     ])
   }
 
   const handleReschedule = (appt: ArtisanAppointment) => {
-    statusMutation.mutate({ id: appt.id, statut: 'reporte' })
+    statusMutation.mutate({ id: appt.id, statut: 'reporte' as AppointmentStatus })
   }
 
   const filtered = filter === 'all'

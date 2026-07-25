@@ -1,6 +1,6 @@
 import {
   View, Text, Image, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform, Alert, Linking,
 } from 'react-native'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,7 +11,7 @@ import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import {
-  Camera, User, MapPin, FileText, CheckCircle2, Plus,
+  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -263,6 +263,23 @@ export default function ArtisanProfileScreen() {
             )}
           </Animated.View>
 
+          {/* Abonnement */}
+          <Animated.View entering={FadeInUp.delay(220).springify()}>
+            <TouchableOpacity
+              style={styles.subscriptionRow}
+              onPress={() => router.push('/(artisan)/subscription')}
+            >
+              <View style={[styles.subscriptionIcon, { backgroundColor: `${colors.primary}18` }]}>
+                <Crown size={20} color={colors.primary} strokeWidth={1.8} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subscriptionLabel}>Abonnement ModèlePro</Text>
+                <Text style={styles.subscriptionSub}>Gérer votre plan et historique</Text>
+              </View>
+              <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+            </TouchableOpacity>
+          </Animated.View>
+
           {/* Validation status */}
           {profile && !profile.estValide && (
             <Animated.View entering={FadeInUp.delay(240).springify()} style={styles.validationCard}>
@@ -371,4 +388,15 @@ const styles = StyleSheet.create({
   },
   validationTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text, marginBottom: 4 },
   validationSub: { fontSize: fontSize.sm, color: colors.textSub, lineHeight: 20 },
+  subscriptionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.bgCard, borderRadius: radius.xl,
+    padding: spacing.lg, ...shadow.sm,
+  },
+  subscriptionIcon: {
+    width: 44, height: 44, borderRadius: radius.lg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  subscriptionLabel: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+  subscriptionSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
 })
