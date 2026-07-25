@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   searchBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',

@@ -5,10 +5,9 @@ import { OrderStatus, AppointmentStatus } from '@/constants/enums'
 // ── Stats ──────────────────────────────────────────────────────────────────
 
 export interface ArtisanStats {
-  revenus: { total: number; moisCourant: number }
-  commandes: { actives: number; total: number; enAttente: number }
-  noteMoyenne: number
-  nombreAvis: number
+  chiffreAffaires: number
+  commandesEnCours: number
+  noteGlobale: number
 }
 
 // ── Profile ────────────────────────────────────────────────────────────────

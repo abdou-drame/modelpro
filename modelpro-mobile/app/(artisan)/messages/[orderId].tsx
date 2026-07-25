@@ -131,15 +131,15 @@ export default function ArtisanChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  bgImage: { ...StyleSheet.absoluteFillObject as any, width: '100%', height: '100%' },
-  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(247,244,239,0.88)' },
+  bgImage: { ...StyleSheet.absoluteFill as any, width: '100%', height: '100%' },
+  bgOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(247,244,239,0.88)' },
   header: {
     flexDirection: 'row', alignItems: 'center', paddingTop: 52,
     paddingBottom: spacing.md, paddingHorizontal: spacing.lg,
     gap: spacing.md, overflow: 'hidden', zIndex: 10,
   },
   headerBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   backBtn: { width: 36, height: 36, justifyContent: 'center' },
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28, overflow: 'hidden',
   },
   inputBarBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.6)',
   },
   photoBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },

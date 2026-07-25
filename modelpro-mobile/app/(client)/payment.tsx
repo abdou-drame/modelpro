@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, overflow: 'hidden', ...shadow.sm,
   },
   summaryBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
   },
   summaryTitle: {

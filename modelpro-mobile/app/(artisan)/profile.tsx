@@ -1,7 +1,8 @@
 import {
   View, Text, Image, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert, Linking,
+  StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native'
+import { router } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,7 +12,7 @@ import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import {
-  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight,
+  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -31,7 +32,23 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function ArtisanProfileScreen() {
-  const { user } = useAuthStore()
+  const { user, clearAuth } = useAuthStore()
+
+  const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm('Voulez-vous vous déconnecter ?')) return
+      await clearAuth()
+      router.replace('/(auth)/login')
+      return
+    }
+    Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Déconnecter', style: 'destructive',
+        onPress: async () => { await clearAuth(); router.replace('/(auth)/login') },
+      },
+    ])
+  }
   const queryClient = useQueryClient()
 
   const { data: profile } = useQuery({
@@ -71,7 +88,7 @@ export default function ArtisanProfileScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: 5,
@@ -94,7 +111,7 @@ export default function ArtisanProfileScreen() {
         <View style={styles.cover}>
           <Image
             source={{ uri: profile?.photosAtelier?.[0] ?? PLACEHOLDER_COVER }}
-            style={StyleSheet.absoluteFillObject as any}
+            style={StyleSheet.absoluteFill as any}
             resizeMode="cover"
           />
           <LinearGradient
@@ -110,8 +127,8 @@ export default function ArtisanProfileScreen() {
               <Text style={styles.coverName}>{user?.prenom} {user?.nom}</Text>
               {profile && (
                 <View style={styles.coverMeta}>
-                  <StarRating value={profile.notemoyenne} size={12} />
-                  <Text style={styles.coverMetaText}>{profile.notemoyenne.toFixed(1)} · {profile.metier.nom}</Text>
+                  <StarRating value={profile.notemoyenne ?? 0} size={12} />
+                  <Text style={styles.coverMetaText}>{(profile.notemoyenne ?? 0).toFixed(1)}{profile.metier?.nom ? ` · ${profile.metier.nom}` : ''}</Text>
                 </View>
               )}
               {profile?.estValide && (
@@ -297,6 +314,11 @@ export default function ArtisanProfileScreen() {
             </Animated.View>
           )}
 
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} accessibilityRole="button">
+            <LogOut size={18} color={colors.error} strokeWidth={1.8} />
+            <Text style={styles.logoutText}>Se déconnecter</Text>
+          </TouchableOpacity>
+
           <View style={{ height: 80 }} />
         </View>
       </ScrollView>
@@ -375,7 +397,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, overflow: 'hidden', ...shadow.sm,
   },
   validationBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1.5, borderColor: `${colors.warning}40`,
   },
   validationContent: {
@@ -399,4 +421,10 @@ const styles = StyleSheet.create({
   },
   subscriptionLabel: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
   subscriptionSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm, backgroundColor: colors.errorLight,
+    borderRadius: radius.xl, padding: spacing.lg,
+  },
+  logoutText: { fontSize: fontSize.base, fontWeight: '600', color: colors.error },
 })

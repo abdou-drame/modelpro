@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   markAllBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.6)',
   },
   itemBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.55)',

@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, overflow: 'hidden', padding: spacing.lg, ...shadow.sm,
   },
   activeBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1.5, borderColor: `${colors.success}40`,
   },
   activeTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },

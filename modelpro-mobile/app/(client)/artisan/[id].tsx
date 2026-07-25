@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   backBtnBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',

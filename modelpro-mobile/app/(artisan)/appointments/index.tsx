@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   cardPending: { backgroundColor: 'rgba(255,255,255,0.4)' },
   cardPendingBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1.5, borderColor: `${colors.warning}40`,
   },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

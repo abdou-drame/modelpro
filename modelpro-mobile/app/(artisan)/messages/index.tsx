@@ -65,7 +65,7 @@ export default function ArtisanMessagesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Image source={{ uri: BG }} style={StyleSheet.absoluteFillObject as any} resizeMode="cover" />
+        <Image source={{ uri: BG }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
         <View style={styles.headerOverlay} />
         <Text style={styles.title}>Messages</Text>
         <Text style={styles.subtitle}>{conversations?.length ?? 0} conversation{(conversations?.length ?? 0) > 1 ? 's' : ''}</Text>
@@ -93,7 +93,7 @@ export default function ArtisanMessagesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { height: 140, justifyContent: 'flex-end', padding: spacing.xl, overflow: 'hidden' },
-  headerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(26,26,46,0.6)' },
+  headerOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,26,46,0.6)' },
   title: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.white, letterSpacing: -0.5 },
   subtitle: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   item: {
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, padding: spacing.md, overflow: 'hidden', ...shadow.sm,
   },
   itemBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
   },
   avatarWrapper: { position: 'relative' },

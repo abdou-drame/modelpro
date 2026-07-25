@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import { Home, ShoppingBag, Calendar, MessageCircle, Bell } from 'lucide-react-native'
+import { Home, ShoppingBag, Calendar, MessageCircle, User } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { StyleSheet } from 'react-native'
 import { colors } from '@/constants/theme'
@@ -55,13 +55,14 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
-        name="notifications"
+        name="profile"
         options={{
-          title: 'Alertes',
-          tabBarIcon: ({ color }) => <Bell size={22} color={color} strokeWidth={1.8} />,
+          title: 'Profil',
+          tabBarIcon: ({ color }) => <User size={22} color={color} strokeWidth={1.8} />,
         }}
       />
       {/* Hidden from tab bar */}
+      <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="artisan/[id]" options={{ href: null }} />
       <Tabs.Screen name="model/[id]" options={{ href: null }} />
       <Tabs.Screen name="order-form" options={{ href: null }} />

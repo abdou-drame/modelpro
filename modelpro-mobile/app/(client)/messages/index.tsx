@@ -76,7 +76,7 @@ export default function MessagesScreen() {
     <View style={styles.container}>
       {/* Header avec image de fond */}
       <View style={styles.header}>
-        <Image source={{ uri: BG }} style={StyleSheet.absoluteFillObject as any} resizeMode="cover" />
+        <Image source={{ uri: BG }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
         <View style={styles.headerOverlay} />
         <Text style={styles.title}>Messages</Text>
         <Text style={styles.subtitle}>
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(26,26,46,0.6)',
   },
   title: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   itemBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.5)',

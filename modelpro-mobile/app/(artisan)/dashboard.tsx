@@ -7,7 +7,7 @@ import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router } from 'expo-router'
 import {
-  TrendingUp, ShoppingBag, Star, Clock, ChevronRight, AlertCircle,
+  TrendingUp, ShoppingBag, Star, ChevronRight, AlertCircle,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -72,7 +72,7 @@ export default function ArtisanDashboard() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Hero header */}
       <View style={styles.hero}>
-        <Image source={{ uri: HERO }} style={StyleSheet.absoluteFillObject as any} resizeMode="cover" />
+        <Image source={{ uri: HERO }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
         <LinearGradient
           colors={['rgba(26,26,46,0.3)', 'rgba(26,26,46,0.85)']}
           style={StyleSheet.absoluteFill}
@@ -88,8 +88,8 @@ export default function ArtisanDashboard() {
               <Text style={styles.heroName}>{user?.prenom} {user?.nom}</Text>
               {profile && (
                 <View style={styles.heroRating}>
-                  <StarRating value={profile.notemoyenne} size={12} />
-                  <Text style={styles.heroRatingText}>{profile.notemoyenne.toFixed(1)}</Text>
+                  <StarRating value={profile.notemoyenne ?? 0} size={12} />
+                  <Text style={styles.heroRatingText}>{(profile.notemoyenne ?? 0).toFixed(1)}</Text>
                 </View>
               )}
             </View>
@@ -118,16 +118,16 @@ export default function ArtisanDashboard() {
         {stats && (
           <View style={styles.statsGrid}>
             <StatCard
-              label="Ce mois"
-              value={formatPrice(stats.revenus.moisCourant)}
-              sub="Revenus"
+              label="Chiffre d'affaires"
+              value={formatPrice(stats.chiffreAffaires ?? 0)}
+              sub="Total"
               icon={TrendingUp}
               color={colors.success}
               delay={100}
             />
             <StatCard
               label="Commandes"
-              value={String(stats.commandes.actives)}
+              value={String(stats.commandesEnCours ?? 0)}
               sub="En cours"
               icon={ShoppingBag}
               color={colors.primary}
@@ -135,19 +135,11 @@ export default function ArtisanDashboard() {
             />
             <StatCard
               label="Note"
-              value={stats.noteMoyenne.toFixed(1)}
-              sub={`${stats.nombreAvis} avis`}
+              value={(stats.noteGlobale ?? 0).toFixed(1)}
+              sub="Moyenne"
               icon={Star}
               color="#F59E0B"
               delay={220}
-            />
-            <StatCard
-              label="En attente"
-              value={String(stats.commandes.enAttente)}
-              sub="À traiter"
-              icon={Clock}
-              color={colors.warning}
-              delay={280}
             />
           </View>
         )}
@@ -162,7 +154,7 @@ export default function ArtisanDashboard() {
               </TouchableOpacity>
             </View>
 
-            {activeOrders.map((order, i) => (
+            {activeOrders.map((order) => (
               <TouchableOpacity
                 key={order.id}
                 style={styles.orderCard}
@@ -238,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg, padding: spacing.md, overflow: 'hidden',
   },
   alertBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.lg,
+    ...StyleSheet.absoluteFill, borderRadius: radius.lg,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
   alertText: { flex: 1, fontSize: fontSize.sm, color: colors.white, fontWeight: '500' },
@@ -253,7 +245,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden', gap: spacing.sm, ...shadow.sm,
   },
   statBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)',
   },
   statIconBox: {
@@ -287,7 +279,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden', gap: 4, minHeight: 100, ...shadow.sm,
   },
   shortcutBorder: {
-    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)',
   },
   shortcutLabel: { fontSize: fontSize.base, fontWeight: '800' },
