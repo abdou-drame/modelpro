@@ -17,37 +17,39 @@ import { AppointmentStatus } from '@/constants/enums'
 import type { ArtisanAppointment } from '@/lib/api/artisan'
 
 const STATUS_VARIANT: Partial<Record<AppointmentStatus, 'neutral' | 'primary' | 'success' | 'error' | 'warning'>> = {
-  en_attente: 'warning',
+  demande: 'warning',
+  pending: 'warning',
+  accepte: 'success',
   confirme: 'success',
-  annule_artisan: 'error',
-  annule_client: 'error',
   refuse: 'error',
+  annule: 'error',
   reporte: 'neutral',
   termine: 'success',
-  no_show: 'neutral',
 }
 
 const STATUS_LABELS: Partial<Record<AppointmentStatus, string>> = {
-  en_attente: 'En attente',
+  demande: 'En attente',
+  pending: 'En attente',
+  accepte: 'Accepté',
   confirme: 'Confirmé',
-  annule_artisan: 'Annulé',
-  annule_client: 'Annulé client',
   refuse: 'Refusé',
+  annule: 'Annulé',
   reporte: 'Reporté',
   termine: 'Terminé',
-  no_show: 'Absent',
 }
 
 const TYPE_LABELS: Record<string, string> = {
   prise_mesures: 'Prise de mesures',
-  essayage: 'Essayage',
-  livraison: 'Livraison',
   consultation: 'Consultation',
+  depot_article: 'Dépôt article',
+  essayage: 'Essayage',
+  retrait: 'Retrait',
+  domicile: 'À domicile',
 }
 
 const FILTERS: { label: string; value: AppointmentStatus | 'all' }[] = [
   { label: 'Tous', value: 'all' },
-  { label: 'En attente', value: 'en_attente' },
+  { label: 'En attente', value: 'demande' },
   { label: 'Confirmés', value: 'confirme' },
   { label: 'Reportés', value: 'reporte' },
 ]
@@ -59,7 +61,7 @@ function AppointmentCard({ appt, onConfirm, onRefuse, onReschedule, index }: {
   onReschedule: () => void
   index: number
 }) {
-  const isPending = appt.statut === 'en_attente'
+  const isPending = appt.statut === 'demande' || appt.statut === 'pending'
 
   return (
     <Animated.View entering={FadeInUp.delay(index * 50).springify()}>
@@ -142,7 +144,7 @@ export default function ArtisanAppointmentsScreen() {
       `RDV avec ${appt.client.user.prenom} ${appt.client.user.nom} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Confirmer', onPress: () => statusMutation.mutate({ id: appt.id, statut: 'confirme' }) },
+        { text: 'Confirmer', onPress: () => statusMutation.mutate({ id: appt.id, statut: 'accepte' }) },
       ]
     )
   }
@@ -152,7 +154,7 @@ export default function ArtisanAppointmentsScreen() {
       { text: 'Retour', style: 'cancel' },
       {
         text: 'Annuler le RDV', style: 'destructive',
-        onPress: () => statusMutation.mutate({ id: appt.id, statut: 'annule_artisan' }),
+        onPress: () => statusMutation.mutate({ id: appt.id, statut: 'annule' }),
       },
     ])
   }

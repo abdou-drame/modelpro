@@ -113,7 +113,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   glassBorder: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',

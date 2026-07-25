@@ -21,7 +21,7 @@ function ConversationItem({ conv, userId, index }: { conv: Conversation; userId:
   const avatar = conv.artisan.photoProfil
   const lastMsg = conv.dernierMessage
   const isLastMine = lastMsg?.expediteurId === userId
-  const preview = lastMsg?.contenu ?? (lastMsg?.photoUrl ? 'Photo' : '—')
+  const preview = lastMsg?.texte ?? (lastMsg?.photoUrl ? 'Photo' : '—')
 
   return (
     <Animated.View entering={FadeInUp.delay(index * 50).springify()}>

@@ -16,13 +16,13 @@ import type { NotificationType } from '@/constants/enums'
 const NOTIF_BG = 'https://images.unsplash.com/photo-1614854262318-831574f15f1f?w=800&q=80'
 
 const NOTIF_META: Record<NotificationType, { icon: any; color: string; bg: string }> = {
-  nouvelle_commande: { icon: ShoppingBag, color: colors.primary, bg: '#FEF3E8' },
-  statut_commande:   { icon: ShoppingBag, color: '#7C3AED', bg: '#EDE9FE' },
-  nouveau_message:   { icon: MessageCircle, color: '#2563EB', bg: '#DBEAFE' },
-  nouveau_rdv:       { icon: Calendar, color: colors.success, bg: colors.successLight },
-  statut_rdv:        { icon: Calendar, color: '#D97706', bg: colors.warningLight },
-  paiement:          { icon: CreditCard, color: colors.success, bg: colors.successLight },
-  avis:              { icon: Star, color: '#F59E0B', bg: '#FEF9C3' },
+  nouveau_message:  { icon: MessageCircle, color: '#2563EB', bg: '#DBEAFE' },
+  demande_rdv:      { icon: Calendar, color: colors.success, bg: colors.successLight },
+  rdv_statut:       { icon: Calendar, color: '#D97706', bg: colors.warningLight },
+  commande_statut:  { icon: ShoppingBag, color: '#7C3AED', bg: '#EDE9FE' },
+  rappel:           { icon: AlertCircle, color: colors.warning, bg: colors.warningLight },
+  notation:         { icon: Star, color: '#F59E0B', bg: '#FEF9C3' },
+  paiement:         { icon: CreditCard, color: colors.success, bg: colors.successLight },
 }
 
 function NotifItem({ notif, index }: { notif: AppNotification; index: number }) {
@@ -43,7 +43,7 @@ function NotifItem({ notif, index }: { notif: AppNotification; index: number }) 
           <Text style={[styles.notifTitle, !notif.lu && styles.notifTitleUnread]}>
             {notif.titre}
           </Text>
-          <Text style={styles.notifMessage} numberOfLines={2}>{notif.message}</Text>
+          <Text style={styles.notifMessage} numberOfLines={2}>{notif.description}</Text>
           <Text style={styles.notifTime}>{formatRelative(notif.createdAt)}</Text>
         </View>
 

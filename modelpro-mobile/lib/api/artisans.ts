@@ -1,6 +1,21 @@
 import apiClient from './client'
 import { ENDPOINTS } from '@/constants/api'
 
+// Shape brute retournée par le backend
+interface ArtisanPublicRaw {
+  id: number
+  atelier: string
+  métier: string
+  description: string | null
+  localisation: string | null
+  zone: string | null
+  photosAtelier: string | null // JSON string
+  statutValidation: 'en_attente' | 'valide' | 'rejete'
+  noteMoyenne: number
+  nombreAvis: number
+  user: { id: number; nom: string; prenom: string; photoUrl: string | null }
+}
+
 export interface ArtisanPublic {
   id: number
   nomAtelier: string
@@ -14,6 +29,27 @@ export interface ArtisanPublic {
   estValide: boolean
   metier: { id: number; nom: string }
   user: { nom: string; prenom: string }
+}
+
+function normalizePublicArtisan(raw: ArtisanPublicRaw): ArtisanPublic {
+  let photos: string[] = []
+  if (raw.photosAtelier) {
+    try { photos = JSON.parse(raw.photosAtelier) } catch { photos = [] }
+  }
+  return {
+    id: raw.id,
+    nomAtelier: raw.atelier ?? '',
+    description: raw.description,
+    localisation: raw.localisation,
+    zone: raw.zone,
+    photoProfil: raw.user?.photoUrl ?? null,
+    photosAtelier: photos,
+    notemoyenne: raw.noteMoyenne ?? 0,
+    nombreAvis: raw.nombreAvis ?? 0,
+    estValide: raw.statutValidation === 'valide',
+    metier: { id: 0, nom: raw.métier ?? '' },
+    user: { nom: raw.user?.nom ?? '', prenom: raw.user?.prenom ?? '' },
+  }
 }
 
 export interface ArtisanReview {
@@ -40,13 +76,15 @@ export interface ArtisanSearchParams {
 
 export const artisansApi = {
   search: (params?: ArtisanSearchParams) =>
-    apiClient.get<{ artisans: ArtisanPublic[]; total: number; page: number }>(
-      ENDPOINTS.artisansSearch,
-      { params }
-    ),
+    apiClient.get<ArtisanPublicRaw[]>(ENDPOINTS.artisansSearch, { params })
+      .then((r) => ({
+        ...r,
+        data: { artisans: r.data.map(normalizePublicArtisan), total: r.data.length, page: 1 },
+      })),
 
   getById: (id: number) =>
-    apiClient.get<ArtisanPublic>(ENDPOINTS.artisanById(id)),
+    apiClient.get<ArtisanPublicRaw>(ENDPOINTS.artisanById(id))
+      .then((r) => ({ ...r, data: normalizePublicArtisan(r.data) })),
 
   getReviews: (id: number) =>
     apiClient.get<ArtisanReview[]>(ENDPOINTS.artisanReviews(id)),
