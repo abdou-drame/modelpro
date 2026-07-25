@@ -23,7 +23,6 @@ const sequelize = new Sequelize(
   }
 );
 
-// Centralisation de la clé secrète pour le projet
-export const JWT_SECRET = 'CleSuperSecreteDeMonProjet2026';
+export const JWT_SECRET = process.env.JWT_SECRET || 'SUPER_SECRET_KEY_MODELE_PRO_2026_ESTM';
 
 export default sequelize;

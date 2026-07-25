@@ -1,5 +1,5 @@
 const ENV = {
-  dev: 'http://localhost:5000/api/v1',
+  dev: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
   staging: 'https://staging-api.modelepro.com/api/v1',
   prod: 'https://api.modelepro.com/api/v1',
 } as const

@@ -1,9 +1,10 @@
+import { ReactNode } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 
 interface EmptyStateProps {
-  icon: React.ReactNode
+  icon: ReactNode
   title: string
   subtitle?: string
   action?: { label: string; onPress: () => void }

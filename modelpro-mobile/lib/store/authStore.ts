@@ -19,7 +19,7 @@ interface AuthState {
   loadFromStorage: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   token: null,
   isAuthenticated: false,

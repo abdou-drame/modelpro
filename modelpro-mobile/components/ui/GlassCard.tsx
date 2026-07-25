@@ -1,9 +1,10 @@
+import { ReactNode } from 'react'
 import { View, StyleSheet, ViewStyle } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { colors, radius } from '@/constants/theme'
 
 interface Props {
-  children: React.ReactNode
+  children: ReactNode
   intensity?: number
   tint?: 'light' | 'dark' | 'default' | 'extraLight' | 'prominent' | 'systemUltraThinMaterial' | 'systemThinMaterial' | 'systemMaterial' | 'systemThickMaterial' | 'systemChromeMaterial'
   style?: ViewStyle
