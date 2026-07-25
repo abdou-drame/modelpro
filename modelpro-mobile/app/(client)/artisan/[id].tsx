@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 import { ArrowLeft, MapPin, ShieldCheck, MessageCircle, Calendar } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import { artisansApi } from '@/lib/api/artisans'
 import { modelsApi } from '@/lib/api/models'
 import { StarRating } from '@/components/ui/StarRating'
@@ -149,9 +150,11 @@ export default function ArtisanProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* Back button */}
+      {/* Back button — glass */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <ArrowLeft size={22} color={colors.white} strokeWidth={2} />
+        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.backBtnBorder} />
+        <ArrowLeft size={20} color={colors.white} strokeWidth={2} />
       </TouchableOpacity>
     </View>
   )
@@ -215,7 +218,13 @@ const styles = StyleSheet.create({
   backBtn: {
     position: 'absolute', top: 52, left: spacing.xl,
     width: 40, height: 40, borderRadius: radius.full,
-    backgroundColor: 'rgba(26,26,46,0.5)',
+    overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
+  },
+  backBtnBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
 })

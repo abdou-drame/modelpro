@@ -1,20 +1,25 @@
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from 'react-native'
 import { router } from 'expo-router'
 import { MapPin, ShieldCheck } from 'lucide-react-native'
+import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import { StarRating } from '@/components/ui/StarRating'
 import { Badge } from '@/components/ui/Badge'
 import { colors, radius, shadow, fontSize, spacing } from '@/constants/theme'
 import type { ArtisanPublic } from '@/lib/api/artisans'
 
+const { width } = Dimensions.get('window')
+const CARD_WIDTH = width - spacing.xl * 2
+const PLACEHOLDER_COVER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80'
 const PLACEHOLDER_PROFILE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80'
-const PLACEHOLDER_ATELIER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=400&q=80'
 
 interface Props {
   artisan: ArtisanPublic
 }
 
 export function ArtisanCard({ artisan }: Props) {
-  const previewPhotos = artisan.photosAtelier?.slice(0, 3) ?? []
+  const coverUri = artisan.photosAtelier?.[0] ?? PLACEHOLDER_COVER
+  const previewPhotos = artisan.photosAtelier?.slice(1, 4) ?? []
 
   return (
     <TouchableOpacity
@@ -22,50 +27,59 @@ export function ArtisanCard({ artisan }: Props) {
       onPress={() => router.push(`/(client)/artisan/${artisan.id}`)}
       activeOpacity={0.93}
     >
-      <View style={styles.header}>
-        <Image
-          source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
-          style={styles.avatar}
-        />
-        <View style={styles.headerInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{artisan.nomAtelier}</Text>
-            {artisan.estValide && (
-              <ShieldCheck size={15} color={colors.success} strokeWidth={2} />
+      {/* Cover image */}
+      <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
+      <LinearGradient
+        colors={['transparent', 'rgba(26,26,46,0.75)']}
+        style={styles.coverGradient}
+      />
+
+      {/* Glass info bar posé sur la photo */}
+      <View style={styles.glassBar}>
+        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.glassBorder} />
+
+        <View style={styles.barContent}>
+          <Image
+            source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
+            style={styles.avatar}
+          />
+          <View style={styles.info}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1}>{artisan.nomAtelier}</Text>
+              {artisan.estValide && (
+                <ShieldCheck size={13} color="#4ADE80" strokeWidth={2.5} />
+              )}
+            </View>
+            <View style={styles.metaRow}>
+              <StarRating value={artisan.notemoyenne} size={11} />
+              <Text style={styles.metaText}>
+                {artisan.notemoyenne.toFixed(1)} · {artisan.nombreAvis} avis
+              </Text>
+            </View>
+            {artisan.localisation && (
+              <View style={styles.locationRow}>
+                <MapPin size={10} color="rgba(255,255,255,0.5)" strokeWidth={2} />
+                <Text style={styles.locationText}>{artisan.localisation}</Text>
+              </View>
             )}
           </View>
           <Badge label={artisan.metier.nom} variant="primary" size="sm" />
-          <View style={styles.meta}>
-            <StarRating value={artisan.notemoyenne} size={12} />
-            <Text style={styles.metaText}>
-              {artisan.notemoyenne.toFixed(1)} · {artisan.nombreAvis} avis
-            </Text>
-          </View>
-          {artisan.localisation && (
-            <View style={styles.locationRow}>
-              <MapPin size={11} color={colors.textMuted} strokeWidth={2} />
-              <Text style={styles.location}>{artisan.localisation}</Text>
-            </View>
-          )}
         </View>
       </View>
 
+      {/* Photos atelier en preview */}
       {previewPhotos.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.photosScroll}
-          contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md }}
-        >
+        <View style={styles.photosRow}>
           {previewPhotos.map((uri, i) => (
             <Image
               key={i}
-              source={{ uri: uri ?? PLACEHOLDER_ATELIER }}
+              source={{ uri }}
               style={styles.previewPhoto}
               resizeMode="cover"
             />
           ))}
-        </ScrollView>
+        </View>
       )}
     </TouchableOpacity>
   )
@@ -73,63 +87,91 @@ export function ArtisanCard({ artisan }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.accent,
     borderRadius: radius.xl,
-    ...shadow.md,
     overflow: 'hidden',
+    ...shadow.lg,
   },
-  header: {
+  cover: {
+    width: '100%',
+    height: 160,
+  },
+  coverGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 80,
+    height: 80,
+  },
+  glassBar: {
+    marginHorizontal: spacing.md,
+    marginTop: -36,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    zIndex: 10,
+  },
+  glassBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  barContent: {
     flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   avatar: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
-    backgroundColor: colors.bgMuted,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  headerInfo: {
+  info: {
     flex: 1,
-    gap: spacing.xs,
+    gap: 2,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   name: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
     fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.3,
+    color: colors.white,
+    flex: 1,
   },
-  meta: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
   },
   metaText: {
     fontSize: fontSize.xs,
-    color: colors.textSub,
+    color: 'rgba(255,255,255,0.6)',
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
   },
-  location: {
+  locationText: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: 'rgba(255,255,255,0.45)',
   },
-  photosScroll: {
-    marginTop: spacing.xs,
+  photosRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.md,
+    paddingTop: spacing.sm,
   },
   previewPhoto: {
-    width: 100,
-    height: 70,
+    flex: 1,
+    height: 60,
     borderRadius: radius.md,
-    backgroundColor: colors.bgMuted,
+    backgroundColor: colors.accentSoft,
   },
 })

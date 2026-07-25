@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { ArrowLeft, ChevronRight } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import { modelsApi } from '@/lib/api/models'
 import { StarRating } from '@/components/ui/StarRating'
 import { Badge } from '@/components/ui/Badge'
@@ -118,9 +119,11 @@ export default function ModelDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Back */}
+      {/* Back — glass */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <ArrowLeft size={22} color={colors.white} strokeWidth={2} />
+        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.backBtnBorder} />
+        <ArrowLeft size={20} color={colors.white} strokeWidth={2} />
       </TouchableOpacity>
 
       {/* CTA fixe */}
@@ -172,8 +175,14 @@ const styles = StyleSheet.create({
   backBtn: {
     position: 'absolute', top: 52, left: spacing.xl,
     width: 40, height: 40, borderRadius: radius.full,
-    backgroundColor: 'rgba(26,26,46,0.5)',
+    overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
+  },
+  backBtnBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   ctaBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

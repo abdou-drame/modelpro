@@ -9,8 +9,9 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated'
-import { Search, SlidersHorizontal } from 'lucide-react-native'
+import { Search } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import { modelsApi } from '@/lib/api/models'
 import { metiersApi } from '@/lib/api/metiers'
 import { ModelCard } from '@/components/shared/ModelCard'
@@ -70,12 +71,14 @@ export default function CatalogueScreen() {
 
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
-            <Search size={16} color={colors.textMuted} strokeWidth={2} />
+            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={styles.searchBorder} />
+            <Search size={16} color="rgba(255,255,255,0.7)" strokeWidth={2} />
             <TextInput
               value={search}
               onChangeText={setSearch}
               placeholder="Rechercher un modèle..."
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor="rgba(255,255,255,0.45)"
               style={styles.searchInput}
             />
           </View>
@@ -165,16 +168,23 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
     height: 42,
+    overflow: 'hidden',
+  },
+  searchBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   searchInput: {
     flex: 1,
     fontSize: fontSize.md,
     color: colors.white,
+    zIndex: 1,
   },
   filtersWrapper: {
     paddingVertical: spacing.sm,
