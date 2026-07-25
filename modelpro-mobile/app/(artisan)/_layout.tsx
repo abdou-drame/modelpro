@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import { LayoutDashboard, ShoppingBag, Scissors, Calendar, MessageCircle } from 'lucide-react-native'
+import { LayoutDashboard, ShoppingBag, Scissors, Calendar, MessageCircle, UserCircle } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { StyleSheet } from 'react-native'
 import { colors } from '@/constants/theme'
@@ -61,6 +61,18 @@ export default function ArtisanLayout() {
           tabBarIcon: ({ color }) => <MessageCircle size={22} color={color} strokeWidth={1.8} />,
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ color }) => <UserCircle size={22} color={color} strokeWidth={1.8} />,
+        }}
+      />
+      {/* Hidden from tab bar */}
+      <Tabs.Screen name="orders/[id]" options={{ href: null }} />
+      <Tabs.Screen name="catalogue/new" options={{ href: null }} />
+      <Tabs.Screen name="catalogue/[id]/edit" options={{ href: null }} />
+      <Tabs.Screen name="messages/[orderId]" options={{ href: null }} />
     </Tabs>
   )
 }
