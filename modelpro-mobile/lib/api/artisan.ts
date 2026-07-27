@@ -100,7 +100,14 @@ export const artisanApi = {
 
   // Profile
   getProfile: () =>
-    apiClient.get<ArtisanProfile>(ENDPOINTS.artisanProfile),
+    apiClient.get<ArtisanProfile>(ENDPOINTS.artisanProfile).then((r) => {
+      const p = r.data as any
+      if (typeof p.photosAtelier === 'string') {
+        try { p.photosAtelier = JSON.parse(p.photosAtelier) } catch { p.photosAtelier = [] }
+      }
+      if (!Array.isArray(p.photosAtelier)) p.photosAtelier = []
+      return r
+    }),
   updateProfile: (data: UpdateProfilePayload) =>
     apiClient.put<ArtisanProfile>(ENDPOINTS.artisanProfile, data),
   uploadPhotos: (uris: string[]) => {
