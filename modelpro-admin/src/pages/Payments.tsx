@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Banknote, Receipt, TrendingUp } from 'lucide-react'
@@ -7,6 +7,7 @@ import { Badge, statusVariant } from '@/components/shared/Badge'
 import { TableSkeleton } from '@/components/shared/Skeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Pagination } from '@/components/shared/Pagination'
 import { cn, formatPrice, formatDate } from '@/lib/utils'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -47,31 +48,22 @@ function moyenInfo(moyen: string) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 10
+
 export default function Payments() {
   const [filterType, setFilterType]   = useState<TypeValue | null>(null)
   const [filterMoyen, setFilterMoyen] = useState<MoyenValue | null>(null)
+  const [page, setPage] = useState(1)
+  const hasFilter = !!(filterType || filterMoyen)
+
+  useEffect(() => { setPage(1) }, [filterType, filterMoyen])
 
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['admin-payments'],
     queryFn:  () => paymentsAdminApi.list().then(r => r.data),
   })
 
-  // ── KPI computations (whole dataset, not filtered) ─────────────────────────
-
-  const totalCA = useMemo(
-    () => payments.filter(p => p.statut === 'confirme').reduce((s, p) => s + p.montant, 0),
-    [payments],
-  )
-  const totalTransactions = payments.length
-
-  const moyenBreakdown = useMemo(() =>
-    PAYMENT_MOYENS.map(m => ({
-      ...m,
-      count: payments.filter(p => p.moyen === m.value).length,
-    })),
-  [payments])
-
-  // ── Filtered list ──────────────────────────────────────────────────────────
+  // ── Filtered list (all pages) ──────────────────────────────────────────────
 
   const filtered = useMemo(() =>
     payments.filter(p => {
@@ -80,6 +72,29 @@ export default function Payments() {
       return true
     }),
   [payments, filterType, filterMoyen])
+
+  // ── KPIs — always reflect the active filter scope ─────────────────────────
+
+  const kpiSource = filtered   // when no filter, filtered === payments
+
+  const totalCA = useMemo(
+    () => kpiSource.filter(p => p.statut === 'confirme').reduce((s, p) => s + p.montant, 0),
+    [kpiSource],
+  )
+  const totalTransactions = kpiSource.length
+
+  const moyenBreakdown = useMemo(() =>
+    PAYMENT_MOYENS.map(m => ({
+      ...m,
+      count: kpiSource.filter(p => p.moyen === m.value).length,
+    })),
+  [kpiSource])
+
+  // ── Pagination client-side ─────────────────────────────────────────────────
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginationMeta = { page, totalPages, total: filtered.length, limit: PAGE_SIZE }
 
   const filteredTotal = useMemo(
     () => filtered.reduce((s, p) => s + p.montant, 0),
@@ -92,7 +107,11 @@ export default function Payments() {
     <div>
       <PageHeader
         title="Paiements"
-        subtitle={`${totalTransactions} transaction${totalTransactions !== 1 ? 's' : ''} enregistrée${totalTransactions !== 1 ? 's' : ''}`}
+        subtitle={
+          hasFilter
+            ? `${totalTransactions} transaction${totalTransactions !== 1 ? 's' : ''} filtrée${totalTransactions !== 1 ? 's' : ''} sur ${payments.length}`
+            : `${payments.length} transaction${payments.length !== 1 ? 's' : ''} enregistrée${payments.length !== 1 ? 's' : ''}`
+        }
       />
 
       {/* ── KPI row ─────────────────────────────────────────────────────────── */}
@@ -110,7 +129,9 @@ export default function Payments() {
             </div>
           </div>
           <p className="font-display font-bold text-xl text-ink tracking-tight leading-none">{formatPrice(totalCA)}</p>
-          <p className="text-[11px] text-ink-muted mt-1.5">Paiements confirmés</p>
+          <p className="text-[11px] text-ink-muted mt-1.5">
+            {hasFilter ? 'Confirmés — filtre actif' : 'Paiements confirmés'}
+          </p>
         </motion.div>
 
         {/* Total transactions */}
@@ -125,7 +146,9 @@ export default function Payments() {
             </div>
           </div>
           <p className="font-display font-bold text-xl text-ink tracking-tight leading-none">{totalTransactions}</p>
-          <p className="text-[11px] text-ink-muted mt-1.5">Total enregistrées</p>
+          <p className="text-[11px] text-ink-muted mt-1.5">
+            {hasFilter ? 'Dans le filtre actif' : 'Total enregistrées'}
+          </p>
         </motion.div>
 
         {/* Moyen breakdown chips */}
@@ -210,7 +233,7 @@ export default function Payments() {
               />
             ) : (
               <div className="divide-y divide-surface-border">
-                {filtered.map((p, i) => {
+                {paginated.map((p, i) => {
                   const info = moyenInfo(p.moyen)
                   return (
                     <motion.div
@@ -237,14 +260,20 @@ export default function Payments() {
               </div>
             )}
 
-            {/* Footer total */}
+            {/* Footer: pagination + total */}
             {!isLoading && filtered.length > 0 && (
-              <div className="flex items-center justify-between px-5 py-3.5 border-t border-surface-border bg-surface-muted">
-                <span className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
-                  Total — {filtered.length} ligne{filtered.length !== 1 ? 's' : ''}
-                </span>
-                <span className="font-display font-bold text-ink tabular-nums">{formatPrice(filteredTotal)}</span>
-              </div>
+              <>
+                <Pagination meta={paginationMeta} onPageChange={setPage} className="border-t-0 border-b border-surface-border" />
+                <div className="flex items-center justify-between px-5 py-3.5 bg-surface-muted">
+                  <span className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
+                    {hasFilter
+                      ? `Montant total — filtre actif (${filtered.length} ligne${filtered.length !== 1 ? 's' : ''})`
+                      : `Montant total — ${filtered.length} ligne${filtered.length !== 1 ? 's' : ''}`
+                    }
+                  </span>
+                  <span className="font-display font-bold text-ink tabular-nums">{formatPrice(filteredTotal)}</span>
+                </div>
+              </>
             )}
 
           </div>

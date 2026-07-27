@@ -56,7 +56,7 @@ export default function Catalogue() {
 
   const { data: modelsData, isLoading } = useQuery({
     queryKey: ['admin-models', page],
-    queryFn:  () => modelsAdminApi.list({ page, limit: 18 }).then(r => r.data),
+    queryFn:  () => modelsAdminApi.list({ page, limit: 12 }).then(r => r.data),
     placeholderData: (prev) => prev,
   })
   const models = modelsData?.data ?? []

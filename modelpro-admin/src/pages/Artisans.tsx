@@ -73,7 +73,7 @@ export default function Artisans() {
 
   const { data: artisansData, isLoading: loadingAll } = useQuery({
     queryKey: ['admin-artisans', page],
-    queryFn: () => artisansAdminApi.list({ page, limit: 25 }).then((r) => r.data),
+    queryFn: () => artisansAdminApi.list({ page, limit: 10 }).then((r) => r.data),
     placeholderData: (prev) => prev,
     enabled: activeTab === 'all',
   })

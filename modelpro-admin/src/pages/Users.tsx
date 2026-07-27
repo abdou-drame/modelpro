@@ -55,7 +55,7 @@ export default function Users() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users', { search, role: roleFilter, page }],
-    queryFn: () => usersApi.list({ search: search || undefined, role: roleFilter || undefined, page, limit: 25 }).then((r) => r.data),
+    queryFn: () => usersApi.list({ search: search || undefined, role: roleFilter || undefined, page, limit: 10 }).then((r) => r.data),
     placeholderData: (prev) => prev,
   })
   const users = data?.data ?? []

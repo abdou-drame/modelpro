@@ -21,7 +21,7 @@ export default function Orders() {
 
   const { data: allData, isLoading: loadingAll } = useQuery({
     queryKey: ['admin', 'orders', { page, search, statusFilter }],
-    queryFn: () => ordersAdminApi.list({ page, limit: 25 }).then((r) => r.data),
+    queryFn: () => ordersAdminApi.list({ page, limit: 10 }).then((r) => r.data),
     placeholderData: (prev) => prev,
     enabled: tab === 'all',
   })

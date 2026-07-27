@@ -78,7 +78,7 @@ export default function Appointments() {
 
   const { data: apptData, isLoading } = useQuery({
     queryKey: ['admin', 'appointments', page],
-    queryFn: () => appointmentsAdminApi.list({ page, limit: 25 }).then((r) => r.data),
+    queryFn: () => appointmentsAdminApi.list({ page, limit: 10 }).then((r) => r.data),
     placeholderData: (prev) => prev,
   })
   const appointments = apptData?.data ?? []
