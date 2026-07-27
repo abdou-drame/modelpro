@@ -10,6 +10,7 @@ import Appointments from '@/pages/Appointments'
 import Payments from '@/pages/Payments'
 import Claims from '@/pages/Claims'
 import Metiers from '@/pages/Metiers'
+import ArtisanProfile from '@/pages/ArtisanProfile'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="artisans" element={<Artisans />} />
+          <Route path="artisans/:id" element={<ArtisanProfile />} />
           <Route path="orders" element={<Orders />} />
           <Route path="catalogue" element={<Catalogue />} />
           <Route path="appointments" element={<Appointments />} />

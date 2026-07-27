@@ -44,6 +44,7 @@ export const usersApi = {
 export const artisansAdminApi = {
   list: (params?: PaginationParams) => api.get<PaginatedResponse<AdminArtisan>>('/admin/artisans', { params }),
   pending: () => api.get<AdminArtisan[]>('/admin/pending-artisans'),
+  profile: (id: number) => api.get<AdminArtisanProfile>(`/admin/artisans/${id}`),
   verify: (id: number) => api.patch(`/admin/artisans/${id}/verify`),
   reject: (id: number, motifRejet: string) =>
     api.patch(`/admin/artisans/${id}/reject`, { motifRejet }),
@@ -122,6 +123,31 @@ export interface AdminUser {
   statut: string
   photoUrl: string | null
   createdAt: string
+}
+
+export interface AdminReview {
+  id: number
+  note: number
+  noteQualite: number | null
+  noteDelai: number | null
+  noteCommunication: number | null
+  notePrix: number | null
+  noteProfessionnalisme: number | null
+  commentaire: string | null
+  createdAt: string
+  client: Pick<AdminUser, 'nom' | 'prenom' | 'photoUrl'>
+}
+
+export interface AdminArtisanProfile extends AdminArtisan {
+  description: string | null
+  experience: number | null
+  horaires: string | null
+  zone: string | null
+  photosAtelier: string | null
+  documentValidation: string | null
+  motifRejet: string | null
+  catalogue: AdminModel[]
+  reviews: AdminReview[]
 }
 
 export interface AdminArtisan {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Store, UserCheck } from 'lucide-react'
 import { AdminArtisan, artisansAdminApi } from '@/lib/api'
@@ -398,12 +399,16 @@ function ArtisanRow({
 }) {
   const { user } = artisan
   const initials = getInitials(user.nom, user.prenom)
+  const navigate = useNavigate()
 
   return (
     <tr className="border-b border-surface-border last:border-0 hover:bg-surface transition-colors duration-100">
-      {/* Atelier + avatar */}
+      {/* Atelier + avatar — cliquable vers le profil */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate(`/artisans/${artisan.id}`)}
+          className="flex items-center gap-3 group text-left w-full"
+        >
           <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center shrink-0 overflow-hidden">
             {user.photoUrl ? (
               <img
@@ -416,12 +421,14 @@ function ArtisanRow({
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-ink truncate">{artisan.atelier}</p>
+            <p className="font-medium text-ink truncate group-hover:text-brand-600 transition-colors">
+              {artisan.atelier}
+            </p>
             <p className="text-xs text-ink-muted truncate">
               {user.prenom} {user.nom}
             </p>
           </div>
-        </div>
+        </button>
       </td>
 
       {/* Métier */}

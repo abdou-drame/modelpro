@@ -4,6 +4,7 @@ import {
   toggleUserStatus,
   getAllArtisansAdmin,
   getPendingArtisans,
+  getArtisanProfileAdmin,
   verifyArtisan,
   rejectArtisan,
   getAllOrders,
@@ -36,6 +37,7 @@ router.patch('/users/:id/status', toggleUserStatus);
 // Gestion artisans
 router.get('/artisans', getAllArtisansAdmin);
 router.get('/pending-artisans', getPendingArtisans);
+router.get('/artisans/:id', getArtisanProfileAdmin);
 router.patch('/artisans/:id/verify', verifyArtisan);
 router.patch('/artisans/:id/reject', rejectArtisan);
 

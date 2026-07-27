@@ -163,7 +163,7 @@ export default function ArtisanDashboard() {
               >
                 <View style={styles.orderCardLeft}>
                   <Text style={styles.orderClient}>
-                    {order.client.user.prenom} {order.client.user.nom}
+                    {order.client.prenom} {order.client.nom}
                   </Text>
                   {order.creation && (
                     <Text style={styles.orderModel} numberOfLines={1}>{order.creation.titre}</Text>

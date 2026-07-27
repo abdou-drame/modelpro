@@ -125,6 +125,45 @@ export const getAllArtisansAdmin = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
+// 4b. Profil détaillé d'un artisan (admin)
+export const getArtisanProfileAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+    const { Review } = await import('../models/Review')
+    const { Creation } = await import('../models/Creation')
+
+    const artisan = await Artisan.findByPk(Number(id), {
+      include: [
+        { model: User, as: 'user', attributes: { exclude: ['password'] } },
+      ],
+    })
+
+    if (!artisan) {
+      res.status(404).json({ error: 'Artisan introuvable.' })
+      return
+    }
+
+    const [catalogue, reviews] = await Promise.all([
+      Creation.findAll({
+        where: { artisanId: artisan.id },
+        order: [['createdAt', 'DESC']],
+        limit: 20,
+      }),
+      Review.findAll({
+        where: { artisanId: artisan.id },
+        include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'photoUrl'] }],
+        order: [['createdAt', 'DESC']],
+        limit: 20,
+      }),
+    ])
+
+    res.status(200).json({ ...artisan.toJSON(), catalogue, reviews })
+  } catch (error) {
+    console.error('Erreur getArtisanProfileAdmin :', error)
+    res.status(500).json({ error: 'Une erreur est survenue.' })
+  }
+}
+
 // 5. Valider un artisan avec notification
 export const verifyArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
