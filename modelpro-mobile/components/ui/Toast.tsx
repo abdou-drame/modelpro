@@ -83,7 +83,11 @@ const styles = StyleSheet.create({
     ...shadow.lg,
   },
   border: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.6)',

@@ -32,11 +32,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     // Créer le profil spécifique selon le rôle sélectionné
     if (role === 'client') {
-      if (!localisation) {
-        res.status(400).json({ error: 'La localisation est obligatoire pour un client.' });
-        return;
-      }
-      await Client.create({ userId: newUser.id, localisation });
+      await Client.create({ userId: newUser.id, localisation: localisation || null });
 
       // Générer le jeton JWT pour connecter directement le client après inscription
       const token = generateToken(newUser.id, newUser.role);
@@ -49,7 +45,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           nom: newUser.nom,
           prenom: newUser.prenom,
           telephone: newUser.telephone,
-          role: newUser.role
+          role: newUser.role,
+          photoUrl: newUser.photoUrl || null,
         }
       });
       return;
@@ -139,7 +136,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         nom: user.nom,
         prenom: user.prenom,
         telephone: user.telephone,
-        role: user.role
+        role: user.role,
+        photoUrl: user.photoUrl || null,
       }
     });
   } catch (error) {

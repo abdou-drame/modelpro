@@ -52,7 +52,7 @@ export default function ChatScreen() {
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     })
     if (!result.canceled && result.assets[0]) {
@@ -85,7 +85,7 @@ export default function ChatScreen() {
       <View style={styles.header}>
         <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.headerBorder} />
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(client)/messages')} style={styles.backBtn}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         {order && (
@@ -111,7 +111,7 @@ export default function ChatScreen() {
         renderItem={({ item, index }) => (
           <MessageBubble
             message={item}
-            isMine={item.expediteur.id === user?.id}
+            isMine={item.sender.id === user?.id}
             index={index}
           />
         )}

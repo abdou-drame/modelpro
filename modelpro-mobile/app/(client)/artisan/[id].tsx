@@ -135,11 +135,11 @@ export default function ArtisanProfileScreen() {
                 <View key={review.id} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
                     <Text style={styles.reviewName}>
-                      {review.client.user.prenom} {review.client.user.nom[0]}.
+                      {review.client?.prenom ?? 'Client'}{review.client?.nom ? ` ${review.client.nom[0]}.` : ''}
                     </Text>
                     <Text style={styles.reviewDate}>{formatRelative(review.createdAt)}</Text>
                   </View>
-                  <StarRating value={review.noteGlobale} size={12} />
+                  <StarRating value={review.note ?? review.noteGlobale ?? 0} size={12} />
                   {review.commentaire && (
                     <Text style={styles.reviewText}>{review.commentaire}</Text>
                   )}
@@ -151,7 +151,7 @@ export default function ArtisanProfileScreen() {
       </ScrollView>
 
       {/* Back button — glass */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(client)')}>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.backBtnBorder} />
         <ArrowLeft size={20} color={colors.white} strokeWidth={2} />

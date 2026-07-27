@@ -5,14 +5,23 @@ import { OrderStatus, PaymentStatus } from '@/constants/enums'
 export const formatPrice = (amount: number): string =>
   `${new Intl.NumberFormat('fr-SN').format(amount)} FCFA`
 
-export const formatDate = (date: string | Date): string =>
-  format(new Date(date), 'dd MMM yyyy', { locale: fr })
+export const formatDate = (date: string | Date | null | undefined): string => {
+  if (!date) return '—'
+  const d = new Date(date)
+  return isNaN(d.getTime()) ? '—' : format(d, 'dd MMM yyyy', { locale: fr })
+}
 
-export const formatDateTime = (date: string | Date): string =>
-  format(new Date(date), 'dd MMM yyyy à HH:mm', { locale: fr })
+export const formatDateTime = (date: string | Date | null | undefined): string => {
+  if (!date) return '—'
+  const d = new Date(date)
+  return isNaN(d.getTime()) ? '—' : format(d, 'dd MMM yyyy à HH:mm', { locale: fr })
+}
 
-export const formatRelative = (date: string | Date): string =>
-  formatDistanceToNow(new Date(date), { addSuffix: true, locale: fr })
+export const formatRelative = (date: string | Date | null | undefined): string => {
+  if (!date) return '—'
+  const d = new Date(date)
+  return isNaN(d.getTime()) ? '—' : formatDistanceToNow(d, { addSuffix: true, locale: fr })
+}
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   en_attente: 'En attente',

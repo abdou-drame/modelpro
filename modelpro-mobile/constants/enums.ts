@@ -26,34 +26,33 @@ export const PAYMENT_METHODS = [
 ] as const
 
 export const APPOINTMENT_TYPES = [
-  'mesures',
-  'essayage',
+  'prise_mesures',
   'consultation',
-  'livraison',
-  'retouche',
-  'depot_tissu',
-  'autre',
+  'depot_article',
+  'essayage',
+  'retrait',
+  'domicile',
 ] as const
 
 export const APPOINTMENT_STATUSES = [
-  'en_attente',
-  'confirme',
-  'reporte',
-  'annule_client',
-  'annule_artisan',
-  'termine',
-  'no_show',
+  'demande',
+  'accepte',
   'refuse',
+  'reporte',
+  'annule',
+  'termine',
+  'pending',
+  'confirme',
 ] as const
 
 export const NOTIFICATION_TYPES = [
-  'nouvelle_commande',
-  'statut_commande',
   'nouveau_message',
-  'nouveau_rdv',
-  'statut_rdv',
+  'demande_rdv',
+  'rdv_statut',
+  'commande_statut',
+  'rappel',
+  'notation',
   'paiement',
-  'avis',
 ] as const
 
 export const USER_ROLES = ['client', 'artisan', 'admin'] as const

@@ -86,7 +86,7 @@ export default function ArtisanOrderDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(artisan)/orders')} style={styles.backBtn}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Commande #{order.id}</Text>

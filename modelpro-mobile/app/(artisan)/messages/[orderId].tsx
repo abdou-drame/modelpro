@@ -9,6 +9,7 @@ import { BlurView } from 'expo-blur'
 import { ArrowLeft, Send, Image as ImageIcon } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { messagesApi } from '@/lib/api/messages'
+import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
 import { MessageBubble } from '@/components/shared/MessageBubble'
 import { colors, spacing, fontSize, radius } from '@/constants/theme'
@@ -30,6 +31,11 @@ export default function ArtisanChatScreen() {
     refetchInterval: 5000,
   })
 
+  const { data: order } = useQuery({
+    queryKey: ['artisan-order', id],
+    queryFn: () => artisanApi.orderById(id).then((r) => r.data),
+  })
+
   const sendMutation = useMutation({
     mutationFn: () => messagesApi.send(id, text || undefined, pendingPhoto ?? undefined),
     onSuccess: () => {
@@ -42,7 +48,7 @@ export default function ArtisanChatScreen() {
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     })
     if (!result.canceled && result.assets[0]) {
@@ -70,10 +76,21 @@ export default function ArtisanChatScreen() {
       <View style={styles.header}>
         <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.headerBorder} />
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(artisan)/messages')} style={styles.backBtn}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Commande #{id}</Text>
+        <View style={{ flex: 1 }}>
+          {order ? (
+            <>
+              <Text style={styles.headerTitle}>
+                {order.client.user.prenom} {order.client.user.nom}
+              </Text>
+              <Text style={styles.headerSub}>Commande #{id}</Text>
+            </>
+          ) : (
+            <Text style={styles.headerTitle}>Commande #{id}</Text>
+          )}
+        </View>
       </View>
 
       <FlatList
@@ -82,7 +99,7 @@ export default function ArtisanChatScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.messagesList}
         renderItem={({ item, index }) => (
-          <MessageBubble message={item} isMine={item.expediteur.id === user?.id} index={index} />
+          <MessageBubble message={item} isMine={item.sender.id === user?.id} index={index} />
         )}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
@@ -144,6 +161,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 36, height: 36, justifyContent: 'center' },
   headerTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+  headerSub: { fontSize: fontSize.xs, color: colors.textMuted },
   messagesList: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, paddingBottom: 20 },
   photoPreviewBar: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,

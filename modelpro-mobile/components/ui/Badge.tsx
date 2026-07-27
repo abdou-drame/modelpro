@@ -8,7 +8,7 @@ interface Props {
 }
 
 const variants = {
-  primary: { bg: '#FEF3E8', text: colors.primary },
+  primary: { bg: '#F5E6D8', text: colors.primary },
   success: { bg: colors.successLight, text: colors.success },
   error: { bg: colors.errorLight, text: colors.error },
   warning: { bg: colors.warningLight, text: colors.warning },
