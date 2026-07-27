@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { Op } from 'sequelize';
+import sequelize from '../config/database';
 
 function parsePagination(query: any): { page: number; limit: number; offset: number } {
   const page = Math.max(1, parseInt(query.page) || 1)
@@ -521,6 +522,12 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
       Artisan.count({ where: { statutAbonnement: 'actif' } }),
     ]);
 
+    const commandesParStatut = await Order.findAll({
+      attributes: ['statut', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+      group: ['statut'],
+      raw: true,
+    });
+
     // Métiers les plus demandés (basé sur le métier des artisans des commandes)
     const topArtisans = await Artisan.findAll({
       attributes: ['métier', 'noteMoyenne', 'nombreAvis'],
@@ -565,6 +572,7 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
         metiersPlusDemandes,
         artisansMieuxNotes: topArtisans,
       },
+      commandesParStatut,
     });
   } catch (error) {
     console.error('Erreur lors du calcul des statistiques :', error);

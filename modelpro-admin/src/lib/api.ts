@@ -110,7 +110,15 @@ export interface AdminStats {
   totalClients: number
   totalCommandes: number
   totalClaims: number
+  totalAppointments: number
   chiffreAffairesTotal: number
+  commandesEnRetardCount: number
+  totalAbonnementsActifs: number
+  commandesParStatut: { statut: string; count: string }[]
+  statistiquesAvancees: {
+    metiersPlusDemandes: { metier: string; count: number }[]
+    artisansMieuxNotes: { métier: string; noteMoyenne: number; nombreAvis: number }[]
+  }
 }
 
 export interface AdminUser {
