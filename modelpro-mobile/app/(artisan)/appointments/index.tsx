@@ -86,7 +86,7 @@ function AppointmentCard({ appt, onConfirm, onRefuse, onReschedule, index }: {
         <View style={styles.detailsCol}>
           <View style={styles.detailItem}>
             <Calendar size={13} color={colors.textMuted} strokeWidth={2} />
-            <Text style={styles.detailText}>{formatDateTime(appt.dateHeure)}</Text>
+            <Text style={styles.detailText}>{appt.date ? formatDateTime(appt.date) : '—'}</Text>
           </View>
           {appt.lieu && (
             <View style={styles.detailItem}>

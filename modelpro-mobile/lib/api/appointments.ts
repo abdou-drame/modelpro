@@ -6,7 +6,7 @@ export interface Appointment {
   id: number
   type: AppointmentType
   statut: AppointmentStatus
-  dateHeure: string
+  date: string | null
   lieu: string | null
   notes: string | null
   createdAt: string
@@ -22,7 +22,7 @@ export interface Appointment {
 export interface CreateAppointmentPayload {
   artisanId: number
   type: AppointmentType
-  dateHeure: string
+  date: string
   lieu?: string
   notes?: string
 }

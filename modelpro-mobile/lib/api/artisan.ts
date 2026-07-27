@@ -59,7 +59,7 @@ export interface ArtisanAppointment {
   id: number
   type: string
   statut: AppointmentStatus
-  dateHeure: string
+  date: string | null
   lieu: string | null
   notes: string | null
   client: {
@@ -149,8 +149,8 @@ export const artisanApi = {
     apiClient.get<ArtisanAppointment[]>(ENDPOINTS.artisanAppointments),
   updateAppointmentStatus: (id: number, statut: AppointmentStatus) =>
     apiClient.patch(ENDPOINTS.artisanAppointmentStatus(id), { statut }),
-  rescheduleAppointment: (id: number, dateHeure: string, raison?: string) =>
-    apiClient.patch(ENDPOINTS.artisanAppointmentReschedule(id), { dateHeure, raison }),
+  rescheduleAppointment: (id: number, proposedDate: string, raison?: string) =>
+    apiClient.patch(ENDPOINTS.artisanAppointmentReschedule(id), { proposedDate, raison }),
 
   // Models
   myModels: () =>

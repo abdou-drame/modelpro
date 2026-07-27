@@ -48,11 +48,11 @@ interface Appointment {
   id: number
   type: string
   statut: string
-  dateHeure: string
+  date: string | null
   lieu: string | null
   notes: string | null
   artisan: {
-    nomAtelier: string
+    atelier: string
     user: { nom: string; prenom: string }
   }
 }
@@ -79,7 +79,7 @@ function AppointmentCard({ appt, onCancel, index }: {
         <View style={styles.details}>
           <View style={styles.detailRow}>
             <Calendar size={13} color={colors.textMuted} strokeWidth={2} />
-            <Text style={styles.detailText}>{formatDateTime(appt.dateHeure)}</Text>
+            <Text style={styles.detailText}>{appt.date ? formatDateTime(appt.date) : '—'}</Text>
           </View>
           {appt.lieu && (
             <View style={styles.detailRow}>
