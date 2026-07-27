@@ -12,169 +12,59 @@ export interface ArtisanStats {
 
 // ── Profile ────────────────────────────────────────────────────────────────
 
-// Shape brute retournée par le backend (champs Sequelize)
-interface ArtisanProfileRaw {
-  id: number
-  atelier: string
-  métier: string
-  description: string | null
-  localisation: string | null
-  zone: string | null
-  photosAtelier: string | null // JSON string dans la DB
-  documentValidation: string | null
-  statutValidation: 'en_attente' | 'valide' | 'rejete'
-  noteMoyenne: number | null
-  nombreAvis: number
-  statutAbonnement: 'inactif' | 'actif' | 'expire'
-  user: { nom: string; prenom: string; telephone: string; photoUrl: string | null }
-}
-
-// Shape normalisée pour les composants UI
 export interface ArtisanProfile {
   id: number
-  nomAtelier: string
+  atelier: string
+  metier: string
   description: string | null
   localisation: string | null
   zone: string | null
   photoProfil: string | null
   photosAtelier: string[]
-  estValide: boolean
-  notemoyenne: number
-  nombreAvis: number
-  metier: { id: number; nom: string }
-  statutAbonnement: 'inactif' | 'actif' | 'expire'
+  statutValidation: string
+  noteMoyenne: number
   user: { nom: string; prenom: string; telephone: string; photoUrl: string | null }
 }
 
 export interface UpdateProfilePayload {
-  nomAtelier?: string
+  atelier?: string
   description?: string
   localisation?: string
   zone?: string
 }
 
-function normalizeArtisanProfile(raw: ArtisanProfileRaw): ArtisanProfile {
-  let photos: string[] = []
-  if (raw.photosAtelier) {
-    try { photos = JSON.parse(raw.photosAtelier) } catch { photos = [] }
-  }
-  return {
-    id: raw.id,
-    nomAtelier: raw.atelier ?? '',
-    description: raw.description,
-    localisation: raw.localisation,
-    zone: raw.zone,
-    photoProfil: raw.user?.photoUrl ?? null,
-    photosAtelier: photos,
-    estValide: raw.statutValidation === 'valide',
-    notemoyenne: raw.noteMoyenne ?? 0,
-    nombreAvis: raw.nombreAvis ?? 0,
-    metier: { id: 0, nom: raw.métier ?? '' },
-    statutAbonnement: raw.statutAbonnement ?? 'inactif',
-    user: raw.user,
-  }
-}
-
 // ── Orders ─────────────────────────────────────────────────────────────────
-
-interface ArtisanOrderRaw {
-  id: number
-  statut: OrderStatus
-  consignes: string | null
-  mesures: string | null
-  totalPrice: number | null
-  depositAmount: number | null
-  deliveryDate: string | null
-  createdAt: string
-  // backend retourne l'User directement avec l'alias 'client'
-  client: { id: number; nom: string; prenom: string; telephone: string; photoUrl?: string | null } | null
-  creation?: { id: number; titre: string; photoUrl: string | null } | null
-}
 
 export interface ArtisanOrder {
   id: number
   statut: OrderStatus
   description: string | null
-  mesures: string | null
+  mesures: Record<string, string> | null
+  options: string[]
   prixTotal: number | null
   acompte: number | null
   dateLivraisonEstimee: string | null
   createdAt: string
   client: {
-    id: number
-    photoProfil: string | null
-    user: { nom: string; prenom: string; telephone: string }
+    nom: string
+    prenom: string
+    telephone: string
   }
   creation: { id: number; titre: string; photoUrl: string | null } | null
 }
 
-function normalizeArtisanOrder(raw: ArtisanOrderRaw): ArtisanOrder {
-  return {
-    id: raw.id,
-    statut: raw.statut,
-    description: raw.consignes,
-    mesures: raw.mesures,
-    prixTotal: raw.totalPrice,
-    acompte: raw.depositAmount,
-    dateLivraisonEstimee: raw.deliveryDate,
-    createdAt: raw.createdAt,
-    client: {
-      id: raw.client?.id ?? 0,
-      photoProfil: raw.client?.photoUrl ?? null,
-      user: {
-        nom: raw.client?.nom ?? '',
-        prenom: raw.client?.prenom ?? '',
-        telephone: raw.client?.telephone ?? '',
-      },
-    },
-    creation: raw.creation ?? null,
-  }
-}
-
 // ── Appointments ──────────────────────────────────────────────────────────
-
-// Brut backend
-interface ArtisanAppointmentRaw {
-  id: number
-  type: string | null
-  statut: string
-  date: string | null
-  lieu: string | null
-  notes: string | null
-  client?: {
-    id: number
-    photoProfil: string | null
-    user: { nom: string; prenom: string }
-  }
-}
 
 export interface ArtisanAppointment {
   id: number
   type: string
   statut: AppointmentStatus
-  dateHeure: string
+  date: string | null
   lieu: string | null
   notes: string | null
   client: {
-    id: number
-    photoProfil: string | null
-    user: { nom: string; prenom: string }
-  }
-}
-
-function normalizeArtisanAppointment(raw: ArtisanAppointmentRaw): ArtisanAppointment {
-  return {
-    id: raw.id,
-    type: raw.type ?? 'prise_mesures',
-    statut: (raw.statut ?? 'demande') as AppointmentStatus,
-    dateHeure: raw.date ?? '',
-    lieu: raw.lieu,
-    notes: raw.notes,
-    client: {
-      id: raw.client?.id ?? 0,
-      photoProfil: raw.client?.photoProfil ?? null,
-      user: { nom: raw.client?.user?.nom ?? '', prenom: raw.client?.user?.prenom ?? '' },
-    },
+    nom: string
+    prenom: string
   }
 }
 
@@ -209,15 +99,16 @@ export const artisanApi = {
 
   // Profile
   getProfile: () =>
-    apiClient.get<ArtisanProfileRaw>(ENDPOINTS.artisanProfile)
-      .then((r) => ({ ...r, data: normalizeArtisanProfile(r.data) })),
-  updateProfile: (data: UpdateProfilePayload) =>
-    apiClient.put(ENDPOINTS.artisanProfile, {
-      atelier: data.nomAtelier,
-      description: data.description,
-      localisation: data.localisation,
-      zone: data.zone,
+    apiClient.get<ArtisanProfile>(ENDPOINTS.artisanProfile).then((r) => {
+      const p = r.data as any
+      if (typeof p.photosAtelier === 'string') {
+        try { p.photosAtelier = JSON.parse(p.photosAtelier) } catch { p.photosAtelier = [] }
+      }
+      if (!Array.isArray(p.photosAtelier)) p.photosAtelier = []
+      return r
     }),
+  updateProfile: (data: UpdateProfilePayload) =>
+    apiClient.put<ArtisanProfile>(ENDPOINTS.artisanProfile, data),
   uploadPhotos: (uris: string[]) => {
     const form = new FormData()
     uris.forEach((uri, i) => {
@@ -230,11 +121,22 @@ export const artisanApi = {
 
   // Orders
   orders: () =>
-    apiClient.get<ArtisanOrderRaw[]>(ENDPOINTS.artisanOrders)
-      .then((r) => ({ ...r, data: r.data.map(normalizeArtisanOrder) })),
+    apiClient.get<ArtisanOrder[]>(ENDPOINTS.artisanOrders).then((r) => {
+      r.data.forEach((o) => {
+        if (typeof o.mesures === 'string') {
+          try { (o as any).mesures = JSON.parse(o.mesures) } catch { (o as any).mesures = null }
+        }
+      })
+      return r
+    }),
   orderById: (id: number) =>
-    apiClient.get<ArtisanOrderRaw>(ENDPOINTS.artisanOrderById(id))
-      .then((r) => ({ ...r, data: normalizeArtisanOrder(r.data) })),
+    apiClient.get<ArtisanOrder>(ENDPOINTS.artisanOrderById(id)).then((r) => {
+      const o = r.data as any
+      if (typeof o.mesures === 'string') {
+        try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
+      }
+      return r
+    }),
   updateOrderStatus: (id: number, statut: OrderStatus, dateLivraisonEstimee?: string) =>
     apiClient.patch(ENDPOINTS.artisanOrderStatus(id), { statut, dateLivraisonEstimee }),
   updateDeliveryDate: (id: number, date: string) =>
@@ -244,16 +146,27 @@ export const artisanApi = {
 
   // Appointments
   appointments: () =>
-    apiClient.get<ArtisanAppointmentRaw[]>(ENDPOINTS.artisanAppointments)
-      .then((r) => ({ ...r, data: r.data.map(normalizeArtisanAppointment) })),
+    apiClient.get<ArtisanAppointment[]>(ENDPOINTS.artisanAppointments),
   updateAppointmentStatus: (id: number, statut: AppointmentStatus) =>
     apiClient.patch(ENDPOINTS.artisanAppointmentStatus(id), { statut }),
-  rescheduleAppointment: (id: number, dateHeure: string, raison?: string) =>
-    apiClient.patch(ENDPOINTS.artisanAppointmentReschedule(id), { dateHeure, raison }),
+  rescheduleAppointment: (id: number, proposedDate: string, raison?: string) =>
+    apiClient.patch(ENDPOINTS.artisanAppointmentReschedule(id), { proposedDate, raison }),
 
   // Models
   myModels: () =>
-    apiClient.get<MyModel[]>(ENDPOINTS.myModels),
+    apiClient.get<MyModel[]>(ENDPOINTS.myModels).then((r) => {
+      r.data.forEach((m: any) => {
+        if (typeof m.photos === 'string') {
+          try { m.photos = JSON.parse(m.photos) } catch { m.photos = [] }
+        }
+        if (!Array.isArray(m.photos)) m.photos = []
+        if (typeof m.options === 'string') {
+          try { m.options = JSON.parse(m.options) } catch { m.options = [] }
+        }
+        if (!Array.isArray(m.options)) m.options = []
+      })
+      return r
+    }),
   createModel: (data: CreateModelPayload) =>
     apiClient.post<MyModel>(ENDPOINTS.models, data),
   updateModel: (id: number, data: Partial<CreateModelPayload>) =>

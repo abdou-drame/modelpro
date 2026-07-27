@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
   FlatList,
-  Alert,
 } from 'react-native'
 import { Link, router } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
@@ -62,23 +61,18 @@ export default function RegisterArtisanScreen() {
   const onSubmit = async (data: FormData) => {
     setError('')
     try {
-      const metierNom = metiers?.find((m) => m.id === data.metierId)?.nom ?? ''
-      await authApi.register({
+      const res = await authApi.register({
         nom: data.nom,
         prenom: data.prenom,
         telephone: data.telephone,
         password: data.password,
         role: 'artisan',
         atelier: data.nomAtelier,
-        métier: metierNom,
         localisation: data.localisation,
+        métier: selectedMetier?.nom ?? '',
       })
-      // Le backend artisan ne retourne pas de token — profil doit être validé avant connexion
-      Alert.alert(
-        'Compte créé',
-        'Votre profil artisan est en attente de validation par notre équipe. Vous recevrez une confirmation avant de pouvoir vous connecter.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
-      )
+      await setAuth(res.data.user as any, res.data.token)
+      router.replace('/(artisan)/dashboard')
     } catch (e: any) {
       setError(e.response?.data?.error || 'Erreur lors de l\'inscription')
     }

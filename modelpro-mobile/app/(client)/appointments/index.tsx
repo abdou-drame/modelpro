@@ -46,11 +46,11 @@ interface Appointment {
   id: number
   type: string
   statut: string
-  dateHeure: string
+  date: string | null
   lieu: string | null
   notes: string | null
   artisan: {
-    nomAtelier: string
+    atelier: string
     user: { nom: string; prenom: string }
   }
 }
@@ -66,7 +66,7 @@ function AppointmentCard({ appt, onCancel, index }: {
         <View style={styles.cardHead}>
           <View>
             <Text style={styles.typeLabel}>{TYPE_LABELS[appt.type] ?? appt.type}</Text>
-            <Text style={styles.atelierName}>{appt.artisan.nomAtelier}</Text>
+            <Text style={styles.atelierName}>{appt.artisan.atelier}</Text>
           </View>
           <Badge
             label={STATUS_LABELS[appt.statut] ?? appt.statut}
@@ -77,7 +77,7 @@ function AppointmentCard({ appt, onCancel, index }: {
         <View style={styles.details}>
           <View style={styles.detailRow}>
             <Calendar size={13} color={colors.textMuted} strokeWidth={2} />
-            <Text style={styles.detailText}>{formatDateTime(appt.dateHeure)}</Text>
+            <Text style={styles.detailText}>{appt.date ? formatDateTime(appt.date) : '—'}</Text>
           </View>
           {appt.lieu && (
             <View style={styles.detailRow}>
@@ -116,7 +116,7 @@ export default function ClientAppointmentsScreen() {
   const handleCancel = (appt: Appointment) => {
     Alert.alert(
       'Annuler le rendez-vous',
-      `Annuler le RDV chez ${appt.artisan.nomAtelier} ?`,
+      `Annuler le RDV chez ${appt.artisan.atelier} ?`,
       [
         { text: 'Non', style: 'cancel' },
         { text: 'Oui, annuler', style: 'destructive', onPress: () => cancelMutation.mutate(appt.id) },

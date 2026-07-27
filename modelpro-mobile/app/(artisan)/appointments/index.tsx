@@ -82,13 +82,13 @@ function AppointmentCard({ appt, onConfirm, onRefuse, onReschedule, index }: {
         </View>
 
         <Text style={styles.clientName}>
-          {appt.client.user.prenom} {appt.client.user.nom}
+          {appt.client.prenom} {appt.client.nom}
         </Text>
 
         <View style={styles.detailsCol}>
           <View style={styles.detailItem}>
             <Calendar size={13} color={colors.textMuted} strokeWidth={2} />
-            <Text style={styles.detailText}>{formatDateTime(appt.dateHeure)}</Text>
+            <Text style={styles.detailText}>{appt.date ? formatDateTime(appt.date) : '—'}</Text>
           </View>
           {appt.lieu && (
             <View style={styles.detailItem}>
@@ -141,7 +141,7 @@ export default function ArtisanAppointmentsScreen() {
   const handleConfirm = (appt: ArtisanAppointment) => {
     Alert.alert(
       'Confirmer le rendez-vous',
-      `RDV avec ${appt.client.user.prenom} ${appt.client.user.nom} ?`,
+      `RDV avec ${appt.client.prenom} ${appt.client.nom} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Confirmer', onPress: () => statusMutation.mutate({ id: appt.id, statut: 'accepte' }) },

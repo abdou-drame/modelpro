@@ -52,7 +52,7 @@ export default function ChatScreen() {
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
     })
     if (!result.canceled && result.assets[0]) {
@@ -95,7 +95,7 @@ export default function ChatScreen() {
               style={styles.headerAvatar}
             />
             <View>
-              <Text style={styles.headerName}>{order.artisan.nomAtelier}</Text>
+              <Text style={styles.headerName}>{order.artisan.atelier}</Text>
               <Text style={styles.headerSub}>Commande #{id}</Text>
             </View>
           </View>
@@ -111,7 +111,7 @@ export default function ChatScreen() {
         renderItem={({ item, index }) => (
           <MessageBubble
             message={item}
-            isMine={item.sender.id === user?.id}
+            isMine={item.sender?.id === user?.id}
             index={index}
           />
         )}

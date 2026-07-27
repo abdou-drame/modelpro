@@ -15,10 +15,11 @@ export interface Order {
   updatedAt: string
   artisan: {
     id: number
-    nomAtelier: string
+    atelier: string
+    métier: string
+    noteMoyenne: number | null
     photoProfil: string | null
     user: { nom: string; prenom: string }
-    metier: { nom: string }
   }
   creation: { id: number; titre: string; photoUrl: string | null } | null
 }

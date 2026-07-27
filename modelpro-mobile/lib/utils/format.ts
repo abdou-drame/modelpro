@@ -18,9 +18,9 @@ export const formatDateTime = (date: string | Date | null | undefined): string =
 }
 
 export const formatRelative = (date: string | Date | null | undefined): string => {
-  if (!date) return '—'
+  if (!date) return ''
   const d = new Date(date)
-  return isNaN(d.getTime()) ? '—' : formatDistanceToNow(d, { addSuffix: true, locale: fr })
+  return isNaN(d.getTime()) ? '' : formatDistanceToNow(d, { addSuffix: true, locale: fr })
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

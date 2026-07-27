@@ -88,8 +88,8 @@ export default function ArtisanDashboard() {
               <Text style={styles.heroName}>{user?.prenom} {user?.nom}</Text>
               {profile && (
                 <View style={styles.heroRating}>
-                  <StarRating value={profile.notemoyenne ?? 0} size={12} />
-                  <Text style={styles.heroRatingText}>{(profile.notemoyenne ?? 0).toFixed(1)}</Text>
+                  <StarRating value={profile.noteMoyenne ?? 0} size={12} />
+                  <Text style={styles.heroRatingText}>{(profile.noteMoyenne ?? 0).toFixed(1)}</Text>
                 </View>
               )}
             </View>
@@ -163,7 +163,7 @@ export default function ArtisanDashboard() {
               >
                 <View style={styles.orderCardLeft}>
                   <Text style={styles.orderClient}>
-                    {order.client.user.prenom} {order.client.user.nom}
+                    {order.client.prenom} {order.client.nom}
                   </Text>
                   {order.creation && (
                     <Text style={styles.orderModel} numberOfLines={1}>{order.creation.titre}</Text>

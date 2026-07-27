@@ -7,7 +7,6 @@ export interface RegisterPayload {
   nom: string
   prenom: string
   role: 'client' | 'artisan'
-  // Artisan fields — alignés sur le backend (métier = nom string, atelier = nom string)
   métier?: string
   atelier?: string
   localisation?: string

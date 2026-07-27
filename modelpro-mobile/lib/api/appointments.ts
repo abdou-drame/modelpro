@@ -26,13 +26,14 @@ export interface Appointment {
   id: number
   type: AppointmentType
   statut: AppointmentStatus
-  dateHeure: string
+  date: string | null
   lieu: string | null
   notes: string | null
   createdAt: string
   artisan: {
     id: number
-    nomAtelier: string
+    atelier: string
+    métier: string
     photoProfil: string | null
     user: { nom: string; prenom: string }
   }
@@ -62,7 +63,7 @@ function normalizeAppointment(raw: AppointmentRaw): Appointment {
 export interface CreateAppointmentPayload {
   artisanId: number
   type: AppointmentType
-  dateHeure: string
+  date: string
   lieu?: string
   notes?: string
 }

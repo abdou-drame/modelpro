@@ -1,10 +1,21 @@
 import { Response } from 'express';
 import { Op } from 'sequelize';
+
+function parsePagination(query: any): { page: number; limit: number; offset: number } {
+  const page = Math.max(1, parseInt(query.page) || 1)
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 10))
+  return { page, limit, offset: (page - 1) * limit }
+}
+
+function paginated<T>(data: T[], count: number, page: number, limit: number) {
+  return { data, total: count, page, totalPages: Math.ceil(count / limit), limit }
+}
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Artisan } from '../models/Artisan';
 import { Claim } from '../models/Claim';
 import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
+import { Review } from '../models/Review';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
 import { Appointment } from '../models/Appointment';
@@ -15,6 +26,7 @@ import { createNotification } from '../services/notificationService';
 export const getAllUsers = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { search, role, statut } = req.query;
+    const { page, limit, offset } = parsePagination(req.query)
 
     const whereClause: any = {};
     if (role) whereClause.role = role;
@@ -30,15 +42,15 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response): Pro
       ];
     }
 
-    const users = await User.findAll({
+    const { count, rows } = await User.findAndCountAll({
       where: whereClause,
       attributes: { exclude: ['password'] },
-      include: [
-        { model: Artisan, as: 'artisanProfile', required: false }
-      ],
+      include: [{ model: Artisan, as: 'artisanProfile', required: false }],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
     });
-    res.status(200).json(users);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllUsers :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des utilisateurs.' });
@@ -98,18 +110,58 @@ export const getPendingArtisans = async (req: AuthenticatedRequest, res: Respons
 // 4. Liste de tous les artisans (Contrôle profils & abonnements)
 export const getAllArtisansAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const artisans = await Artisan.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const { count, rows } = await Artisan.findAndCountAll({
       include: [
-        { model: User, as: 'user', attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'statut'] }
+        { model: User, as: 'user', attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'statut', 'photoUrl'] }
       ],
       order: [['noteMoyenne', 'DESC']],
+      limit,
+      offset,
     });
-    res.status(200).json(artisans);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllArtisansAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des artisans.' });
   }
 };
+
+// 4b. Profil détaillé d'un artisan (admin)
+export const getArtisanProfileAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+
+    const artisan = await Artisan.findByPk(Number(id), {
+      include: [
+        { model: User, as: 'user', attributes: { exclude: ['password'] } },
+      ],
+    })
+
+    if (!artisan) {
+      res.status(404).json({ error: 'Artisan introuvable.' })
+      return
+    }
+
+    const [catalogue, reviews] = await Promise.all([
+      Creation.findAll({
+        where: { artisanId: artisan.id },
+        order: [['createdAt', 'DESC']],
+        limit: 20,
+      }),
+      Review.findAll({
+        where: { artisanId: artisan.id },
+        include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'photoUrl'] }],
+        order: [['createdAt', 'DESC']],
+        limit: 20,
+      }),
+    ])
+
+    res.status(200).json({ ...artisan.toJSON(), catalogue, reviews })
+  } catch (error) {
+    console.error('Erreur getArtisanProfileAdmin :', error)
+    res.status(500).json({ error: 'Une erreur est survenue.' })
+  }
+}
 
 // 5. Valider un artisan avec notification
 export const verifyArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -186,27 +238,30 @@ export const rejectArtisan = async (req: AuthenticatedRequest, res: Response): P
 // 7. Liste de toutes les commandes avec identification des retards (Admin)
 export const getAllOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const orders = await Order.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const { count, rows } = await Order.findAndCountAll({
       include: [
         { model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] },
         { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
       ],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
 
     const now = new Date();
-    const formattedOrders = orders.map((o) => {
-      const orderJson: any = o.toJSON();
-      const isLate = Boolean(
+    const data = rows.map((o) => {
+      const json: any = o.toJSON();
+      json.estEnRetard = Boolean(
         o.deliveryDate &&
         new Date(o.deliveryDate) < now &&
         !['livree', 'annulee'].includes(o.statut)
       );
-      orderJson.estEnRetard = isLate;
-      return orderJson;
+      return json;
     });
 
-    res.status(200).json(formattedOrders);
+    res.status(200).json(paginated(data, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllOrders :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des commandes.' });
@@ -239,13 +294,17 @@ export const getOverdueOrders = async (req: AuthenticatedRequest, res: Response)
 // 9. Modération des modèles (Consulter tous les modèles du catalogue)
 export const getAllModelsAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const models = await Creation.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const { count, rows } = await Creation.findAndCountAll({
       include: [
         { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
       ],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
-    res.status(200).json(models);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllModelsAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des modèles.' });
@@ -272,14 +331,18 @@ export const deleteModelForce = async (req: AuthenticatedRequest, res: Response)
 // 11. Consultation globale de tous les Rendez-vous
 export const getAllAppointmentsAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const appointments = await Appointment.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const { count, rows } = await Appointment.findAndCountAll({
       include: [
         { model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] },
         { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
       ],
       order: [['date', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
-    res.status(200).json(appointments);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllAppointmentsAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des rendez-vous.' });

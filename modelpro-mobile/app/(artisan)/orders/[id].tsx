@@ -99,9 +99,9 @@ export default function ArtisanOrderDetailScreen() {
           <View style={styles.clientRow}>
             <View>
               <Text style={styles.clientName}>
-                {order.client.user.prenom} {order.client.user.nom}
+                {order.client.prenom} {order.client.nom}
               </Text>
-              <Text style={styles.clientPhone}>{order.client.user.telephone}</Text>
+              <Text style={styles.clientPhone}>{order.client.telephone}</Text>
             </View>
             <Badge label={ORDER_STATUS_LABELS[order.statut]} variant={STATUS_VARIANT[order.statut]} size="md" />
           </View>
