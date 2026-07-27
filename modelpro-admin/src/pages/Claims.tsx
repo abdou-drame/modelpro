@@ -142,7 +142,7 @@ export default function Claims() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider w-8"></th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">#ID</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">Client</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">Atelier</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">Commande</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">Sujet</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">Statut</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-ink-sub uppercase tracking-wider">Date</th>
@@ -187,10 +187,10 @@ export default function Claims() {
                         </td>
                         <td className="px-4 py-3 font-mono text-ink-sub text-xs">#{claim.id}</td>
                         <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
-                          {claim.client.user.prenom} {claim.client.user.nom}
+                          {claim.client.prenom} {claim.client.nom}
                         </td>
                         <td className="px-4 py-3 text-ink-sub whitespace-nowrap">
-                          {claim.order.artisan.nomAtelier}
+                          Commande #{claim.orderId}
                         </td>
                         <td className="px-4 py-3 text-ink max-w-xs">
                           <span className="block truncate" title={claim.sujet}>
@@ -239,7 +239,7 @@ export default function Claims() {
                                       <p className="text-sm text-ink leading-relaxed">{claim.description}</p>
                                     </div>
                                     <div className="shrink-0 text-right">
-                                      <p className="text-xs text-ink-muted">Commande #{claim.order.id}</p>
+                                      <p className="text-xs text-ink-muted">Commande #{claim.orderId}</p>
                                       <Badge
                                         label={CLAIM_STATUS_LABELS[currentStatus] ?? currentStatus}
                                         variant={claimStatusVariant(currentStatus) as any}

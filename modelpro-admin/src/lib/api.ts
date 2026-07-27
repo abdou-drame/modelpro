@@ -114,15 +114,14 @@ export interface AdminUser {
 export interface AdminArtisan {
   id: number
   userId: number
-  nomAtelier: string
-  metier: { id: number; nom: string }
+  atelier: string
+  métier: string
   localisation: string | null
-  noteMoyenne: number
+  noteMoyenne: number | null
   nombreAvis: number
-  statutValidation: string
-  statutAbonnement: string
+  statutValidation: 'en_attente' | 'valide' | 'rejete'
+  statutAbonnement: 'inactif' | 'actif' | 'expire'
   dateFinAbonnement: string | null
-  estValide: boolean
   user: AdminUser
 }
 
@@ -133,8 +132,8 @@ export interface AdminOrder {
   createdAt: string
   dateLivraisonEstimee: string | null
   estEnRetard?: boolean
-  client: { user: Pick<AdminUser, 'nom' | 'prenom'> }
-  artisan: { nomAtelier: string; metier: { nom: string } }
+  client: Pick<AdminUser, 'nom' | 'prenom'>
+  artisan: { atelier: string; métier: string }
   creation?: { titre: string } | null
 }
 
@@ -144,7 +143,7 @@ export interface AdminModel {
   photoUrl: string | null
   prixEstimatif: number | null
   categorie: string | null
-  artisan: { nomAtelier: string }
+  artisan: { atelier: string; user: Pick<AdminUser, 'nom' | 'prenom'> }
   createdAt: string
 }
 
@@ -154,8 +153,8 @@ export interface AdminClaim {
   description: string
   statut: string
   createdAt: string
-  client: { user: Pick<AdminUser, 'nom' | 'prenom'> }
-  order: { id: number; artisan: { nomAtelier: string } }
+  orderId: number
+  client: Pick<AdminUser, 'nom' | 'prenom'>
 }
 
 export interface AdminAppointment {
@@ -164,8 +163,8 @@ export interface AdminAppointment {
   statut: string
   date: string
   notes: string | null
-  client: { user: Pick<AdminUser, 'nom' | 'prenom'> }
-  artisan: { nomAtelier: string }
+  client: Pick<AdminUser, 'nom' | 'prenom'>
+  artisan: { atelier: string }
 }
 
 export interface AdminPayment {
@@ -175,8 +174,8 @@ export interface AdminPayment {
   moyen: string
   statut: string
   createdAt: string
-  order?: { id: number } | null
-  artisan: { nomAtelier: string }
+  orderId?: number | null
+  artisan: { atelier: string }
 }
 
 export interface Metier {

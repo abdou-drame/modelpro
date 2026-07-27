@@ -219,9 +219,9 @@ export default function Payments() {
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.015 }}
                     >
                       <span className="text-xs font-mono text-ink-muted">#{p.id}</span>
-                      <span className="text-sm font-medium text-ink truncate">{p.artisan.nomAtelier}</span>
+                      <span className="text-sm font-medium text-ink truncate">{p.artisan.atelier}</span>
                       <span className="text-sm text-ink-sub truncate">
-                        {p.order ? `Commande #${p.order.id}` : 'Abonnement'}
+                        {p.orderId ? `Commande #${p.orderId}` : 'Abonnement'}
                       </span>
                       <span className="text-sm font-bold text-ink tabular-nums">{formatPrice(p.montant)}</span>
                       <Badge label={typeLabel(p.type)} variant={TYPE_VARIANT[p.type] ?? 'neutral'} />

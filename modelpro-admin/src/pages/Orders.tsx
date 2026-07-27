@@ -33,8 +33,8 @@ export default function Orders() {
     return baseOrders.filter((o) => {
       const matchSearch =
         !q ||
-        `${o.client.user.prenom} ${o.client.user.nom}`.toLowerCase().includes(q) ||
-        o.artisan.nomAtelier.toLowerCase().includes(q)
+        `${o.client.prenom} ${o.client.nom}`.toLowerCase().includes(q) ||
+        o.artisan.atelier.toLowerCase().includes(q)
       const matchStatus = statusFilter === 'tous' || o.statut === statusFilter
       return matchSearch && matchStatus
     })
@@ -165,11 +165,11 @@ export default function Orders() {
                   >
                     <td className="px-4 py-3 font-mono text-ink-sub text-xs">#{order.id}</td>
                     <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
-                      {order.client.user.prenom} {order.client.user.nom}
+                      {order.client.prenom} {order.client.nom}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-ink font-medium">{order.artisan.nomAtelier}</span>
-                      <span className="text-ink-muted text-xs block">{order.artisan.metier.nom}</span>
+                      <span className="text-ink font-medium">{order.artisan.atelier}</span>
+                      <span className="text-ink-muted text-xs block">{order.artisan.métier}</span>
                     </td>
                     <td className="px-4 py-3 text-ink-sub">
                       {order.creation?.titre ?? <span className="text-ink-muted">—</span>}

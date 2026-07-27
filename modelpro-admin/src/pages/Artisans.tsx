@@ -186,7 +186,7 @@ export default function Artisans() {
         onClose={() => setVerifyTarget(null)}
         onConfirm={() => verifyTarget && verifyMutation.mutate(verifyTarget.id)}
         title="Valider cet artisan ?"
-        description={`Le profil de ${verifyTarget?.nomAtelier} sera marqué comme validé et visible sur la plateforme.`}
+        description={`Le profil de ${verifyTarget?.atelier} sera marqué comme validé et visible sur la plateforme.`}
         confirmLabel="Valider"
         variant="primary"
         loading={verifyMutation.isPending}
@@ -201,7 +201,7 @@ export default function Artisans() {
       >
         <p className="text-sm text-ink-sub mb-4">
           Indiquez le motif de rejet pour{' '}
-          <span className="font-semibold text-ink">{rejectTarget?.nomAtelier}</span>.
+          <span className="font-semibold text-ink">{rejectTarget?.atelier}</span>.
           Ce message sera communiqué à l'artisan.
         </p>
         <textarea
@@ -391,7 +391,7 @@ function ArtisanRow({
             {user.photoUrl ? (
               <img
                 src={user.photoUrl}
-                alt={artisan.nomAtelier}
+                alt={artisan.atelier}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -399,7 +399,7 @@ function ArtisanRow({
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-ink truncate">{artisan.nomAtelier}</p>
+            <p className="font-medium text-ink truncate">{artisan.atelier}</p>
             <p className="text-xs text-ink-muted truncate">
               {user.prenom} {user.nom}
             </p>
@@ -409,7 +409,7 @@ function ArtisanRow({
 
       {/* Métier */}
       <td className="px-4 py-3">
-        <Badge label={artisan.metier.nom} variant="default" />
+        <Badge label={artisan.métier ?? '—'} variant="default" />
       </td>
 
       {/* Localisation */}
@@ -422,7 +422,7 @@ function ArtisanRow({
         <div className="flex items-center gap-1">
           <span className="text-amber-500 text-sm leading-none">★</span>
           <span className="font-medium text-ink">
-            {artisan.noteMoyenne > 0 ? artisan.noteMoyenne.toFixed(1) : '—'}
+            {artisan.noteMoyenne && artisan.noteMoyenne > 0 ? artisan.noteMoyenne.toFixed(1) : '—'}
           </span>
           {artisan.nombreAvis > 0 && (
             <span className="text-xs text-ink-muted">/ {artisan.nombreAvis} avis</span>

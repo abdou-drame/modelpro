@@ -76,7 +76,7 @@ export default function Catalogue() {
     return models.filter(m => {
       const matchSearch = !q
         || m.titre.toLowerCase().includes(q)
-        || m.artisan.nomAtelier.toLowerCase().includes(q)
+        || m.artisan.atelier.toLowerCase().includes(q)
       const matchCat = !activeCategory || m.categorie === activeCategory
       return matchSearch && matchCat
     })
@@ -193,7 +193,7 @@ interface ModelCardProps {
     photoUrl: string | null
     prixEstimatif: number | null
     categorie: string | null
-    artisan: { nomAtelier: string }
+    artisan: { atelier: string }
     createdAt: string
   }
   onDelete: () => void
@@ -254,7 +254,7 @@ function ModelCard({ model, onDelete }: ModelCardProps) {
       {/* Content */}
       <div className="p-4">
         <p className="font-display font-semibold text-ink text-sm leading-snug truncate">{model.titre}</p>
-        <p className="text-xs text-ink-sub mt-0.5 truncate">{model.artisan.nomAtelier}</p>
+        <p className="text-xs text-ink-sub mt-0.5 truncate">{model.artisan.atelier}</p>
 
         <div className="flex items-center justify-between mt-3">
           {model.prixEstimatif !== null ? (

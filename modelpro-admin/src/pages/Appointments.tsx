@@ -190,10 +190,10 @@ export default function Appointments() {
                       )}
                     >
                       <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
-                        {appt.client.user.prenom} {appt.client.user.nom}
+                        {appt.client.prenom} {appt.client.nom}
                       </td>
                       <td className="px-4 py-3 text-ink-sub whitespace-nowrap">
-                        {appt.artisan.nomAtelier}
+                        {appt.artisan.atelier}
                       </td>
                       <td className="px-4 py-3">
                         <Badge
