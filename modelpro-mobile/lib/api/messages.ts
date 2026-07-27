@@ -67,20 +67,26 @@ export interface Conversation {
 }
 
 function normalizeConversation(raw: ConversationRaw): Conversation {
-  const artisan = raw.order?.artisan
-  const client = raw.order?.client
+  const artisanProfile = raw.order?.artisan ?? null
+  const clientRaw = raw.order?.client ?? null
   return {
     orderId: raw.orderId,
     artisan: {
-      id: artisan?.id ?? 0,
-      nomAtelier: artisan?.atelier ?? '',
-      photoProfil: artisan?.user?.photoUrl ?? null,
-      user: { nom: artisan?.user?.nom ?? '', prenom: artisan?.user?.prenom ?? '' },
+      id: artisanProfile?.id ?? 0,
+      nomAtelier: artisanProfile?.atelier ?? '',
+      photoProfil: artisanProfile?.user?.photoUrl ?? null,
+      user: {
+        nom: artisanProfile?.user?.nom ?? '',
+        prenom: artisanProfile?.user?.prenom ?? '',
+      },
     },
     client: {
-      id: client?.id ?? 0,
-      photoProfil: client?.photoUrl ?? null,
-      user: { nom: client?.nom ?? '', prenom: client?.prenom ?? '' },
+      id: clientRaw?.id ?? 0,
+      photoProfil: clientRaw?.photoUrl ?? null,
+      user: {
+        nom: clientRaw?.nom ?? '',
+        prenom: clientRaw?.prenom ?? '',
+      },
     },
     dernierMessage: raw.lastMessage
       ? {
@@ -95,21 +101,25 @@ function normalizeConversation(raw: ConversationRaw): Conversation {
 }
 
 export const messagesApi = {
-  conversations: () =>
-    apiClient.get<ConversationRaw[]>(ENDPOINTS.conversations)
-      .then((r) => ({ ...r, data: r.data.map(normalizeConversation) })),
+  conversations: async () => {
+    const r = await apiClient.get<ConversationRaw[]>(ENDPOINTS.conversations)
+    const raw = Array.isArray(r.data) ? r.data : []
+    return { data: raw.map(normalizeConversation) }
+  },
 
   orderMessages: (orderId: number) =>
     apiClient.get<Message[]>(ENDPOINTS.orderMessages(orderId)),
 
   send: (orderId: number, texte?: string, photo?: { uri: string; name: string; type: string }) => {
-    const form = new FormData()
-    form.append('orderId', String(orderId))
-    if (texte) form.append('texte', texte)
-    if (photo) form.append('photo', { uri: photo.uri, name: photo.name, type: photo.type } as any)
-    return apiClient.post<Message>(ENDPOINTS.messages, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    if (photo) {
+      const form = new FormData()
+      form.append('orderId', String(orderId))
+      if (texte) form.append('texte', texte)
+      form.append('photo', { uri: photo.uri, name: photo.name, type: photo.type } as any)
+      // Ne pas forcer Content-Type — laisser axios/browser gérer la boundary
+      return apiClient.post<Message>(ENDPOINTS.messages, form)
+    }
+    return apiClient.post<Message>(ENDPOINTS.messages, { orderId, texte })
   },
 
   markRead: (id: number) =>

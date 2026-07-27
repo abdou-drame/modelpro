@@ -32,7 +32,7 @@ export default function OrderDetailScreen() {
     mutationFn: () => ordersApi.cancel(orderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-orders'] })
-      router.back()
+      router.replace('/(client)/orders')
     },
   })
 
@@ -54,7 +54,7 @@ export default function OrderDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(client)/orders')} style={styles.backBtn}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Commande #{order.id}</Text>

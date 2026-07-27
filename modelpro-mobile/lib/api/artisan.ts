@@ -77,12 +77,25 @@ function normalizeArtisanProfile(raw: ArtisanProfileRaw): ArtisanProfile {
 
 // ── Orders ─────────────────────────────────────────────────────────────────
 
+interface ArtisanOrderRaw {
+  id: number
+  statut: OrderStatus
+  consignes: string | null
+  mesures: string | null
+  totalPrice: number | null
+  depositAmount: number | null
+  deliveryDate: string | null
+  createdAt: string
+  // backend retourne l'User directement avec l'alias 'client'
+  client: { id: number; nom: string; prenom: string; telephone: string; photoUrl?: string | null } | null
+  creation?: { id: number; titre: string; photoUrl: string | null } | null
+}
+
 export interface ArtisanOrder {
   id: number
   statut: OrderStatus
   description: string | null
-  mesures: Record<string, string> | null
-  options: string[]
+  mesures: string | null
   prixTotal: number | null
   acompte: number | null
   dateLivraisonEstimee: string | null
@@ -93,6 +106,29 @@ export interface ArtisanOrder {
     user: { nom: string; prenom: string; telephone: string }
   }
   creation: { id: number; titre: string; photoUrl: string | null } | null
+}
+
+function normalizeArtisanOrder(raw: ArtisanOrderRaw): ArtisanOrder {
+  return {
+    id: raw.id,
+    statut: raw.statut,
+    description: raw.consignes,
+    mesures: raw.mesures,
+    prixTotal: raw.totalPrice,
+    acompte: raw.depositAmount,
+    dateLivraisonEstimee: raw.deliveryDate,
+    createdAt: raw.createdAt,
+    client: {
+      id: raw.client?.id ?? 0,
+      photoProfil: raw.client?.photoUrl ?? null,
+      user: {
+        nom: raw.client?.nom ?? '',
+        prenom: raw.client?.prenom ?? '',
+        telephone: raw.client?.telephone ?? '',
+      },
+    },
+    creation: raw.creation ?? null,
+  }
 }
 
 // ── Appointments ──────────────────────────────────────────────────────────
@@ -194,9 +230,11 @@ export const artisanApi = {
 
   // Orders
   orders: () =>
-    apiClient.get<ArtisanOrder[]>(ENDPOINTS.artisanOrders),
+    apiClient.get<ArtisanOrderRaw[]>(ENDPOINTS.artisanOrders)
+      .then((r) => ({ ...r, data: r.data.map(normalizeArtisanOrder) })),
   orderById: (id: number) =>
-    apiClient.get<ArtisanOrder>(ENDPOINTS.artisanOrderById(id)),
+    apiClient.get<ArtisanOrderRaw>(ENDPOINTS.artisanOrderById(id))
+      .then((r) => ({ ...r, data: normalizeArtisanOrder(r.data) })),
   updateOrderStatus: (id: number, statut: OrderStatus, dateLivraisonEstimee?: string) =>
     apiClient.patch(ENDPOINTS.artisanOrderStatus(id), { statut, dateLivraisonEstimee }),
   updateDeliveryDate: (id: number, date: string) =>
