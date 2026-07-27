@@ -120,7 +120,7 @@ export default function ModelDetailScreen() {
       </ScrollView>
 
       {/* Back — glass */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(client)')}>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.backBtnBorder} />
         <ArrowLeft size={20} color={colors.white} strokeWidth={2} />

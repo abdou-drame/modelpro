@@ -12,36 +12,34 @@ import { formatDateTime } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 
 const STATUS_VARIANT: Record<string, 'neutral' | 'primary' | 'success' | 'error' | 'warning'> = {
-  en_attente: 'warning',
+  demande: 'warning',
+  pending: 'warning',
+  accepte: 'success',
   confirme: 'success',
   reporte: 'neutral',
-  annule_artisan: 'error',
-  annule_client: 'error',
+  annule: 'error',
   refuse: 'error',
   termine: 'primary',
-  no_show: 'neutral',
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  en_attente: 'En attente',
+  demande: 'En attente',
+  pending: 'En attente',
+  accepte: 'Accepté',
   confirme: 'Confirmé',
   reporte: 'Reporté',
-  annule_artisan: 'Annulé',
-  annule_client: 'Annulé',
+  annule: 'Annulé',
   refuse: 'Refusé',
   termine: 'Terminé',
-  no_show: 'Absent',
 }
 
 const TYPE_LABELS: Record<string, string> = {
   prise_mesures: 'Prise de mesures',
-  mesures: 'Prise de mesures',
-  essayage: 'Essayage',
-  livraison: 'Livraison',
   consultation: 'Consultation',
-  retouche: 'Retouche',
-  depot_tissu: 'Dépôt tissu',
-  autre: 'Autre',
+  depot_article: 'Dépôt article',
+  essayage: 'Essayage',
+  retrait: 'Retrait',
+  domicile: 'À domicile',
 }
 
 interface Appointment {
@@ -60,7 +58,7 @@ interface Appointment {
 function AppointmentCard({ appt, onCancel, index }: {
   appt: Appointment; onCancel: () => void; index: number
 }) {
-  const canCancel = ['en_attente', 'confirme'].includes(appt.statut)
+  const canCancel = ['demande', 'accepte', 'confirme', 'pending'].includes(appt.statut)
 
   return (
     <Animated.View entering={FadeInUp.delay(index * 50).springify()}>

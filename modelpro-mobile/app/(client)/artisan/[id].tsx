@@ -135,11 +135,11 @@ export default function ArtisanProfileScreen() {
                 <View key={review.id} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
                     <Text style={styles.reviewName}>
-                      {review.client.prenom} {review.client.nom[0]}.
+                      {review.client?.prenom ?? 'Client'}{review.client?.nom ? ` ${review.client.nom[0]}.` : ''}
                     </Text>
                     <Text style={styles.reviewDate}>{formatRelative(review.createdAt)}</Text>
                   </View>
-                  <StarRating value={review.note} size={12} />
+                  <StarRating value={review.note ?? review.noteGlobale ?? 0} size={12} />
                   {review.commentaire && (
                     <Text style={styles.reviewText}>{review.commentaire}</Text>
                   )}

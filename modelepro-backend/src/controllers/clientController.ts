@@ -181,7 +181,7 @@ export const getMyOrders = async (req: AuthenticatedRequest, res: Response): Pro
         {
           model: Artisan,
           as: 'artisan',
-          include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone'] }],
+          include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone', 'photoUrl'] }],
         },
       ],
       order: [['createdAt', 'DESC']],

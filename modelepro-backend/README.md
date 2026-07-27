@@ -12,7 +12,43 @@ npm run dev        # Développement (ts-node-dev, hot-reload sur http://localhos
 npm run build      # Compilation TypeScript → dist/
 npm start          # Production (node dist/server.js)
 npm test           # Tests automatisés Jest (12 suites, 98 tests, 100% PASS)
+npm run seed       # Peupler la base avec des données de test
 ```
+
+---
+
+## 🌱 Données de test (seed)
+
+Le seed peuple la base avec un jeu de données réaliste :
+
+| Entité | Quantité |
+|---|---|
+| Métiers | 5 (Tailleur, Couturière, Brodeur, Tisserand, Styliste) |
+| Artisans | 8 |
+| Clients | 10 |
+| Créations / Catalogue | 19 |
+| Commandes | 20 (tous statuts représentés) |
+| Messages | 16 |
+| Rendez-vous | 15 |
+| Avis | 12 |
+| Paiements | 15 + 5 abonnements |
+| Notifications | 20 |
+| Réclamations | 3 |
+
+```bash
+# Créer la base PostgreSQL puis lancer :
+npm run seed
+```
+
+> ⚠️ Le seed fait un `sync({ force: true })` — il efface et recrée toutes les tables. À n'utiliser qu'en développement.
+
+### Comptes de connexion (téléphone / mot de passe)
+
+| Rôle | Téléphone | Mot de passe |
+|---|---|---|
+| Admin | `0600000000` | `Admin@2026` |
+| Artisan (×8) | `0701000001` → `0701000008` | `Artisan@2026` |
+| Client (×10) | `0702000001` → `0702000010` | `Client@2026` |
 
 ---
 
