@@ -66,7 +66,7 @@ export default function ModelDetailScreen() {
         <View style={styles.body}>
           {/* Header */}
           <Animated.View entering={FadeInUp.delay(80).springify()}>
-            <Badge label={model.artisan.metier.nom} variant="primary" />
+            <Badge label={model.artisan.métier} variant="primary" />
             <Text style={styles.title}>{model.titre}</Text>
             {model.prixEstimatif != null && (
               <Text style={styles.price}>{formatPrice(model.prixEstimatif)}</Text>
@@ -81,11 +81,11 @@ export default function ModelDetailScreen() {
               activeOpacity={0.85}
             >
               <View style={styles.artisanInfo}>
-                <Text style={styles.artisanName}>{model.artisan.nomAtelier}</Text>
+                <Text style={styles.artisanName}>{model.artisan.atelier}</Text>
                 <View style={styles.artisanMeta}>
-                  <StarRating value={model.artisan.notemoyenne} size={12} />
+                  <StarRating value={model.artisan.noteMoyenne ?? 0} size={12} />
                   <Text style={styles.artisanMetaText}>
-                    {model.artisan.notemoyenne.toFixed(1)}
+                    {(model.artisan.noteMoyenne ?? 0).toFixed(1)}
                   </Text>
                 </View>
               </View>

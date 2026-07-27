@@ -14,20 +14,20 @@ export interface ArtisanStats {
 
 export interface ArtisanProfile {
   id: number
-  nomAtelier: string
+  atelier: string
+  metier: string
   description: string | null
   localisation: string | null
   zone: string | null
   photoProfil: string | null
   photosAtelier: string[]
-  estValide: boolean
-  notemoyenne: number
-  metier: { id: number; nom: string }
+  statutValidation: string
+  noteMoyenne: number
   user: { nom: string; prenom: string; telephone: string; photoUrl: string | null }
 }
 
 export interface UpdateProfilePayload {
-  nomAtelier?: string
+  atelier?: string
   description?: string
   localisation?: string
   zone?: string
@@ -46,9 +46,9 @@ export interface ArtisanOrder {
   dateLivraisonEstimee: string | null
   createdAt: string
   client: {
-    id: number
-    photoProfil: string | null
-    user: { nom: string; prenom: string; telephone: string }
+    nom: string
+    prenom: string
+    telephone: string
   }
   creation: { id: number; titre: string; photoUrl: string | null } | null
 }
@@ -63,9 +63,8 @@ export interface ArtisanAppointment {
   lieu: string | null
   notes: string | null
   client: {
-    id: number
-    photoProfil: string | null
-    user: { nom: string; prenom: string }
+    nom: string
+    prenom: string
   }
 }
 
@@ -122,9 +121,22 @@ export const artisanApi = {
 
   // Orders
   orders: () =>
-    apiClient.get<ArtisanOrder[]>(ENDPOINTS.artisanOrders),
+    apiClient.get<ArtisanOrder[]>(ENDPOINTS.artisanOrders).then((r) => {
+      r.data.forEach((o) => {
+        if (typeof o.mesures === 'string') {
+          try { (o as any).mesures = JSON.parse(o.mesures) } catch { (o as any).mesures = null }
+        }
+      })
+      return r
+    }),
   orderById: (id: number) =>
-    apiClient.get<ArtisanOrder>(ENDPOINTS.artisanOrderById(id)),
+    apiClient.get<ArtisanOrder>(ENDPOINTS.artisanOrderById(id)).then((r) => {
+      const o = r.data as any
+      if (typeof o.mesures === 'string') {
+        try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
+      }
+      return r
+    }),
   updateOrderStatus: (id: number, statut: OrderStatus, dateLivraisonEstimee?: string) =>
     apiClient.patch(ENDPOINTS.artisanOrderStatus(id), { statut, dateLivraisonEstimee }),
   updateDeliveryDate: (id: number, date: string) =>
@@ -142,7 +154,19 @@ export const artisanApi = {
 
   // Models
   myModels: () =>
-    apiClient.get<MyModel[]>(ENDPOINTS.myModels),
+    apiClient.get<MyModel[]>(ENDPOINTS.myModels).then((r) => {
+      r.data.forEach((m: any) => {
+        if (typeof m.photos === 'string') {
+          try { m.photos = JSON.parse(m.photos) } catch { m.photos = [] }
+        }
+        if (!Array.isArray(m.photos)) m.photos = []
+        if (typeof m.options === 'string') {
+          try { m.options = JSON.parse(m.options) } catch { m.options = [] }
+        }
+        if (!Array.isArray(m.options)) m.options = []
+      })
+      return r
+    }),
   createModel: (data: CreateModelPayload) =>
     apiClient.post<MyModel>(ENDPOINTS.models, data),
   updateModel: (id: number, data: Partial<CreateModelPayload>) =>

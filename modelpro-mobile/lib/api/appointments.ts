@@ -12,7 +12,8 @@ export interface Appointment {
   createdAt: string
   artisan: {
     id: number
-    nomAtelier: string
+    atelier: string
+    métier: string
     photoProfil: string | null
     user: { nom: string; prenom: string }
   }

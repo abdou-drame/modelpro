@@ -63,12 +63,12 @@ export default function ArtisanProfileScreen() {
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>{artisan.nomAtelier}</Text>
-                {artisan.estValide && (
+                <Text style={styles.name}>{artisan.atelier}</Text>
+                {artisan.statutValidation === 'valide' && (
                   <ShieldCheck size={16} color={colors.success} strokeWidth={2} />
                 )}
               </View>
-              <Badge label={artisan.metier.nom} variant="primary" />
+              <Badge label={artisan.métier} variant="primary" />
               {artisan.localisation && (
                 <View style={styles.locationRow}>
                   <MapPin size={12} color="rgba(255,255,255,0.7)" />
@@ -83,8 +83,8 @@ export default function ArtisanProfileScreen() {
           {/* Stats */}
           <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.statsRow}>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{artisan.notemoyenne.toFixed(1)}</Text>
-              <StarRating value={artisan.notemoyenne} size={13} />
+              <Text style={styles.statValue}>{(artisan.noteMoyenne ?? 0).toFixed(1)}</Text>
+              <StarRating value={artisan.noteMoyenne ?? 0} size={13} />
               <Text style={styles.statLabel}>{artisan.nombreAvis} avis</Text>
             </View>
           </Animated.View>
@@ -135,11 +135,11 @@ export default function ArtisanProfileScreen() {
                 <View key={review.id} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
                     <Text style={styles.reviewName}>
-                      {review.client.user.prenom} {review.client.user.nom[0]}.
+                      {review.client.prenom} {review.client.nom[0]}.
                     </Text>
                     <Text style={styles.reviewDate}>{formatRelative(review.createdAt)}</Text>
                   </View>
-                  <StarRating value={review.noteGlobale} size={12} />
+                  <StarRating value={review.note} size={12} />
                   {review.commentaire && (
                     <Text style={styles.reviewText}>{review.commentaire}</Text>
                   )}

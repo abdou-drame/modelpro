@@ -27,7 +27,7 @@ export function ArtisanCard({ artisan }: Props) {
       onPress={() => router.push(`/(client)/artisan/${artisan.id}`)}
       activeOpacity={0.93}
       accessibilityRole="button"
-      accessibilityLabel={`Voir le profil de ${artisan.nomAtelier}, ${artisan.metier.nom}, note ${artisan.notemoyenne.toFixed(1)}`}
+      accessibilityLabel={`Voir le profil de ${artisan.atelier}, ${artisan.métier}, note ${(artisan.noteMoyenne ?? 0).toFixed(1)}`}
     >
       {/* Cover image */}
       <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
@@ -48,15 +48,15 @@ export function ArtisanCard({ artisan }: Props) {
           />
           <View style={styles.info}>
             <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1}>{artisan.nomAtelier}</Text>
-              {artisan.estValide && (
+              <Text style={styles.name} numberOfLines={1}>{artisan.atelier}</Text>
+              {artisan.statutValidation === 'valide' && (
                 <ShieldCheck size={13} color="#4ADE80" strokeWidth={2.5} />
               )}
             </View>
             <View style={styles.metaRow}>
-              <StarRating value={artisan.notemoyenne} size={11} />
+              <StarRating value={artisan.noteMoyenne ?? 0} size={11} />
               <Text style={styles.metaText}>
-                {artisan.notemoyenne.toFixed(1)} · {artisan.nombreAvis} avis
+                {(artisan.noteMoyenne ?? 0).toFixed(1)} · {artisan.nombreAvis} avis
               </Text>
             </View>
             {artisan.localisation && (
@@ -66,7 +66,7 @@ export function ArtisanCard({ artisan }: Props) {
               </View>
             )}
           </View>
-          <Badge label={artisan.metier.nom} variant="primary" size="sm" />
+          <Badge label={artisan.métier} variant="primary" size="sm" />
         </View>
       </View>
 

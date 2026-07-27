@@ -33,8 +33,8 @@ function OrderItem({ order, index }: { order: Order; index: number }) {
       >
         <View style={styles.cardHeader}>
           <View>
-            <Text style={styles.artisanName}>{order.artisan.nomAtelier}</Text>
-            <Text style={styles.metier}>{order.artisan.metier.nom}</Text>
+            <Text style={styles.artisanName}>{order.artisan.atelier}</Text>
+            <Text style={styles.metier}>{order.artisan.métier}</Text>
           </View>
           <Badge label={ORDER_STATUS_LABELS[order.statut]} variant={STATUS_VARIANT[order.statut]} />
         </View>

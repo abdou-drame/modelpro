@@ -60,7 +60,7 @@ export default function ArtisanProfileScreen() {
     resolver: zodResolver(schema),
     values: profile
       ? {
-          nomAtelier: profile.nomAtelier,
+          nomAtelier: profile.atelier,
           description: profile.description ?? '',
           localisation: profile.localisation ?? '',
           zone: profile.zone ?? '',
@@ -99,7 +99,7 @@ export default function ArtisanProfileScreen() {
     }
   }
 
-  const onSubmit = (values: FormValues) => updateMutation.mutate(values)
+  const onSubmit = (values: FormValues) => updateMutation.mutate({ ...values, atelier: values.nomAtelier })
 
   return (
     <KeyboardAvoidingView
@@ -127,11 +127,11 @@ export default function ArtisanProfileScreen() {
               <Text style={styles.coverName}>{user?.prenom} {user?.nom}</Text>
               {profile && (
                 <View style={styles.coverMeta}>
-                  <StarRating value={profile.notemoyenne ?? 0} size={12} />
-                  <Text style={styles.coverMetaText}>{(profile.notemoyenne ?? 0).toFixed(1)}{profile.metier?.nom ? ` · ${profile.metier.nom}` : ''}</Text>
+                  <StarRating value={profile.noteMoyenne ?? 0} size={12} />
+                  <Text style={styles.coverMetaText}>{(profile.noteMoyenne ?? 0).toFixed(1)}{profile.metier ? ` · ${profile.metier}` : ''}</Text>
                 </View>
               )}
-              {profile?.estValide && (
+              {profile?.statutValidation === 'valide' && (
                 <View style={styles.validBadge}>
                   <CheckCircle2 size={12} color={colors.success} strokeWidth={2.5} />
                   <Text style={styles.validText}>Profil validé</Text>
@@ -298,7 +298,7 @@ export default function ArtisanProfileScreen() {
           </Animated.View>
 
           {/* Validation status */}
-          {profile && !profile.estValide && (
+          {profile && profile.statutValidation !== 'valide' && (
             <Animated.View entering={FadeInUp.delay(240).springify()} style={styles.validationCard}>
               <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
               <View style={styles.validationBorder} />

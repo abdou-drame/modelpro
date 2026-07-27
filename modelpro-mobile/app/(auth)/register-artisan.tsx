@@ -67,9 +67,9 @@ export default function RegisterArtisanScreen() {
         telephone: data.telephone,
         password: data.password,
         role: 'artisan',
-        nomAtelier: data.nomAtelier,
+        atelier: data.nomAtelier,
         localisation: data.localisation,
-        metierIdI: data.metierId,
+        métier: selectedMetier?.nom ?? '',
       })
       await setAuth(res.data.user as any, res.data.token)
       router.replace('/(artisan)/dashboard')

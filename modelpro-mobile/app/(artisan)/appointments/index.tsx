@@ -80,7 +80,7 @@ function AppointmentCard({ appt, onConfirm, onRefuse, onReschedule, index }: {
         </View>
 
         <Text style={styles.clientName}>
-          {appt.client.user.prenom} {appt.client.user.nom}
+          {appt.client.prenom} {appt.client.nom}
         </Text>
 
         <View style={styles.detailsCol}>
@@ -139,7 +139,7 @@ export default function ArtisanAppointmentsScreen() {
   const handleConfirm = (appt: ArtisanAppointment) => {
     Alert.alert(
       'Confirmer le rendez-vous',
-      `RDV avec ${appt.client.user.prenom} ${appt.client.user.nom} ?`,
+      `RDV avec ${appt.client.prenom} ${appt.client.nom} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Confirmer', onPress: () => statusMutation.mutate({ id: appt.id, statut: 'confirme' }) },

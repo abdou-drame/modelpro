@@ -16,8 +16,7 @@ import type { Conversation } from '@/lib/api/messages'
 const BG = 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&q=80'
 
 function ConversationItem({ conv, userId, index }: { conv: Conversation; userId: number; index: number }) {
-  const isArtisan = conv.artisan.user !== undefined
-  const name = conv.artisan.nomAtelier
+  const name = conv.artisan.atelier
   const avatar = conv.artisan.photoProfil
   const lastMsg = conv.dernierMessage
   const isLastMine = lastMsg?.expediteurId === userId

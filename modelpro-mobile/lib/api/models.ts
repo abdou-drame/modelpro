@@ -12,10 +12,10 @@ export interface Model {
   disponible: boolean
   artisan: {
     id: number
-    nomAtelier: string
-    notemoyenne: number
+    atelier: string
+    métier: string
+    noteMoyenne: number | null
     user: { nom: string; prenom: string }
-    metier: { nom: string }
   }
 }
 
@@ -29,13 +29,31 @@ export interface ModelListParams {
   limit?: number
 }
 
+function parseModel(m: any): Model {
+  if (typeof m.photos === 'string') {
+    try { m.photos = JSON.parse(m.photos) } catch { m.photos = [] }
+  }
+  if (!Array.isArray(m.photos)) m.photos = []
+  if (typeof m.options === 'string') {
+    try { m.options = JSON.parse(m.options) } catch { m.options = [] }
+  }
+  if (!Array.isArray(m.options)) m.options = []
+  return m
+}
+
 export const modelsApi = {
   list: (params?: ModelListParams) =>
     apiClient.get<{ models: Model[]; total: number; page: number; totalPages: number }>(
       ENDPOINTS.models,
       { params }
-    ),
+    ).then((r) => {
+      if (r.data?.models) r.data.models.forEach(parseModel)
+      return r
+    }),
 
   getById: (id: number) =>
-    apiClient.get<Model>(ENDPOINTS.modelById(id)),
+    apiClient.get<Model>(ENDPOINTS.modelById(id)).then((r) => {
+      parseModel(r.data)
+      return r
+    }),
 }

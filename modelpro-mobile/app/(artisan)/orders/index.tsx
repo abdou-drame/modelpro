@@ -39,7 +39,7 @@ function OrderRow({ order, index }: { order: ArtisanOrder; index: number }) {
         <View style={styles.cardTop}>
           <View>
             <Text style={styles.clientName}>
-              {order.client.user.prenom} {order.client.user.nom}
+              {order.client.prenom} {order.client.nom}
             </Text>
             {order.creation && (
               <Text style={styles.modelName} numberOfLines={1}>{order.creation.titre}</Text>

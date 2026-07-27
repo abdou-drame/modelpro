@@ -68,7 +68,7 @@ function AppointmentCard({ appt, onCancel, index }: {
         <View style={styles.cardHead}>
           <View>
             <Text style={styles.typeLabel}>{TYPE_LABELS[appt.type] ?? appt.type}</Text>
-            <Text style={styles.atelierName}>{appt.artisan.nomAtelier}</Text>
+            <Text style={styles.atelierName}>{appt.artisan.atelier}</Text>
           </View>
           <Badge
             label={STATUS_LABELS[appt.statut] ?? appt.statut}
@@ -118,7 +118,7 @@ export default function ClientAppointmentsScreen() {
   const handleCancel = (appt: Appointment) => {
     Alert.alert(
       'Annuler le rendez-vous',
-      `Annuler le RDV chez ${appt.artisan.nomAtelier} ?`,
+      `Annuler le RDV chez ${appt.artisan.atelier} ?`,
       [
         { text: 'Non', style: 'cancel' },
         { text: 'Oui, annuler', style: 'destructive', onPress: () => cancelMutation.mutate(appt.id) },

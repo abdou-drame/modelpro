@@ -66,8 +66,8 @@ export default function OrderDetailScreen() {
         <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.artisanCard}>
           <View style={styles.artisanRow}>
             <View style={styles.artisanInfo}>
-              <Text style={styles.artisanName}>{order.artisan.nomAtelier}</Text>
-              <Text style={styles.metier}>{order.artisan.metier.nom}</Text>
+              <Text style={styles.artisanName}>{order.artisan.atelier}</Text>
+              <Text style={styles.metier}>{order.artisan.métier}</Text>
             </View>
             <Badge
               label={ORDER_STATUS_LABELS[order.statut]}
@@ -150,7 +150,7 @@ export default function OrderDetailScreen() {
                 pathname: '/(client)/review',
                 params: {
                   artisanId: String(order.artisan.id ?? ''),
-                  artisanName: order.artisan.nomAtelier,
+                  artisanName: order.artisan.atelier,
                   orderId: String(orderId),
                 },
               })}

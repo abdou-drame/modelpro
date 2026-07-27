@@ -88,8 +88,8 @@ export default function ArtisanDashboard() {
               <Text style={styles.heroName}>{user?.prenom} {user?.nom}</Text>
               {profile && (
                 <View style={styles.heroRating}>
-                  <StarRating value={profile.notemoyenne ?? 0} size={12} />
-                  <Text style={styles.heroRatingText}>{(profile.notemoyenne ?? 0).toFixed(1)}</Text>
+                  <StarRating value={profile.noteMoyenne ?? 0} size={12} />
+                  <Text style={styles.heroRatingText}>{(profile.noteMoyenne ?? 0).toFixed(1)}</Text>
                 </View>
               )}
             </View>

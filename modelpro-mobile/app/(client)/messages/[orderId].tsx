@@ -95,7 +95,7 @@ export default function ChatScreen() {
               style={styles.headerAvatar}
             />
             <View>
-              <Text style={styles.headerName}>{order.artisan.nomAtelier}</Text>
+              <Text style={styles.headerName}>{order.artisan.atelier}</Text>
               <Text style={styles.headerSub}>Commande #{id}</Text>
             </View>
           </View>

@@ -19,7 +19,7 @@ export function ModelCard({ model }: Props) {
       onPress={() => router.push(`/(client)/model/${model.id}`)}
       activeOpacity={0.92}
       accessibilityRole="button"
-      accessibilityLabel={`${model.titre}, par ${model.artisan.nomAtelier}${model.prixEstimatif != null ? `, à partir de ${formatPrice(model.prixEstimatif)}` : ''}`}
+      accessibilityLabel={`${model.titre}, par ${model.artisan.atelier}${model.prixEstimatif != null ? `, à partir de ${formatPrice(model.prixEstimatif)}` : ''}`}
     >
       <View style={styles.imageWrapper}>
         <Image
@@ -28,7 +28,7 @@ export function ModelCard({ model }: Props) {
           resizeMode="cover"
         />
         <View style={styles.badgeOverlay}>
-          <Badge label={model.artisan.metier.nom} variant="neutral" size="sm" />
+          <Badge label={model.artisan.métier} variant="neutral" size="sm" />
         </View>
       </View>
 
@@ -36,9 +36,9 @@ export function ModelCard({ model }: Props) {
         <Text style={styles.title} numberOfLines={1}>{model.titre}</Text>
 
         <View style={styles.row}>
-          <Text style={styles.artisan}>{model.artisan.nomAtelier}</Text>
+          <Text style={styles.artisan}>{model.artisan.atelier}</Text>
           <View style={styles.ratingRow}>
-            <StarRating value={model.artisan.notemoyenne} size={11} />
+            <StarRating value={model.artisan.noteMoyenne ?? 0} size={11} />
           </View>
         </View>
 
