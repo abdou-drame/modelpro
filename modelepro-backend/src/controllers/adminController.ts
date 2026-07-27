@@ -15,6 +15,7 @@ import { Artisan } from '../models/Artisan';
 import { Claim } from '../models/Claim';
 import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
+import { Review } from '../models/Review';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
 import { Appointment } from '../models/Appointment';
@@ -129,8 +130,6 @@ export const getAllArtisansAdmin = async (req: AuthenticatedRequest, res: Respon
 export const getArtisanProfileAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { Review } = await import('../models/Review')
-    const { Creation } = await import('../models/Creation')
 
     const artisan = await Artisan.findByPk(Number(id), {
       include: [

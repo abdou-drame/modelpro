@@ -106,7 +106,9 @@ export default function ArtisanSubscriptionScreen() {
             <View>
               <Text style={styles.activeTitle}>Abonnement actif</Text>
               <Text style={styles.activeSub}>
-                Expire le {formatDate(subData.subscriptions[0].dateFin ?? '')}
+                {subData.subscriptions[0].dateFin
+                  ? `Expire le ${formatDate(subData.subscriptions[0].dateFin)}`
+                  : 'En cours'}
               </Text>
             </View>
           </Animated.View>
@@ -188,7 +190,7 @@ export default function ArtisanSubscriptionScreen() {
                   <Calendar size={14} color={colors.textMuted} strokeWidth={2} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historyDate}>
-                      {formatDate(s.dateDebut)} — {s.dateFin ? formatDate(s.dateFin) : 'En cours'}
+                      {s.dateDebut ? formatDate(s.dateDebut) : '—'} — {s.dateFin ? formatDate(s.dateFin) : 'En cours'}
                     </Text>
                     <Text style={styles.historyAmount}>{formatPrice(s.montant)}</Text>
                   </View>

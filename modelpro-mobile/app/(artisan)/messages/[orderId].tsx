@@ -12,6 +12,7 @@ import { messagesApi } from '@/lib/api/messages'
 import { useAuthStore } from '@/lib/store/authStore'
 import { MessageBubble } from '@/components/shared/MessageBubble'
 import { colors, spacing, fontSize, radius } from '@/constants/theme'
+import type { Conversation } from '@/lib/api/messages'
 
 const CHAT_BG = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80'
 
@@ -29,6 +30,14 @@ export default function ArtisanChatScreen() {
     queryFn: () => messagesApi.orderMessages(id).then((r) => r.data),
     refetchInterval: 5000,
   })
+
+  const { data: conversations } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => messagesApi.conversations().then((r) => r.data),
+    staleTime: 30000,
+  })
+  const conv = conversations?.find((c: Conversation) => c.orderId === id)
+  const clientName = conv ? `${conv.client.prenom} ${conv.client.nom}` : `Commande #${id}`
 
   const sendMutation = useMutation({
     mutationFn: () => messagesApi.send(id, text || undefined, pendingPhoto ?? undefined),
@@ -70,10 +79,13 @@ export default function ArtisanChatScreen() {
       <View style={styles.header}>
         <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.headerBorder} />
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(artisan)/messages')} style={styles.backBtn}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Commande #{id}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>{clientName}</Text>
+          <Text style={[styles.headerTitle, { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: '400' }]}>Commande #{id}</Text>
+        </View>
       </View>
 
       <FlatList

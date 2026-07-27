@@ -85,7 +85,7 @@ export default function ChatScreen() {
       <View style={styles.header}>
         <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.headerBorder} />
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(client)/messages')} style={styles.backBtn}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         {order && (
