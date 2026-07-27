@@ -1,9 +1,24 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native'
 import { router } from 'expo-router'
-import { Phone, MapPin, LogOut, ChevronRight, ShoppingBag, Calendar, MessageCircle, Star } from 'lucide-react-native'
-import Animated, { FadeInUp } from 'react-native-reanimated'
+import { Phone, MapPin, LogOut, ChevronRight, ShoppingBag, Calendar, MessageCircle, Star, User } from 'lucide-react-native'
+import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
 import { useAuthStore } from '@/lib/store/authStore'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
+
+const MENU_SECTIONS = [
+  {
+    items: [
+      { icon: ShoppingBag, label: 'Mes commandes', sub: 'Suivi et historique', onPress: () => router.push('/(client)/orders') },
+      { icon: Calendar, label: 'Mes rendez-vous', sub: 'RDV chez l\'artisan', onPress: () => router.push('/(client)/appointments') },
+    ],
+  },
+  {
+    items: [
+      { icon: MessageCircle, label: 'Mes messages', sub: 'Conversations', onPress: () => router.push('/(client)/messages') },
+      { icon: Star, label: 'Mes avis', sub: 'Notes et commentaires', onPress: () => {} },
+    ],
+  },
+]
 
 export default function ClientProfileScreen() {
   const { user, clearAuth } = useAuthStore()
@@ -34,58 +49,86 @@ export default function ClientProfileScreen() {
 
   const initials = user ? `${user.prenom[0]}${user.nom[0]}`.toUpperCase() : '?'
 
-  const menuItems = [
-    { icon: ShoppingBag, label: 'Mes commandes', onPress: () => router.push('/(client)/orders') },
-    { icon: Calendar, label: 'Mes rendez-vous', onPress: () => router.push('/(client)/appointments') },
-    { icon: MessageCircle, label: 'Mes messages', onPress: () => router.push('/(client)/messages') },
-    { icon: Star, label: 'Mes avis', onPress: () => {} },
-  ]
-
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Header */}
-      <Animated.View entering={FadeInUp.delay(0).springify()} style={styles.header}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{initials}</Text>
-        </View>
-        <Text style={styles.name}>{user?.prenom} {user?.nom}</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>Client</Text>
-        </View>
-      </Animated.View>
-
-      {/* Info card */}
-      <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.card}>
-        <View style={styles.infoRow}>
-          <Phone size={16} color={colors.primary} strokeWidth={1.8} />
-          <Text style={styles.infoText}>{user?.telephone ?? '—'}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <MapPin size={16} color={colors.primary} strokeWidth={1.8} />
-          <Text style={styles.infoText}>Dakar, Sénégal</Text>
-        </View>
-      </Animated.View>
-
-      {/* Menu */}
-      <Animated.View entering={FadeInUp.delay(180).springify()} style={styles.card}>
-        {menuItems.map((item, i) => (
-          <View key={item.label}>
-            <TouchableOpacity style={styles.menuRow} onPress={item.onPress} accessibilityRole="button">
-              <View style={styles.menuLeft}>
-                <item.icon size={18} color={colors.text} strokeWidth={1.8} />
-                <Text style={styles.menuLabel}>{item.label}</Text>
-              </View>
-              <ChevronRight size={16} color={colors.textMuted} strokeWidth={1.8} />
-            </TouchableOpacity>
-            {i < menuItems.length - 1 && <View style={styles.divider} />}
+      <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.header}>
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
-        ))}
+          <View style={styles.avatarRing} />
+        </View>
+        <View style={styles.headerText}>
+          <Text style={styles.name}>{user?.prenom} {user?.nom}</Text>
+          <View style={styles.rolePill}>
+            <User size={10} color={colors.primary} strokeWidth={2.5} />
+            <Text style={styles.roleText}>Client</Text>
+          </View>
+        </View>
       </Animated.View>
+
+      {/* Contact info */}
+      <Animated.View entering={FadeInUp.delay(80).springify()} style={styles.infoCard}>
+        <View style={styles.infoRow}>
+          <View style={styles.infoIcon}>
+            <Phone size={14} color={colors.primary} strokeWidth={2} />
+          </View>
+          <Text style={styles.infoLabel}>Téléphone</Text>
+          <Text style={styles.infoValue}>{user?.telephone ?? '—'}</Text>
+        </View>
+        <View style={styles.infoDivider} />
+        <View style={styles.infoRow}>
+          <View style={styles.infoIcon}>
+            <MapPin size={14} color={colors.primary} strokeWidth={2} />
+          </View>
+          <Text style={styles.infoLabel}>Localisation</Text>
+          <Text style={styles.infoValue}>Dakar, Sénégal</Text>
+        </View>
+      </Animated.View>
+
+      {/* Navigation sections */}
+      {MENU_SECTIONS.map((section, si) => (
+        <Animated.View
+          key={si}
+          entering={FadeInUp.delay(140 + si * 60).springify()}
+          style={styles.menuCard}
+        >
+          {section.items.map((item, ii) => (
+            <View key={item.label}>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={item.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+              >
+                <View style={styles.menuIconWrap}>
+                  <item.icon size={16} color={colors.primary} strokeWidth={2} />
+                </View>
+                <View style={styles.menuTextBlock}>
+                  <Text style={styles.menuLabel}>{item.label}</Text>
+                  <Text style={styles.menuSub}>{item.sub}</Text>
+                </View>
+                <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+              </TouchableOpacity>
+              {ii < section.items.length - 1 && <View style={styles.menuDivider} />}
+            </View>
+          ))}
+        </Animated.View>
+      ))}
 
       {/* Logout */}
-      <Animated.View entering={FadeInUp.delay(260).springify()}>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} accessibilityRole="button">
+      <Animated.View entering={FadeInUp.delay(280).springify()}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          accessibilityRole="button"
+          accessibilityLabel="Se déconnecter"
+        >
           <LogOut size={18} color={colors.error} strokeWidth={1.8} />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
@@ -97,50 +140,74 @@ export default function ClientProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.xl, paddingTop: 60, paddingBottom: 100, gap: spacing.lg },
-  header: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+
+  header: { alignItems: 'center', gap: spacing.md, paddingBottom: spacing.md },
+  avatarWrap: { position: 'relative', width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
   avatarCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 88, height: 88, borderRadius: 44,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     ...shadow.md,
   },
-  avatarText: { fontSize: 32, fontWeight: '700', color: colors.white },
-  name: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
-  roleBadge: {
-    backgroundColor: colors.primaryLight + '22',
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+  avatarRing: {
+    position: 'absolute', inset: 0,
+    width: 96, height: 96, borderRadius: 48,
+    borderWidth: 2, borderColor: `${colors.primary}28`,
   },
-  roleText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.primary },
-  card: {
+  avatarText: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.white },
+  headerText: { alignItems: 'center', gap: spacing.xs },
+  name: { fontSize: fontSize.xl, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
+  rolePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: `${colors.primary}14`,
+    borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+  },
+  roleText: { fontSize: fontSize.xs, fontWeight: '700', color: colors.primary, letterSpacing: 0.5, textTransform: 'uppercase' },
+
+  infoCard: {
     backgroundColor: colors.bgCard,
     borderRadius: radius.xl,
-    padding: spacing.lg,
+    paddingVertical: spacing.xs,
     ...shadow.sm,
   },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
-  infoText: { fontSize: fontSize.base, color: colors.text },
-  divider: { height: 1, backgroundColor: colors.borderLight, marginVertical: spacing.xs },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
+  infoRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm,
   },
-  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  menuLabel: { fontSize: fontSize.base, color: colors.text },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.errorLight,
+  infoIcon: {
+    width: 30, height: 30, borderRadius: radius.lg,
+    backgroundColor: `${colors.primary}10`,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  infoLabel: { fontSize: fontSize.sm, color: colors.textMuted, flex: 1 },
+  infoValue: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
+  infoDivider: { height: 1, backgroundColor: colors.borderLight, marginHorizontal: spacing.lg },
+
+  menuCard: {
+    backgroundColor: colors.bgCard,
     borderRadius: radius.xl,
-    padding: spacing.lg,
+    paddingVertical: spacing.xs,
+    ...shadow.sm,
+  },
+  menuRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    gap: spacing.md, minHeight: 56,
+  },
+  menuIconWrap: {
+    width: 36, height: 36, borderRadius: radius.lg,
+    backgroundColor: `${colors.primary}10`,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  menuTextBlock: { flex: 1, gap: 2 },
+  menuLabel: { fontSize: fontSize.base, fontWeight: '600', color: colors.text },
+  menuSub: { fontSize: fontSize.xs, color: colors.textMuted },
+  menuDivider: { height: 1, backgroundColor: colors.borderLight, marginHorizontal: spacing.lg },
+
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm, backgroundColor: colors.errorLight,
+    borderRadius: radius.xl, paddingVertical: spacing.md, minHeight: 52,
   },
   logoutText: { fontSize: fontSize.base, fontWeight: '600', color: colors.error },
 })

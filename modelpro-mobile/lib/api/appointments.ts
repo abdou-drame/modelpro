@@ -26,14 +26,13 @@ export interface Appointment {
   id: number
   type: AppointmentType
   statut: AppointmentStatus
-  date: string | null
+  dateHeure: string | null
   lieu: string | null
   notes: string | null
   createdAt: string
   artisan: {
     id: number
     atelier: string
-    métier: string
     photoProfil: string | null
     user: { nom: string; prenom: string }
   }
@@ -44,13 +43,13 @@ function normalizeAppointment(raw: AppointmentRaw): Appointment {
     id: raw.id,
     type: (raw.type ?? 'prise_mesures') as AppointmentType,
     statut: (raw.statut ?? 'demande') as AppointmentStatus,
-    dateHeure: raw.date ?? '',
+    dateHeure: raw.date ?? null,
     lieu: raw.lieu,
     notes: raw.notes,
     createdAt: raw.createdAt,
     artisan: {
       id: raw.artisan?.id ?? 0,
-      nomAtelier: raw.artisan?.atelier ?? '',
+      atelier: raw.artisan?.atelier ?? '',
       photoProfil: raw.artisan?.user?.photoUrl ?? null,
       user: {
         nom: raw.artisan?.user?.nom ?? '',
@@ -63,14 +62,13 @@ function normalizeAppointment(raw: AppointmentRaw): Appointment {
 export interface CreateAppointmentPayload {
   artisanId: number
   type: AppointmentType
-  date: string
+  dateHeure: string   // ISO local, ex: "2026-08-15T10:00:00"
   lieu?: string
   notes?: string
 }
 
 export const appointmentsApi = {
   create: (data: CreateAppointmentPayload) => {
-    // Le backend attend `date` (pas `dateHeure`) et stocke la date complète dans ce champ
     const { dateHeure, ...rest } = data
     return apiClient.post<Appointment>(ENDPOINTS.appointments, { ...rest, date: dateHeure })
   },
