@@ -16,10 +16,13 @@ export interface Payment {
 
 export interface PaymentSummary {
   totalPrice: number
-  acompte: number | null
-  solde: number | null
-  resteAPayer: number
-  frais: number
+  depositAmount: number
+  totalAcomptePaid: number
+  totalSoldePaid: number
+  totalFraisServicePaid: number
+  totalOrderPaid: number
+  remainingBalance: number
+  paymentStatus: string
 }
 
 export interface CreatePaymentPayload {
@@ -42,6 +45,12 @@ export interface Subscription {
   createdAt: string
 }
 
+export interface SubscriptionResponse {
+  statutAbonnement: 'inactif' | 'actif' | 'expire'
+  dateFinAbonnement: string | null
+  subscriptions: Subscription[]
+}
+
 export const paymentsApi = {
   create: (data: CreatePaymentPayload) =>
     apiClient.post<Payment>(ENDPOINTS.payments, data),
@@ -53,7 +62,7 @@ export const paymentsApi = {
     apiClient.get<PaymentSummary>(ENDPOINTS.paymentSummary(orderId)),
 
   mySubscription: () =>
-    apiClient.get<{ subscriptions: Subscription[]; actif: boolean }>(ENDPOINTS.mySubscription),
+    apiClient.get<SubscriptionResponse>(ENDPOINTS.mySubscription),
 
   updateStatus: (id: number, statut: 'confirme' | 'echoue' | 'rembourse') =>
     apiClient.patch(ENDPOINTS.paymentStatus(id), { statut }),

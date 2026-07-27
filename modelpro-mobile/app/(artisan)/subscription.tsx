@@ -75,7 +75,7 @@ export default function ArtisanSubscriptionScreen() {
     )
   }
 
-  const isActive = subData?.actif
+  const isActive = subData?.statutAbonnement === 'actif'
 
   const PERKS = [
     'Profil visible dans les recherches',
