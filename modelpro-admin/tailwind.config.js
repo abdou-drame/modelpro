@@ -32,7 +32,7 @@ export default {
         danger:  '#c1121f',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
         display: ['"DM Sans"', 'sans-serif'],
       },
       borderRadius: {

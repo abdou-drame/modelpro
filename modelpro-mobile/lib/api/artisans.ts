@@ -40,7 +40,7 @@ export interface ArtisanSearchParams {
 
 export const artisansApi = {
   search: (params?: ArtisanSearchParams) =>
-    apiClient.get<{ artisans: ArtisanPublic[]; total: number; page: number }>(
+    apiClient.get<ArtisanPublic[]>(
       ENDPOINTS.artisansSearch,
       { params }
     ),

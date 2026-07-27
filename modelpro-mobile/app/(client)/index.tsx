@@ -1,8 +1,8 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { useState } from 'react'
 import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Bell } from 'lucide-react-native'
+import { Search, Bell, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { router } from 'expo-router'
 import { modelsApi } from '@/lib/api/models'
 import { metiersApi } from '@/lib/api/metiers'
@@ -11,10 +11,13 @@ import { colors, spacing, fontSize, radius } from '@/constants/theme'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { Model } from '@/lib/api/models'
 
+const PAGE_SIZE = 10
+
 export default function CatalogueScreen() {
   const { user } = useAuthStore()
   const [search, setSearch] = useState('')
   const [selectedMetier, setSelectedMetier] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const { data: metiersData } = useQuery({
     queryKey: ['metiers'],
@@ -22,16 +25,27 @@ export default function CatalogueScreen() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['models', search, selectedMetier],
+    queryKey: ['models', search, selectedMetier, page],
     queryFn: () =>
-      modelsApi.list({ search: search || undefined, metier: selectedMetier ?? undefined, limit: 20 })
+      modelsApi.list({ search: search || undefined, metier: selectedMetier ?? undefined, limit: PAGE_SIZE, page })
         .then((r) => r.data),
     staleTime: 1000 * 60,
   })
 
   const models = data?.models ?? []
+  const totalPages = data?.totalPages ?? 1
   const prenom = user?.prenom ?? 'vous'
   const metierChips = [{ id: null, nom: 'Tous' }, ...(metiersData?.filter((m) => m.actif) ?? [])]
+
+  const handleMetierChange = (nom: string | null) => {
+    setSelectedMetier(nom)
+    setPage(1)
+  }
+
+  const handleSearchChange = (v: string) => {
+    setSearch(v)
+    setPage(1)
+  }
 
   return (
     <View style={styles.container}>
@@ -45,7 +59,7 @@ export default function CatalogueScreen() {
           <View>
             <View style={styles.topBar}>
               <View>
-                <Text style={styles.greeting}>Bonjour, {prenom} 👋</Text>
+                <Text style={styles.greeting}>Bonjour, {prenom}</Text>
                 <Text style={styles.greetingSub}>Trouvez votre style</Text>
               </View>
               <TouchableOpacity
@@ -61,7 +75,7 @@ export default function CatalogueScreen() {
               <Search size={16} color={colors.textMuted} strokeWidth={2} />
               <TextInput
                 value={search}
-                onChangeText={setSearch}
+                onChangeText={handleSearchChange}
                 placeholder="Rechercher un modèle ou artisan..."
                 placeholderTextColor={colors.textMuted}
                 style={styles.searchInput}
@@ -80,7 +94,7 @@ export default function CatalogueScreen() {
                     const active = selectedMetier === (item.id != null ? item.nom : null)
                     return (
                       <TouchableOpacity
-                        onPress={() => setSelectedMetier(item.id != null ? item.nom : null)}
+                        onPress={() => handleMetierChange(item.id != null ? item.nom : null)}
                         style={[styles.chip, active && styles.chipActive]}
                         activeOpacity={0.75}
                       >
@@ -93,10 +107,8 @@ export default function CatalogueScreen() {
             )}
 
             <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Nouveautés</Text>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text style={styles.sectionLink}>VOIR TOUT →</Text>
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Catalogue</Text>
+              {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
             </View>
           </View>
         }
@@ -113,6 +125,29 @@ export default function CatalogueScreen() {
               <Text style={styles.emptySub}>Essayez d'autres filtres</Text>
             </View>
           )
+        }
+        ListFooterComponent={
+          totalPages > 1 ? (
+            <View style={styles.pagination}>
+              <TouchableOpacity
+                style={[styles.pageBtn, page <= 1 && styles.pageBtnDisabled]}
+                onPress={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                activeOpacity={0.7}
+              >
+                <ChevronLeft size={18} color={page <= 1 ? colors.textMuted : colors.primary} strokeWidth={2} />
+              </TouchableOpacity>
+              <Text style={styles.pageLabel}>{page} / {totalPages}</Text>
+              <TouchableOpacity
+                style={[styles.pageBtn, page >= totalPages && styles.pageBtnDisabled]}
+                onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                activeOpacity={0.7}
+              >
+                <ChevronRight size={18} color={page >= totalPages ? colors.textMuted : colors.primary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
       />
     </View>
@@ -151,8 +186,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, marginBottom: spacing.md,
   },
   sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
-  sectionLink: { fontSize: 10, fontWeight: '700', color: colors.primary, letterSpacing: 1.5 },
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
   emptyTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
   emptySub: { fontSize: fontSize.md, color: colors.textSub },
+  pagination: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.lg, paddingVertical: spacing.xl, marginTop: spacing.md,
+  },
+  pageBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  pageBtnDisabled: { opacity: 0.35 },
+  pageLabel: { fontSize: fontSize.base, fontWeight: '600', color: colors.text, minWidth: 48, textAlign: 'center' },
 })
