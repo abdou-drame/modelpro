@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, Users as UsersIcon } from 'lucide-react'
 import { AdminUser, usersApi } from '@/lib/api'
@@ -8,6 +8,7 @@ import { TableSkeleton } from '@/components/shared/Skeleton'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Pagination } from '@/components/shared/Pagination'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -45,13 +46,20 @@ export default function Users() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilterKey>('')
   const [pendingToggle, setPendingToggle] = useState<AdminUser | null>(null)
+  const [page, setPage] = useState(1)
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [search, roleFilter])
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => usersApi.list().then((r) => r.data),
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-users', { search, role: roleFilter, page }],
+    queryFn: () => usersApi.list({ search: search || undefined, role: roleFilter || undefined, page, limit: 25 }).then((r) => r.data),
+    placeholderData: (prev) => prev,
   })
+  const users = data?.data ?? []
+  const paginationMeta = data ? { page: data.page, totalPages: data.totalPages, total: data.total, limit: data.limit } : null
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, statut }: { id: number; statut: 'actif' | 'suspendu' }) =>
@@ -62,19 +70,7 @@ export default function Users() {
     },
   })
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
-
-  const filtered = users.filter((u) => {
-    const q = search.trim().toLowerCase()
-    const matchSearch =
-      !q ||
-      u.nom.toLowerCase().includes(q) ||
-      u.prenom.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      u.telephone.includes(q)
-    const matchRole = !roleFilter || u.role === roleFilter
-    return matchSearch && matchRole
-  })
+  // Filtering is server-side; `users` is already the current page slice
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -94,7 +90,7 @@ export default function Users() {
         subtitle="Gérez les comptes clients, artisans et administrateurs"
         action={
           <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-brand-100 text-brand-700 text-sm font-semibold">
-            {users.length} utilisateur{users.length !== 1 ? 's' : ''}
+            {paginationMeta?.total ?? users.length} utilisateur{(paginationMeta?.total ?? users.length) !== 1 ? 's' : ''}
           </span>
         }
       />
@@ -170,7 +166,7 @@ export default function Users() {
                     <TableSkeleton rows={8} cols={7} />
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={7}>
                     <EmptyState
@@ -185,7 +181,7 @@ export default function Users() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((user) => (
+                users.map((user) => (
                   <UserRow
                     key={user.id}
                     user={user}
@@ -197,13 +193,8 @@ export default function Users() {
           </table>
         </div>
 
-        {!isLoading && filtered.length > 0 && (
-          <div className="px-4 py-3 border-t border-surface-border bg-surface">
-            <p className="text-xs text-ink-muted">
-              {filtered.length} résultat{filtered.length !== 1 ? 's' : ''}
-              {users.length !== filtered.length && ` sur ${users.length}`}
-            </p>
-          </div>
+        {!isLoading && paginationMeta && (
+          <Pagination meta={paginationMeta} onPageChange={setPage} />
         )}
       </div>
 

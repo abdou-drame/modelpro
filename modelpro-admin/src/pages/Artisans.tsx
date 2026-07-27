@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Store, UserCheck } from 'lucide-react'
@@ -10,6 +10,7 @@ import { Modal } from '@/components/shared/Modal'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Pagination } from '@/components/shared/Pagination'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -62,15 +63,22 @@ export default function Artisans() {
   const [rejectTarget, setRejectTarget] = useState<AdminArtisan | null>(null)
   const [rejectMotif, setRejectMotif] = useState('')
   const [verifyTarget, setVerifyTarget] = useState<AdminArtisan | null>(null)
+  const [page, setPage] = useState(1)
+
+  useEffect(() => { setPage(1) }, [activeTab])
 
   const direction = activeTab === 'pending' ? 1 : -1
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
-  const { data: artisans = [], isLoading: loadingAll } = useQuery({
-    queryKey: ['admin-artisans'],
-    queryFn: () => artisansAdminApi.list().then((r) => r.data),
+  const { data: artisansData, isLoading: loadingAll } = useQuery({
+    queryKey: ['admin-artisans', page],
+    queryFn: () => artisansAdminApi.list({ page, limit: 25 }).then((r) => r.data),
+    placeholderData: (prev) => prev,
+    enabled: activeTab === 'all',
   })
+  const artisans = artisansData?.data ?? []
+  const artisansMeta = artisansData ? { page: artisansData.page, totalPages: artisansData.totalPages, total: artisansData.total, limit: artisansData.limit } : null
 
   const { data: pending = [], isLoading: loadingPending } = useQuery({
     queryKey: ['admin-pending-artisans'],
@@ -151,6 +159,8 @@ export default function Artisans() {
                 mode="all"
                 emptyTitle="Aucun artisan enregistré"
                 emptyDescription="Les artisans apparaîtront ici une fois inscrits."
+                paginationMeta={artisansMeta ?? undefined}
+                onPageChange={setPage}
               />
             </motion.div>
           ) : (
@@ -282,6 +292,8 @@ function ArtisansTable({
   emptyDescription,
   onVerify,
   onReject,
+  paginationMeta,
+  onPageChange,
 }: {
   artisans: AdminArtisan[]
   isLoading: boolean
@@ -290,6 +302,8 @@ function ArtisansTable({
   emptyDescription: string
   onVerify?: (a: AdminArtisan) => void
   onReject?: (a: AdminArtisan) => void
+  paginationMeta?: { page: number; totalPages: number; total: number; limit: number }
+  onPageChange?: (page: number) => void
 }) {
   const colCount = mode === 'pending' ? 7 : 6
 
@@ -355,7 +369,10 @@ function ArtisansTable({
         </table>
       </div>
 
-      {!isLoading && artisans.length > 0 && (
+      {!isLoading && paginationMeta && onPageChange && (
+        <Pagination meta={paginationMeta} onPageChange={onPageChange} />
+      )}
+      {!isLoading && !paginationMeta && artisans.length > 0 && (
         <div className="px-4 py-3 border-t border-surface-border bg-surface">
           <p className="text-xs text-ink-muted">
             {artisans.length} artisan{artisans.length !== 1 ? 's' : ''}

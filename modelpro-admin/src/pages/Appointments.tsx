@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Calendar } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -7,6 +7,7 @@ import { TableSkeleton } from '@/components/shared/Skeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { appointmentsAdminApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { Pagination } from '@/components/shared/Pagination'
 
 type AppointmentStatus = 'demande' | 'accepte' | 'confirme' | 'refuse' | 'termine'
 
@@ -71,11 +72,17 @@ function formatDateTime(dateStr: string): string {
 
 export default function Appointments() {
   const [statusFilter, setStatusFilter] = useState<string>('tous')
+  const [page, setPage] = useState(1)
 
-  const { data: appointments = [], isLoading } = useQuery({
-    queryKey: ['admin', 'appointments'],
-    queryFn: () => appointmentsAdminApi.list().then((r) => r.data),
+  useEffect(() => { setPage(1) }, [statusFilter])
+
+  const { data: apptData, isLoading } = useQuery({
+    queryKey: ['admin', 'appointments', page],
+    queryFn: () => appointmentsAdminApi.list({ page, limit: 25 }).then((r) => r.data),
+    placeholderData: (prev) => prev,
   })
+  const appointments = apptData?.data ?? []
+  const paginationMeta = apptData ? { page: apptData.page, totalPages: apptData.totalPages, total: apptData.total, limit: apptData.limit } : null
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -233,6 +240,9 @@ export default function Appointments() {
             </tbody>
           </table>
         </div>
+        {!isLoading && paginationMeta && (
+          <Pagination meta={paginationMeta} onPageChange={setPage} />
+        )}
       </div>
     </div>
   )

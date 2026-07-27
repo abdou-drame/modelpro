@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Palette, Search, Trash2 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Skeleton } from '@/components/shared/Skeleton'
 import { cn, formatPrice, formatDate } from '@/lib/utils'
+import { Pagination } from '@/components/shared/Pagination'
 
 // ── Warm-gradient fallback for missing images ──────────────────────────────────
 
@@ -49,11 +50,17 @@ export default function Catalogue() {
   const [search,       setSearch]       = useState('')
   const [activeCategory, setCategory]   = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
 
-  const { data: models = [], isLoading } = useQuery({
-    queryKey: ['admin-models'],
-    queryFn:  () => modelsAdminApi.list().then(r => r.data),
+  useEffect(() => { setPage(1) }, [search, activeCategory])
+
+  const { data: modelsData, isLoading } = useQuery({
+    queryKey: ['admin-models', page],
+    queryFn:  () => modelsAdminApi.list({ page, limit: 18 }).then(r => r.data),
+    placeholderData: (prev) => prev,
   })
+  const models = modelsData?.data ?? []
+  const paginationMeta = modelsData ? { page: modelsData.page, totalPages: modelsData.totalPages, total: modelsData.total, limit: modelsData.limit } : null
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => modelsAdminApi.delete(id),
@@ -71,6 +78,7 @@ export default function Catalogue() {
     return Array.from(set).sort()
   }, [models])
 
+  // Client-side filter on current page only (search + category)
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
     return models.filter(m => {
@@ -88,7 +96,7 @@ export default function Catalogue() {
     <div>
       <PageHeader
         title="Catalogue"
-        subtitle={`${models.length} modèle${models.length !== 1 ? 's' : ''} publié${models.length !== 1 ? 's' : ''}`}
+        subtitle={`${paginationMeta?.total ?? models.length} modèle${(paginationMeta?.total ?? models.length) !== 1 ? 's' : ''} publié${(paginationMeta?.total ?? models.length) !== 1 ? 's' : ''}`}
       />
 
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
@@ -167,6 +175,13 @@ export default function Catalogue() {
             />
           ))}
         </motion.div>
+      )}
+
+      {/* ── Pagination ──────────────────────────────────────────────────────── */}
+      {!isLoading && paginationMeta && (
+        <div className="mt-6 bg-white rounded-xl shadow-card border border-surface-border">
+          <Pagination meta={paginationMeta} onPageChange={setPage} />
+        </div>
       )}
 
       {/* ── Confirm delete ───────────────────────────────────────────────────── */}

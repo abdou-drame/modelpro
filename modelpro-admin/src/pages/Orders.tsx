@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ShoppingBag, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge, statusVariant } from '@/components/shared/Badge'
 import { TableSkeleton } from '@/components/shared/Skeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { Pagination } from '@/components/shared/Pagination'
 import { ordersAdminApi, AdminOrder } from '@/lib/api'
 import { cn, formatPrice, formatDate, ORDER_STATUS_LABELS } from '@/lib/utils'
 
@@ -14,18 +15,30 @@ export default function Orders() {
   const [tab, setTab] = useState<'all' | 'overdue'>('all')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('tous')
+  const [page, setPage] = useState(1)
 
-  const { data: allOrders = [], isLoading: loadingAll } = useQuery({
-    queryKey: ['admin', 'orders'],
-    queryFn: () => ordersAdminApi.list().then((r) => r.data),
+  useEffect(() => { setPage(1) }, [search, statusFilter, tab])
+
+  const { data: allData, isLoading: loadingAll } = useQuery({
+    queryKey: ['admin', 'orders', { page, search, statusFilter }],
+    queryFn: () => ordersAdminApi.list({ page, limit: 25 }).then((r) => r.data),
+    placeholderData: (prev) => prev,
+    enabled: tab === 'all',
   })
 
   const { data: overdueOrders = [], isLoading: loadingOverdue } = useQuery({
     queryKey: ['admin', 'orders', 'overdue'],
     queryFn: () => ordersAdminApi.overdue().then((r) => r.data),
+    enabled: tab === 'overdue',
   })
 
   const isLoading = tab === 'all' ? loadingAll : loadingOverdue
+
+  const allOrders = allData?.data ?? []
+  const paginationMeta = tab === 'all' && allData
+    ? { page: allData.page, totalPages: allData.totalPages, total: allData.total, limit: allData.limit }
+    : null
+
   const baseOrders: AdminOrder[] = tab === 'all' ? allOrders : overdueOrders
 
   const filtered = useMemo(() => {
@@ -60,7 +73,7 @@ export default function Orders() {
         >
           Toutes
           <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-surface-border text-ink-sub text-xs">
-            {allOrders.length}
+            {paginationMeta?.total ?? allOrders.length}
           </span>
         </button>
         <button
@@ -203,6 +216,9 @@ export default function Orders() {
             </tbody>
           </table>
         </div>
+        {!isLoading && paginationMeta && tab === 'all' && (
+          <Pagination meta={paginationMeta} onPageChange={setPage} />
+        )}
       </div>
     </div>
   )

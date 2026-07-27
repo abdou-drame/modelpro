@@ -34,15 +34,15 @@ export const statsApi = {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const usersApi = {
-  list: (params?: { search?: string; role?: string; statut?: string }) =>
-    api.get<AdminUser[]>('/admin/users', { params }),
+  list: (params?: { search?: string; role?: string; statut?: string } & PaginationParams) =>
+    api.get<PaginatedResponse<AdminUser>>('/admin/users', { params }),
   setStatus: (id: number, statut: 'actif' | 'suspendu') =>
     api.patch(`/admin/users/${id}/status`, { statut }),
 }
 
 // ── Artisans ──────────────────────────────────────────────────────────────────
 export const artisansAdminApi = {
-  list: () => api.get<AdminArtisan[]>('/admin/artisans'),
+  list: (params?: PaginationParams) => api.get<PaginatedResponse<AdminArtisan>>('/admin/artisans', { params }),
   pending: () => api.get<AdminArtisan[]>('/admin/pending-artisans'),
   verify: (id: number) => api.patch(`/admin/artisans/${id}/verify`),
   reject: (id: number, motifRejet: string) =>
@@ -51,13 +51,13 @@ export const artisansAdminApi = {
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 export const ordersAdminApi = {
-  list: () => api.get<AdminOrder[]>('/admin/orders'),
+  list: (params?: PaginationParams) => api.get<PaginatedResponse<AdminOrder>>('/admin/orders', { params }),
   overdue: () => api.get<AdminOrder[]>('/admin/orders/overdue'),
 }
 
 // ── Catalogue ─────────────────────────────────────────────────────────────────
 export const modelsAdminApi = {
-  list: () => api.get<AdminModel[]>('/admin/models'),
+  list: (params?: PaginationParams) => api.get<PaginatedResponse<AdminModel>>('/admin/models', { params }),
   delete: (id: number) => api.delete(`/admin/models/${id}`),
 }
 
@@ -70,7 +70,7 @@ export const claimsAdminApi = {
 
 // ── Appointments ──────────────────────────────────────────────────────────────
 export const appointmentsAdminApi = {
-  list: () => api.get<AdminAppointment[]>('/admin/appointments'),
+  list: (params?: PaginationParams) => api.get<PaginatedResponse<AdminAppointment>>('/admin/appointments', { params }),
 }
 
 // ── Payments ──────────────────────────────────────────────────────────────────
@@ -90,6 +90,19 @@ export const metiersAdminApi = {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  totalPages: number
+  limit: number
+}
+
+export interface PaginationParams {
+  page?: number
+  limit?: number
+}
 export interface AdminStats {
   totalUsers: number
   totalArtisansActifs: number
