@@ -111,7 +111,7 @@ export default function ChatScreen() {
         renderItem={({ item, index }) => (
           <MessageBubble
             message={item}
-            isMine={item.expediteur.id === user?.id}
+            isMine={item.sender?.id === user?.id}
             index={index}
           />
         )}

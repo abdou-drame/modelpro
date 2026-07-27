@@ -3,11 +3,11 @@ import { ENDPOINTS } from '@/constants/api'
 
 export interface Message {
   id: number
-  contenu: string | null
+  texte: string | null
   photoUrl: string | null
   lu: boolean
   createdAt: string
-  expediteur: {
+  sender: {
     id: number
     nom: string
     prenom: string
@@ -60,7 +60,7 @@ function normalizeConversations(raw: any[]): Conversation[] {
       },
       dernierMessage: lastMsg
         ? {
-            contenu: lastMsg.contenu ?? null,
+            contenu: lastMsg.texte ?? lastMsg.contenu ?? null,
             photoUrl: lastMsg.photoUrl ?? null,
             createdAt: lastMsg.createdAt,
             expediteurId: lastMsg.senderId ?? lastMsg.expediteurId ?? 0,
@@ -81,10 +81,10 @@ export const messagesApi = {
   orderMessages: (orderId: number) =>
     apiClient.get<Message[]>(ENDPOINTS.orderMessages(orderId)),
 
-  send: (orderId: number, contenu?: string, photo?: { uri: string; name: string; type: string }) => {
+  send: (orderId: number, texte?: string, photo?: { uri: string; name: string; type: string }) => {
     const form = new FormData()
     form.append('orderId', String(orderId))
-    if (contenu) form.append('contenu', contenu)
+    if (texte) form.append('texte', texte)
     if (photo) form.append('photo', { uri: photo.uri, name: photo.name, type: photo.type } as any)
     return apiClient.post<Message>(ENDPOINTS.messages, form, {
       headers: { 'Content-Type': 'multipart/form-data' },

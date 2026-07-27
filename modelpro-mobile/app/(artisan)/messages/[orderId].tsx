@@ -82,7 +82,7 @@ export default function ArtisanChatScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.messagesList}
         renderItem={({ item, index }) => (
-          <MessageBubble message={item} isMine={item.expediteur.id === user?.id} index={index} />
+          <MessageBubble message={item} isMine={item.sender?.id === user?.id} index={index} />
         )}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}

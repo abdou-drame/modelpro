@@ -21,10 +21,10 @@ export function MessageBubble({ message, isMine, index }: Props) {
         <TouchableOpacity activeOpacity={0.9} style={[styles.photoBubble, isMine && styles.photoBubbleMine]}>
           <Image source={{ uri: message.photoUrl }} style={styles.photo} resizeMode="cover" />
           {isMine && <View style={styles.photoBubbleBorder} />}
-          {message.contenu ? (
+          {message.texte ? (
             <View style={styles.photoCaption}>
               <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-              <Text style={styles.photoCaptionText}>{message.contenu}</Text>
+              <Text style={styles.photoCaptionText}>{message.texte}</Text>
             </View>
           ) : null}
         </TouchableOpacity>
@@ -37,7 +37,7 @@ export function MessageBubble({ message, isMine, index }: Props) {
             </>
           )}
           <Text style={[styles.text, isMine ? styles.textMine : styles.textTheirs]}>
-            {message.contenu}
+            {message.texte}
           </Text>
         </View>
       )}
