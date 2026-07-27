@@ -59,10 +59,11 @@ function normalizeOrder(raw: OrderRaw): Order {
     updatedAt: raw.updatedAt,
     artisan: {
       id: raw.artisan?.id ?? 0,
-      nomAtelier: raw.artisan?.atelier ?? '',
+      atelier: raw.artisan?.atelier ?? '',
+      métier: raw.artisan?.métier ?? '',
+      noteMoyenne: null,
       photoProfil: raw.artisan?.user?.photoUrl ?? null,
       user: { nom: raw.artisan?.user?.nom ?? '', prenom: raw.artisan?.user?.prenom ?? '' },
-      metier: { nom: raw.artisan?.métier ?? '' },
     },
     creation: raw.creation ?? null,
   }

@@ -61,6 +61,7 @@ export default function ClientOrdersScreen() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['my-orders'],
     queryFn: () => ordersApi.myOrders().then((r) => r.data),
+    refetchInterval: 30000,
   })
 
   return (

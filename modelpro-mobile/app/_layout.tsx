@@ -22,12 +22,15 @@ function AuthGuard() {
   }, [])
 
   useEffect(() => {
+    if (isAuthenticated) registerFcmToken()
+  }, [isAuthenticated])
+
+  useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)'
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login')
     } else if (isAuthenticated && inAuthGroup) {
-      registerFcmToken()
       if (user?.role === 'artisan') {
         router.replace('/(artisan)/dashboard')
       } else {
