@@ -1,4 +1,5 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
+import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
 import { formatPrice } from '@/lib/utils/format'
@@ -9,54 +10,60 @@ const PLACEHOLDER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w
 
 interface Props {
   model: Model
+  index?: number
 }
 
-export function ModelCard({ model }: Props) {
+export function ModelCard({ model, index = 0 }: Props) {
   const atelier = model.artisan?.atelier ?? 'Atelier'
   const metier = model.artisan?.métier ?? 'Création'
   const note = Number(model.artisan?.noteMoyenne ?? 4.8).toFixed(1)
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => router.push(`/(client)/model/${model.id}`)}
-      activeOpacity={0.92}
-      accessibilityRole="button"
-      accessibilityLabel={`${model.titre}, par ${atelier}${model.prixEstimatif != null ? `, à partir de ${formatPrice(model.prixEstimatif)}` : ''}`}
+    <Animated.View
+      entering={FadeInUp.delay(Math.min(index * 60, 400)).springify().damping(14).mass(0.8)}
+      style={{ flex: 1 }}
     >
-      <View style={styles.imageWrapper}>
-        <Image
-          source={{ uri: model.photoUrl ?? PLACEHOLDER }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push(`/(client)/model/${model.id}`)}
+        activeOpacity={0.92}
+        accessibilityRole="button"
+        accessibilityLabel={`${model.titre}, par ${atelier}${model.prixEstimatif != null ? `, à partir de ${formatPrice(model.prixEstimatif)}` : ''}`}
+      >
+        <View style={styles.imageWrapper}>
+          <Image
+            source={{ uri: model.photoUrl ?? PLACEHOLDER }}
+            style={styles.image}
+            resizeMode="cover"
+          />
 
-        {/* Metier tag */}
-        <View style={styles.badgeOverlay}>
-          <View style={styles.glassTag}>
-            <Text style={styles.glassTagText}>{metier}</Text>
+          {/* Metier tag */}
+          <View style={styles.badgeOverlay}>
+            <View style={styles.glassTag}>
+              <Text style={styles.glassTagText}>{metier}</Text>
+            </View>
           </View>
+
+          {/* Rating overlay */}
+          <View style={styles.ratingBadge}>
+            <Star size={10} color="#D4AF37" fill="#D4AF37" />
+            <Text style={styles.ratingText}>{note}</Text>
+          </View>
+
+          {/* Price tag */}
+          {model.prixEstimatif != null && (
+            <View style={styles.pricePill}>
+              <Text style={styles.pricePillText}>{formatPrice(model.prixEstimatif)}</Text>
+            </View>
+          )}
         </View>
 
-        {/* Rating overlay */}
-        <View style={styles.ratingBadge}>
-          <Star size={10} color="#D4AF37" fill="#D4AF37" />
-          <Text style={styles.ratingText}>{note}</Text>
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={1}>{model.titre}</Text>
+          <Text style={styles.artisan} numberOfLines={1}>{atelier}</Text>
         </View>
-
-        {/* Price tag */}
-        {model.prixEstimatif != null && (
-          <View style={styles.pricePill}>
-            <Text style={styles.pricePillText}>{formatPrice(model.prixEstimatif)}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>{model.titre}</Text>
-        <Text style={styles.artisan} numberOfLines={1}>{atelier}</Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   )
 }
 

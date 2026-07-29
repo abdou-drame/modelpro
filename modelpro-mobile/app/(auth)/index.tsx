@@ -1,113 +1,181 @@
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
-import { BlurView } from 'expo-blur'
-import { LinearGradient } from 'expo-linear-gradient'
-import { colors, spacing, fontSize, radius } from '@/constants/theme'
-
-const BG = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80'
+import Animated, { FadeInUp } from 'react-native-reanimated'
+import { Crown, User, Scissors } from 'lucide-react-native'
 
 export default function WelcomeScreen() {
   return (
-    <ImageBackground source={{ uri: BG }} style={styles.container} resizeMode="cover">
-      <LinearGradient
-        colors={['rgba(26,26,46,0.35)', 'rgba(26,26,46,0.92)']}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={styles.root}>
+      <Animated.View entering={FadeInUp.duration(500)} style={styles.container}>
+        
+        {/* Header Logo */}
+        <View style={styles.headerLogoRow}>
+          <View style={styles.logoBox}>
+            <Crown size={24} color="#C05A2B" strokeWidth={2} />
+          </View>
+          <Text style={styles.brandTitle}>ModèlePro</Text>
+        </View>
 
-      <View style={styles.header}>
-        <Text style={styles.logo}>ModèlePro</Text>
-        <Text style={styles.tagline}>
-          La couture artisanale,{'\n'}à portée de main
-        </Text>
-      </View>
-
-      <View style={styles.actions}>
-        {/* Bouton client — solide */}
-        <TouchableOpacity
-          style={styles.btnPrimary}
-          onPress={() => router.push('/(auth)/register-client')}
-          activeOpacity={0.88}
-        >
-          <Text style={styles.btnPrimaryText}>Je cherche un artisan</Text>
-        </TouchableOpacity>
-
-        {/* Bouton artisan — glass */}
-        <TouchableOpacity
-          style={styles.btnGlass}
-          onPress={() => router.push('/(auth)/register-artisan')}
-          activeOpacity={0.85}
-        >
-          <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
-          <View style={styles.btnGlassBorder} />
-          <Text style={styles.btnGlassText}>Je suis artisan</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-          <Text style={styles.loginLink}>
-            Déjà un compte ?{' '}
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>Se connecter</Text>
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <Text style={styles.surtitre}>BIENVENUE</Text>
+          <Text style={styles.mainTitle}>La haute couture{'\n'}sur-mesure</Text>
+          <Text style={styles.subtitle}>
+            Connectez-vous directement avec les meilleurs maîtres tailleurs du Sénégal ou développez votre atelier.
           </Text>
-        </TouchableOpacity>
-      </View>
-    </ImageBackground>
+        </View>
+
+        {/* Actions Choice */}
+        <View style={styles.actions}>
+          {/* Bouton Client */}
+          <TouchableOpacity
+            style={styles.btnPrimary}
+            onPress={() => router.push('/(auth)/register-client')}
+            activeOpacity={0.88}
+          >
+            <User size={18} color="#FFFFFF" strokeWidth={2} />
+            <Text style={styles.btnPrimaryText}>Je cherche un artisan</Text>
+          </TouchableOpacity>
+
+          {/* Bouton Artisan */}
+          <TouchableOpacity
+            style={styles.btnSecondary}
+            onPress={() => router.push('/(auth)/register-artisan')}
+            activeOpacity={0.85}
+          >
+            <Scissors size={18} color="#1A1005" strokeWidth={2} />
+            <Text style={styles.btnSecondaryText}>Je suis un artisan</Text>
+          </TouchableOpacity>
+
+          {/* Lien Se connecter */}
+          <View style={styles.loginRow}>
+            <Text style={styles.loginText}>Déjà un compte ? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+              <Text style={styles.loginLinkBold}>Se connecter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+      </Animated.View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    justifyContent: 'space-between',
-    padding: spacing.xxl,
-    paddingTop: 80,
-    paddingBottom: 56,
+    backgroundColor: '#FAF8F5',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  header: { gap: spacing.lg },
-  logo: {
-    fontSize: fontSize.xxxl + 4,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: -1.5,
+  container: {
+    maxWidth: 440,
+    width: '100%',
+    alignSelf: 'center',
   },
-  tagline: {
-    fontSize: fontSize.xl,
-    fontWeight: '500',
-    color: colors.white,
-    lineHeight: 32,
-  },
-  actions: { gap: spacing.md },
-  btnPrimary: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    padding: 18,
+  headerLogoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    marginBottom: 40,
+  },
+  logoBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1A1005',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  brandTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1A1005',
+    letterSpacing: -0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  heroSection: {
+    marginBottom: 40,
+  },
+  surtitre: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C05A2B',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  mainTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#1A1005',
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#7A6A58',
+    lineHeight: 22,
+  },
+  actions: {
+    gap: 16,
+  },
+  btnPrimary: {
+    height: 54,
+    backgroundColor: '#C05A2B',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#C05A2B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   btnPrimaryText: {
-    color: colors.white,
-    fontSize: fontSize.base + 1,
+    fontSize: 16,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
-  btnGlass: {
-    borderRadius: radius.lg,
-    padding: 18,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  btnGlassBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.lg,
+  btnSecondary: {
+    height: 54,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: '#E8E2D9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
-  btnGlassText: {
-    color: colors.white,
-    fontSize: fontSize.base + 1,
-    fontWeight: '600',
-    zIndex: 1,
+  btnSecondaryText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1005',
   },
-  loginLink: {
-    textAlign: 'center',
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: fontSize.md,
-    marginTop: spacing.sm,
+  loginRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  loginText: {
+    fontSize: 14,
+    color: '#7A6A58',
+  },
+  loginLinkBold: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A1005',
   },
 })

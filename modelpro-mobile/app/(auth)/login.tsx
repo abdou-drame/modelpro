@@ -8,25 +8,20 @@ import {
   Platform,
   StyleSheet,
   ScrollView,
-  Dimensions,
 } from 'react-native'
 import { Link, router } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
-import { LinearGradient } from 'expo-linear-gradient'
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
+import Animated, { FadeInUp } from 'react-native-reanimated'
+import { Eye, EyeOff, AlertCircle, Crown, Check, ChevronDown, ChevronRight } from 'lucide-react-native'
 import { authApi } from '@/lib/api/auth'
 import { useAuthStore } from '@/lib/store/authStore'
-import { colors, spacing, fontSize, radius, shadow, fontWeight } from '@/constants/theme'
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window')
-const HERO_HEIGHT = SCREEN_HEIGHT * 0.42
 
 const schema = z.object({
-  telephone: z.string().min(9, 'Numéro invalide'),
-  password: z.string().min(6, 'Mot de passe trop court'),
+  telephone: z.string().min(1, 'Veuillez saisir votre numéro ou email'),
+  password: z.string().min(1, 'Veuillez saisir votre mot de passe'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -34,9 +29,11 @@ type FormData = z.infer<typeof schema>
 export default function LoginScreen() {
   const { setAuth } = useAuthStore()
   const [error, setError] = useState('')
-  const [focusedField, setFocusedField] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false)
 
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { control, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { telephone: '', password: '' },
   })
@@ -55,9 +52,15 @@ export default function LoginScreen() {
       if (!e.response) {
         setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
       } else {
-        setError(e.response.data?.error || 'Identifiants incorrects')
+        setError(e.response.data?.error || 'Email ou mot de passe incorrect.')
       }
     }
+  }
+
+  const fillDemo = (phone: string, pass: string) => {
+    setValue('telephone', phone)
+    setValue('password', pass)
+    setError('')
   }
 
   return (
@@ -69,155 +72,204 @@ export default function LoginScreen() {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        bounces={false}
       >
-        {/* ── Hero area ── */}
-        <LinearGradient
-          colors={['#6B2A08', '#8B3A0F', '#B85C2A']}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          {/* Decorative circle — offset top-right for asymmetric feel */}
-          <View style={styles.decoCircleLg} />
-          <View style={styles.decoCircleSm} />
+        <Animated.View entering={FadeInUp.duration(500)} style={styles.container}>
 
-          <Animated.View entering={FadeInDown.delay(80).duration(600)} style={styles.brandBlock}>
-            {/* Monogram */}
-            <View style={styles.monogram}>
-              <Text style={styles.monogramLetter}>M</Text>
+          {/* ── En-tête Logo ── */}
+          <View style={styles.headerLogoRow}>
+            <View style={styles.logoBox}>
+              <Crown size={22} color="#C05A2B" strokeWidth={2} />
             </View>
-
-            <Text style={styles.wordmark}>MODÈLEPRO</Text>
-            <Text style={styles.tagline}>L'artisanat africain, sur mesure</Text>
-          </Animated.View>
-        </LinearGradient>
-
-        {/* ── Form card — bottom sheet style ── */}
-        <Animated.View entering={FadeInUp.delay(200).duration(550)} style={styles.sheet}>
-          <Text style={styles.sheetTitle}>Connexion</Text>
-          <Text style={styles.sheetSub}>Accédez à votre espace personnel</Text>
-
-          {/* Telephone */}
-          <Controller
-            control={control}
-            name="telephone"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.field}>
-                <Text style={styles.label}>TÉLÉPHONE</Text>
-                <TextInput
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder=""
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  onFocus={() => setFocusedField('telephone')}
-                  onBlur={() => setFocusedField(null)}
-                  style={styles.input}
-                  placeholderTextColor={colors.textMuted}
-                  accessibilityLabel="Numéro de téléphone"
-                />
-                <View
-                  style={[
-                    styles.underline,
-                    focusedField === 'telephone' && styles.underlineFocused,
-                    !!errors.telephone && styles.underlineError,
-                  ]}
-                />
-                {errors.telephone ? (
-                  <Text style={styles.fieldError} accessibilityRole="alert">
-                    {errors.telephone.message}
-                  </Text>
-                ) : null}
-              </View>
-            )}
-          />
-
-          {/* Password */}
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.field}>
-                <Text style={styles.label}>MOT DE PASSE</Text>
-                <TextInput
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder=""
-                  secureTextEntry
-                  autoComplete="password"
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField(null)}
-                  style={styles.input}
-                  placeholderTextColor={colors.textMuted}
-                  accessibilityLabel="Mot de passe"
-                />
-                <View
-                  style={[
-                    styles.underline,
-                    focusedField === 'password' && styles.underlineFocused,
-                    !!errors.password && styles.underlineError,
-                  ]}
-                />
-                {errors.password ? (
-                  <Text style={styles.fieldError} accessibilityRole="alert">
-                    {errors.password.message}
-                  </Text>
-                ) : null}
-              </View>
-            )}
-          />
-
-          {/* Global error */}
-          {error ? (
-            <View style={styles.globalErrorWrap} accessibilityRole="alert">
-              <Text style={styles.globalError}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Submit */}
-          <TouchableOpacity
-            onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            style={[styles.btn, isSubmitting && styles.btnDisabled]}
-            activeOpacity={0.82}
-            accessibilityRole="button"
-            accessibilityLabel={isSubmitting ? 'Connexion en cours' : 'Se connecter'}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.btnLabel}>SE CONNECTER</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Register links */}
-          <View style={styles.linksSection}>
-            <View style={styles.registerRow}>
-              <Text style={styles.registerText}>Pas encore de compte ? </Text>
-              <Link
-                href="/(auth)/register-client"
-                style={styles.registerLink}
-                accessibilityRole="link"
-                accessibilityLabel="Créer un compte client"
-              >
-                Créer un compte
-              </Link>
-            </View>
-            <View style={styles.registerRow}>
-              <Text style={styles.registerText}>Vous êtes artisan ? </Text>
-              <Link
-                href="/(auth)/register-artisan"
-                style={styles.registerLink}
-                accessibilityRole="link"
-                accessibilityLabel="Rejoindre en tant qu'artisan"
-              >
-                Rejoindre
-              </Link>
-            </View>
+            <Text style={styles.brandTitle}>ModèlePro</Text>
           </View>
 
-          <Text style={styles.hint}>Démo : 0702000001 / Client@2026</Text>
+          {/* ── Titre & Surtitre ── */}
+          <View style={styles.titleSection}>
+            <Text style={styles.surtitre}>ACCÈS MEMBRE</Text>
+            <Text style={styles.mainTitle}>Bon retour</Text>
+            <Text style={styles.subtitle}>Connectez-vous à votre espace ModèlePro</Text>
+          </View>
+
+          {/* ── Formulaire ── */}
+          <View style={styles.form}>
+
+            {/* Champ Téléphone / Email */}
+            <Controller
+              control={control}
+              name="telephone"
+              render={({ field: { onChange, value, onBlur } }) => {
+                const hasError = !!errors.telephone || !!error
+                return (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Adresse email ou numéro</Text>
+                    <View style={[styles.inputWrapper, hasError && styles.inputWrapperError]}>
+                      <TextInput
+                        value={value}
+                        onChangeText={(v) => { onChange(v); setError('') }}
+                        onBlur={onBlur}
+                        placeholder="ex: client@modelepro.sn ou 0702000001"
+                        placeholderTextColor="#A89684"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        style={styles.input}
+                        accessibilityLabel="Adresse email ou numéro de téléphone"
+                      />
+                    </View>
+                    {errors.telephone ? (
+                      <View style={styles.errorRow}>
+                        <AlertCircle size={14} color="#9E2A2B" />
+                        <Text style={styles.errorText}>{errors.telephone.message}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )
+              }}
+            />
+
+            {/* Champ Mot de passe */}
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, value, onBlur } }) => {
+                const hasError = !!errors.password || !!error
+                return (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Mot de passe</Text>
+                    <View style={[styles.inputWrapper, hasError && styles.inputWrapperError]}>
+                      <TextInput
+                        value={value}
+                        onChangeText={(v) => { onChange(v); setError('') }}
+                        onBlur={onBlur}
+                        placeholder="••••••••"
+                        placeholderTextColor="#A89684"
+                        secureTextEntry={!showPassword}
+                        style={[styles.input, { paddingRight: 44 }]}
+                        accessibilityLabel="Mot de passe"
+                      />
+                      <TouchableOpacity
+                        style={styles.eyeBtn}
+                        onPress={() => setShowPassword(!showPassword)}
+                        activeOpacity={0.7}
+                        accessibilityLabel="Afficher ou masquer le mot de passe"
+                      >
+                        {showPassword ? (
+                          <EyeOff size={18} color="#7A6A58" />
+                        ) : (
+                          <Eye size={18} color="#7A6A58" />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    {errors.password ? (
+                      <View style={styles.errorRow}>
+                        <AlertCircle size={14} color="#9E2A2B" />
+                        <Text style={styles.errorText}>{errors.password.message}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )
+              }}
+            />
+
+            {/* Message d'erreur global */}
+            {error ? (
+              <View style={styles.errorRowGlobal}>
+                <AlertCircle size={15} color="#9E2A2B" />
+                <Text style={styles.errorTextGlobal}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Options Checkbox & Mot de passe oublié */}
+            <View style={styles.optionsRow}>
+              <TouchableOpacity
+                style={styles.rememberRow}
+                onPress={() => setRememberMe(!rememberMe)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+                </View>
+                <Text style={styles.rememberText}>Rester connecté</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setError('Contactez le support au 0702000000 pour réinitialiser.')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Bouton Se Connecter */}
+            <TouchableOpacity
+              style={[styles.primaryBtn, isSubmitting && styles.btnDisabled]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={isSubmitting ? 'Connexion en cours' : 'Se connecter'}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Se connecter</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Liens secondaires */}
+            <View style={styles.linksBlock}>
+              <View style={styles.registerRow}>
+                <Text style={styles.registerText}>Pas encore de compte ? </Text>
+                <TouchableOpacity onPress={() => router.push('/(auth)/register-client')}>
+                  <Text style={styles.registerLinkBold}>Créer un compte</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.backHomeBtn}
+                onPress={() => router.replace('/(client)')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backHomeText}>Retour à l'accueil</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Démo acccordéon */}
+            <View style={styles.demoSection}>
+              <TouchableOpacity
+                style={styles.demoHeader}
+                onPress={() => setShowDemoAccounts(!showDemoAccounts)}
+                activeOpacity={0.7}
+              >
+                {showDemoAccounts ? (
+                  <ChevronDown size={16} color="#7A6A58" />
+                ) : (
+                  <ChevronRight size={16} color="#7A6A58" />
+                )}
+                <Text style={styles.demoHeaderText}>Comptes de démonstration</Text>
+              </TouchableOpacity>
+
+              {showDemoAccounts && (
+                <View style={styles.demoContent}>
+                  <TouchableOpacity
+                    style={styles.demoPill}
+                    onPress={() => fillDemo('0702000001', 'Client@2026')}
+                  >
+                    <Text style={styles.demoPillTitle}>👤 Client Démo</Text>
+                    <Text style={styles.demoPillSub}>0702000001 / Client@2026</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.demoPill}
+                    onPress={() => fillDemo('0701000001', 'Artisan@2026')}
+                  >
+                    <Text style={styles.demoPillTitle}>✂️ Artisan Démo</Text>
+                    <Text style={styles.demoPillSub}>0701000001 / Artisan@2026</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+          </View>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -227,198 +279,267 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.primaryDark,
+    backgroundColor: '#FAF8F5',
   },
   scroll: {
     flexGrow: 1,
-    backgroundColor: colors.bg,
+    paddingHorizontal: 24,
+    paddingTop: 56,
+    paddingBottom: 40,
+    justifyContent: 'center',
+  },
+  container: {
+    maxWidth: 440,
+    width: '100%',
+    alignSelf: 'center',
   },
 
-  // ── Hero ──
-  hero: {
-    height: HERO_HEIGHT,
-    paddingTop: spacing.xxxl + spacing.lg,
-    paddingHorizontal: spacing.xxl,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    paddingBottom: spacing.xxxl,
+  // ── Header Logo ──
+  headerLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 32,
   },
-  decoCircleLg: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    top: -60,
-    right: -60,
-  },
-  decoCircleSm: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    top: 40,
-    right: 80,
-  },
-  brandBlock: {
-    alignItems: 'flex-start',
-  },
-  monogram: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.5)',
+  logoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#1A1005',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  monogramLetter: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
-    letterSpacing: 1,
-  },
-  wordmark: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.extrabold,
-    color: colors.white,
-    letterSpacing: 5,
-    marginBottom: spacing.xs,
-  },
-  tagline: {
-    fontSize: fontSize.sm,
-    color: 'rgba(255,255,255,0.72)',
-    letterSpacing: 0.8,
-    fontWeight: fontWeight.regular,
-  },
-
-  // ── Sheet ──
-  sheet: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -28,
-    paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xxxl,
-    ...shadow.lg,
-  },
-  sheetTitle: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1005',
     letterSpacing: -0.5,
-    marginBottom: spacing.xs,
-  },
-  sheetSub: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
-    marginBottom: spacing.xxl,
-    letterSpacing: 0.2,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
 
-  // ── Fields ──
-  field: {
-    marginBottom: spacing.xl,
+  // ── Titre Section ──
+  titleSection: {
+    marginBottom: 28,
   },
-  label: {
-    fontSize: 10,
-    fontWeight: fontWeight.semibold,
-    color: colors.textMuted,
-    letterSpacing: 2.2,
-    marginBottom: spacing.sm,
+  surtitre: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C05A2B',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  mainTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#1A1005',
+    letterSpacing: -0.8,
+    lineHeight: 40,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#7A6A58',
+    lineHeight: 22,
+  },
+
+  // ── Formulaire ──
+  form: {
+    gap: 20,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1005',
+  },
+  inputWrapper: {
+    position: 'relative',
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8E2D9',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  inputWrapperError: {
+    borderColor: '#9E2A2B',
+    backgroundColor: '#FFF9F9',
   },
   input: {
-    fontSize: fontSize.base,
-    color: colors.text,
-    paddingVertical: spacing.sm,
-    backgroundColor: 'transparent',
-    minHeight: 44,
+    fontSize: 15,
+    color: '#1A1005',
+    width: '100%',
+    height: '100%',
   },
-  underline: {
-    height: 1,
-    backgroundColor: colors.border,
+  eyeBtn: {
+    position: 'absolute',
+    right: 14,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
   },
-  underlineFocused: {
-    height: 1.5,
-    backgroundColor: colors.primary,
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
   },
-  underlineError: {
-    height: 1.5,
-    backgroundColor: colors.error,
+  errorText: {
+    fontSize: 13,
+    color: '#9E2A2B',
+    fontWeight: '500',
   },
-  fieldError: {
-    fontSize: fontSize.xs,
-    color: colors.error,
-    marginTop: spacing.xs,
-    letterSpacing: 0.2,
+  errorRowGlobal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF1F1',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F87171',
+  },
+  errorTextGlobal: {
+    fontSize: 13,
+    color: '#9E2A2B',
+    fontWeight: '600',
+    flex: 1,
   },
 
-  // ── Global error ──
-  globalErrorWrap: {
-    backgroundColor: colors.errorLight,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.error,
+  // ── Options ──
+  optionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+    marginBottom: 4,
   },
-  globalError: {
-    fontSize: fontSize.sm,
-    color: colors.error,
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-
-  // ── Button ──
-  btn: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#C05A2B',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.xl,
-    minHeight: 52,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-    ...shadow.md,
   },
-  btnDisabled: {
-    opacity: 0.6,
+  checkboxChecked: {
+    backgroundColor: '#C05A2B',
   },
-  btnLabel: {
-    color: colors.white,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 2.5,
+  rememberText: {
+    fontSize: 14,
+    color: '#55483B',
+  },
+  forgotText: {
+    fontSize: 14,
+    color: '#7A6A58',
   },
 
-  // ── Bottom links ──
-  linksSection: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
+  // ── Bouton Principal ──
+  primaryBtn: {
+    height: 52,
+    backgroundColor: '#C05A2B',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#C05A2B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  btnDisabled: {
+    opacity: 0.65,
+  },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // ── Liens bas ──
+  linksBlock: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
   },
   registerRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
+    alignItems: 'center',
   },
   registerText: {
-    fontSize: fontSize.sm,
-    color: colors.textSub,
+    fontSize: 14,
+    color: '#7A6A58',
   },
-  registerLink: {
-    fontSize: fontSize.sm,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
+  registerLinkBold: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A1005',
   },
-  hint: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    textAlign: 'center',
-    letterSpacing: 0.2,
-    marginTop: spacing.xs,
+  backHomeBtn: {
+    paddingVertical: 4,
+  },
+  backHomeText: {
+    fontSize: 14,
+    color: '#7A6A58',
+    textDecorationLine: 'underline',
+  },
+
+  // ── Accordéon Démo ──
+  demoSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E2D9',
+  },
+  demoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  demoHeaderText: {
+    fontSize: 13,
+    color: '#7A6A58',
+    fontWeight: '500',
+  },
+  demoContent: {
+    gap: 8,
+    marginTop: 12,
+  },
+  demoPill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+  },
+  demoPillTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A1005',
+  },
+  demoPillSub: {
+    fontSize: 12,
+    color: '#7A6A58',
+    marginTop: 2,
   },
 })

@@ -8,28 +8,25 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  FlatList,
 } from 'react-native'
-import { Link, router } from 'expo-router'
+import { router } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { LinearGradient } from 'expo-linear-gradient'
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
-import { ChevronDown, ChevronUp } from 'lucide-react-native'
+import Animated, { FadeInUp } from 'react-native-reanimated'
+import { Eye, EyeOff, AlertCircle, Crown, ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import { authApi } from '@/lib/api/auth'
 import { metiersApi } from '@/lib/api/metiers'
 import { useAuthStore } from '@/lib/store/authStore'
-import { colors, spacing, fontSize, radius, shadow, fontWeight } from '@/constants/theme'
 
 const schema = z
   .object({
     nom: z.string().min(2, 'Nom requis'),
     prenom: z.string().min(2, 'Prénom requis'),
-    telephone: z.string().min(9, 'Numéro invalide'),
-    password: z.string().min(6, 'Minimum 6 caractères'),
+    telephone: z.string().min(9, 'Numéro invalide (min 9 chiffres)'),
+    password: z.string().min(6, 'Mot de passe trop court (min 6 caractères)'),
     confirm: z.string(),
     nomAtelier: z.string().min(2, "Nom de l'atelier requis"),
     localisation: z.string().min(2, 'Localisation requise'),
@@ -42,94 +39,14 @@ const schema = z
 
 type FormData = z.infer<typeof schema>
 
-// ── Reusable Field component ──────────────────────────────────────────────────
-type FieldProps = {
-  label: string
-  value: string | undefined
-  onChange: (v: string) => void
-  error?: string
-  placeholder?: string
-  keyboard?: 'default' | 'phone-pad' | 'email-address'
-  secure?: boolean
-  accessibilityLabel: string
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  error,
-  placeholder,
-  keyboard = 'default',
-  secure = false,
-  accessibilityLabel,
-}: FieldProps) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <View style={fieldStyles.wrap}>
-      <Text style={fieldStyles.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder ?? ''}
-        keyboardType={keyboard}
-        secureTextEntry={secure}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={fieldStyles.input}
-        placeholderTextColor={colors.textMuted}
-        accessibilityLabel={accessibilityLabel}
-      />
-      <View
-        style={[
-          fieldStyles.underline,
-          focused && fieldStyles.underlineFocused,
-          !!error && fieldStyles.underlineError,
-        ]}
-      />
-      {error ? (
-        <Text style={fieldStyles.fieldError} accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
-    </View>
-  )
-}
-
-const fieldStyles = StyleSheet.create({
-  wrap: { marginBottom: spacing.xl },
-  label: {
-    fontSize: 10,
-    fontWeight: fontWeight.semibold,
-    color: colors.textMuted,
-    letterSpacing: 2.2,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    fontSize: fontSize.base,
-    color: colors.text,
-    paddingVertical: spacing.sm,
-    backgroundColor: 'transparent',
-    minHeight: 44,
-  },
-  underline: { height: 1, backgroundColor: colors.border },
-  underlineFocused: { height: 1.5, backgroundColor: colors.primary },
-  underlineError: { height: 1.5, backgroundColor: colors.error },
-  fieldError: {
-    fontSize: fontSize.xs,
-    color: colors.error,
-    marginTop: spacing.xs,
-    letterSpacing: 0.2,
-  },
-})
-
-// ── Screen ────────────────────────────────────────────────────────────────────
 export default function RegisterArtisanScreen() {
   const { setAuth } = useAuthStore()
   const [error, setError] = useState('')
   const [metierOpen, setMetierOpen] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
-  const { data: metiers, isLoading: loadingMetiers } = useQuery({
+  const { data: metiers } = useQuery({
     queryKey: ['metiers'],
     queryFn: () => metiersApi.list().then((r) => r.data),
   })
@@ -159,12 +76,16 @@ export default function RegisterArtisanScreen() {
         role: 'artisan',
         atelier: data.nomAtelier,
         localisation: data.localisation,
-        métier: selectedMetier?.nom ?? '',
+        métier: selectedMetier?.nom ?? 'Couture',
       })
       await setAuth(res.data.user as any, res.data.token)
       router.replace('/(artisan)/dashboard')
     } catch (e: any) {
-      setError(e.response?.data?.error || "Erreur lors de l'inscription")
+      if (!e.response) {
+        setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
+      } else {
+        setError(e.response?.data?.error || "Erreur lors de l'inscription")
+      }
     }
   }
 
@@ -178,254 +99,325 @@ export default function RegisterArtisanScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header strip ── */}
-        <LinearGradient
-          colors={['#3B1A05', '#6B2A08', '#8B3A0F']}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerStrip}
-        >
-          <View style={styles.decoCircleLg} />
-          <View style={styles.decoCircleSm} />
-          <Animated.View entering={FadeInDown.delay(60).duration(500)}>
-            <Text style={styles.headerLabel}>MODÈLEPRO · ARTISANS</Text>
-            <Text style={styles.headerTitle}>Ouvrez votre atelier</Text>
-            <Text style={styles.headerSub}>Rejoignez la communauté de maîtres artisans</Text>
-          </Animated.View>
-        </LinearGradient>
+        <Animated.View entering={FadeInUp.duration(500)} style={styles.container}>
 
-        {/* ── Form card ── */}
-        <Animated.View entering={FadeInUp.delay(180).duration(500)} style={styles.card}>
-
-          {/* ── Section: Identité ── */}
-          <Text style={styles.sectionLabel}>IDENTITÉ</Text>
-          <View style={styles.row}>
-            <View style={styles.rowField}>
-              <Controller
-                control={control}
-                name="prenom"
-                render={({ field: { onChange, value } }) => (
-                  <Field
-                    label="PRÉNOM"
-                    value={value}
-                    onChange={onChange}
-                    error={errors.prenom?.message}
-                    placeholder="Fatou"
-                    accessibilityLabel="Prénom"
-                  />
-                )}
-              />
+          {/* ── En-tête Logo ── */}
+          <View style={styles.headerLogoRow}>
+            <View style={styles.logoBox}>
+              <Crown size={22} color="#C05A2B" strokeWidth={2} />
             </View>
-            <View style={styles.rowField}>
-              <Controller
-                control={control}
-                name="nom"
-                render={({ field: { onChange, value } }) => (
-                  <Field
-                    label="NOM"
-                    value={value}
-                    onChange={onChange}
-                    error={errors.nom?.message}
-                    placeholder="Diallo"
-                    accessibilityLabel="Nom de famille"
-                  />
-                )}
-              />
-            </View>
+            <Text style={styles.brandTitle}>ModèlePro</Text>
           </View>
 
-          <Controller
-            control={control}
-            name="telephone"
-            render={({ field: { onChange, value } }) => (
-              <Field
-                label="TÉLÉPHONE"
-                value={value}
-                onChange={onChange}
-                error={errors.telephone?.message}
-                placeholder="77 000 00 00"
-                keyboard="phone-pad"
-                accessibilityLabel="Numéro de téléphone"
-              />
-            )}
-          />
+          {/* ── Titre & Surtitre ── */}
+          <View style={styles.titleSection}>
+            <Text style={styles.surtitre}>ESPACE ARTISAN — INSCRIPTION</Text>
+            <Text style={styles.mainTitle}>Ouvrez votre atelier</Text>
+            <Text style={styles.subtitle}>
+              Rejoignez la communauté des maîtres artisans et développez votre activité
+            </Text>
+          </View>
 
-          {/* ── Section: Atelier ── */}
-          <View style={styles.sectionSeparator} />
-          <Text style={styles.sectionLabel}>VOTRE ATELIER</Text>
+          {/* ── Formulaire ── */}
+          <View style={styles.form}>
 
-          <Controller
-            control={control}
-            name="nomAtelier"
-            render={({ field: { onChange, value } }) => (
-              <Field
-                label="NOM DE L'ATELIER"
-                value={value}
-                onChange={onChange}
-                error={errors.nomAtelier?.message}
-                placeholder="Atelier Diallo Couture"
-                accessibilityLabel="Nom de l'atelier"
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="localisation"
-            render={({ field: { onChange, value } }) => (
-              <Field
-                label="LOCALISATION"
-                value={value}
-                onChange={onChange}
-                error={errors.localisation?.message}
-                placeholder="Dakar, Médina"
-                accessibilityLabel="Localisation de l'atelier"
-              />
-            )}
-          />
-
-          {/* Metier picker */}
-          <View style={styles.fieldWrap}>
-            <Text style={styles.pickerLabel}>MÉTIER</Text>
-            <TouchableOpacity
-              onPress={() => setMetierOpen(!metierOpen)}
-              style={[
-                styles.pickerBtn,
-                !!errors.metierId && styles.pickerBtnError,
-              ]}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Choisir un métier"
-              accessibilityState={{ expanded: metierOpen }}
-            >
-              <Text
-                style={[
-                  styles.pickerBtnText,
-                  !selectedMetier && styles.pickerBtnPlaceholder,
-                ]}
-              >
-                {loadingMetiers
-                  ? 'Chargement des métiers...'
-                  : selectedMetier?.nom ?? 'Choisissez votre spécialité'}
-              </Text>
-              {metierOpen ? (
-                <ChevronUp size={18} color={colors.textSub} />
-              ) : (
-                <ChevronDown size={18} color={colors.textSub} />
+            {/* Prénom */}
+            <Controller
+              control={control}
+              name="prenom"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Prénom</Text>
+                  <View style={[styles.inputWrapper, !!errors.prenom && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="ex: Mamadou"
+                      placeholderTextColor="#A89684"
+                      style={styles.input}
+                      accessibilityLabel="Prénom"
+                    />
+                  </View>
+                  {errors.prenom && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.prenom.message}</Text>
+                    </View>
+                  )}
+                </View>
               )}
-            </TouchableOpacity>
-            {errors.metierId ? (
-              <Text style={styles.pickerError} accessibilityRole="alert">
-                {errors.metierId.message}
-              </Text>
-            ) : null}
+            />
 
-            {metierOpen && metiers ? (
-              <View style={styles.pickerDropdown}>
-                <FlatList
-                  data={metiers.filter((m) => m.actif)}
-                  keyExtractor={(item) => String(item.id)}
-                  renderItem={({ item }) => (
+            {/* Nom */}
+            <Controller
+              control={control}
+              name="nom"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Nom</Text>
+                  <View style={[styles.inputWrapper, !!errors.nom && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="ex: Sow"
+                      placeholderTextColor="#A89684"
+                      style={styles.input}
+                      accessibilityLabel="Nom"
+                    />
+                  </View>
+                  {errors.nom && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.nom.message}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            />
+
+            {/* Nom de l'atelier */}
+            <Controller
+              control={control}
+              name="nomAtelier"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Nom de l'atelier</Text>
+                  <View style={[styles.inputWrapper, !!errors.nomAtelier && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="ex: Atelier Excellence Couture"
+                      placeholderTextColor="#A89684"
+                      style={styles.input}
+                      accessibilityLabel="Nom de l'atelier"
+                    />
+                  </View>
+                  {errors.nomAtelier && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.nomAtelier.message}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            />
+
+            {/* Sélecteur de Métier */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Spécialité / Métier</Text>
+              <TouchableOpacity
+                style={[styles.inputWrapper, !!errors.metierId && styles.inputWrapperError, styles.selectWrapper]}
+                onPress={() => setMetierOpen(!metierOpen)}
+                activeOpacity={0.8}
+              >
+                <Text style={selectedMetier ? styles.selectTextSelected : styles.selectTextPlaceholder}>
+                  {selectedMetier ? selectedMetier.nom : 'Sélectionner votre spécialité'}
+                </Text>
+                {metierOpen ? <ChevronUp size={18} color="#7A6A58" /> : <ChevronDown size={18} color="#7A6A58" />}
+              </TouchableOpacity>
+
+              {metierOpen && (
+                <View style={styles.dropdownList}>
+                  {metiers?.map((m) => (
                     <TouchableOpacity
+                      key={m.id}
+                      style={[styles.dropdownItem, selectedMetierId === m.id && styles.dropdownItemSelected]}
                       onPress={() => {
-                        setValue('metierId', item.id, { shouldValidate: true })
+                        setValue('metierId', m.id, { shouldValidate: true })
                         setMetierOpen(false)
                       }}
-                      style={[
-                        styles.pickerItem,
-                        selectedMetierId === item.id && styles.pickerItemSelected,
-                      ]}
-                      accessibilityRole="menuitem"
-                      accessibilityLabel={item.nom}
-                      accessibilityState={{ selected: selectedMetierId === item.id }}
                     >
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          selectedMetierId === item.id && styles.pickerItemTextSelected,
-                        ]}
-                      >
-                        {item.nom}
+                      <Text style={[styles.dropdownItemText, selectedMetierId === m.id && styles.dropdownItemTextSelected]}>
+                        {m.nom}
                       </Text>
-                      {selectedMetierId === item.id ? (
-                        <View style={styles.pickerItemDot} />
-                      ) : null}
+                      {selectedMetierId === m.id && <Check size={16} color="#C05A2B" strokeWidth={2.5} />}
                     </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {errors.metierId && (
+                <View style={styles.errorRow}>
+                  <AlertCircle size={14} color="#9E2A2B" />
+                  <Text style={styles.errorText}>{errors.metierId.message}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Téléphone */}
+            <Controller
+              control={control}
+              name="telephone"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Téléphone professionnel</Text>
+                  <View style={[styles.inputWrapper, !!errors.telephone && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="ex: 0701000001"
+                      placeholderTextColor="#A89684"
+                      keyboardType="phone-pad"
+                      style={styles.input}
+                      accessibilityLabel="Téléphone professionnel"
+                    />
+                  </View>
+                  {errors.telephone && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.telephone.message}</Text>
+                    </View>
                   )}
-                  nestedScrollEnabled
-                />
+                </View>
+              )}
+            />
+
+            {/* Localisation */}
+            <Controller
+              control={control}
+              name="localisation"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Localisation de l'atelier</Text>
+                  <View style={[styles.inputWrapper, !!errors.localisation && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="ex: Dakar, Marché HLM"
+                      placeholderTextColor="#A89684"
+                      style={styles.input}
+                      accessibilityLabel="Localisation de l'atelier"
+                    />
+                  </View>
+                  {errors.localisation && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.localisation.message}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            />
+
+            {/* Mot de passe */}
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Mot de passe</Text>
+                  <View style={[styles.inputWrapper, !!errors.password && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="••••••••"
+                      placeholderTextColor="#A89684"
+                      secureTextEntry={!showPassword}
+                      style={[styles.input, { paddingRight: 44 }]}
+                      accessibilityLabel="Mot de passe"
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeBtn}
+                      onPress={() => setShowPassword(!showPassword)}
+                      activeOpacity={0.7}
+                    >
+                      {showPassword ? <EyeOff size={18} color="#7A6A58" /> : <Eye size={18} color="#7A6A58" />}
+                    </TouchableOpacity>
+                  </View>
+                  {errors.password && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.password.message}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            />
+
+            {/* Confirmation mot de passe */}
+            <Controller
+              control={control}
+              name="confirm"
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Confirmer le mot de passe</Text>
+                  <View style={[styles.inputWrapper, !!errors.confirm && styles.inputWrapperError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="••••••••"
+                      placeholderTextColor="#A89684"
+                      secureTextEntry={!showConfirm}
+                      style={[styles.input, { paddingRight: 44 }]}
+                      accessibilityLabel="Confirmer le mot de passe"
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeBtn}
+                      onPress={() => setShowConfirm(!showConfirm)}
+                      activeOpacity={0.7}
+                    >
+                      {showConfirm ? <EyeOff size={18} color="#7A6A58" /> : <Eye size={18} color="#7A6A58" />}
+                    </TouchableOpacity>
+                  </View>
+                  {errors.confirm && (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color="#9E2A2B" />
+                      <Text style={styles.errorText}>{errors.confirm.message}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            />
+
+            {/* Erreur serveur */}
+            {error ? (
+              <View style={styles.errorRowGlobal}>
+                <AlertCircle size={15} color="#9E2A2B" />
+                <Text style={styles.errorTextGlobal}>{error}</Text>
               </View>
             ) : null}
-          </View>
 
-          {/* ── Section: Sécurité ── */}
-          <View style={styles.sectionSeparator} />
-          <Text style={styles.sectionLabel}>SÉCURITÉ</Text>
-
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, value } }) => (
-              <Field
-                label="MOT DE PASSE"
-                value={value}
-                onChange={onChange}
-                error={errors.password?.message}
-                secure
-                accessibilityLabel="Mot de passe"
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="confirm"
-            render={({ field: { onChange, value } }) => (
-              <Field
-                label="CONFIRMER LE MOT DE PASSE"
-                value={value}
-                onChange={onChange}
-                error={errors.confirm?.message}
-                secure
-                accessibilityLabel="Confirmer le mot de passe"
-              />
-            )}
-          />
-
-          {/* Global error */}
-          {error ? (
-            <View style={styles.globalErrorWrap} accessibilityRole="alert">
-              <Text style={styles.globalError}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Submit */}
-          <TouchableOpacity
-            onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            style={[styles.btn, isSubmitting && styles.btnDisabled]}
-            activeOpacity={0.82}
-            accessibilityRole="button"
-            accessibilityLabel={isSubmitting ? 'Inscription en cours' : 'Créer mon profil artisan'}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.btnLabel}>CRÉER MON PROFIL ARTISAN</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Login link */}
-          <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Déjà un compte ? </Text>
-            <Link
-              href="/(auth)/login"
-              style={styles.loginLink}
-              accessibilityRole="link"
-              accessibilityLabel="Se connecter"
+            {/* Bouton Inscription Artisan */}
+            <TouchableOpacity
+              style={[styles.primaryBtn, isSubmitting && styles.btnDisabled]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={isSubmitting ? "Création de l'atelier en cours" : "Créer mon atelier"}
             >
-              Se connecter
-            </Link>
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Créer mon atelier</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Liens bas */}
+            <View style={styles.linksBlock}>
+              <View style={styles.registerRow}>
+                <Text style={styles.registerText}>Déjà un compte ? </Text>
+                <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+                  <Text style={styles.registerLinkBold}>Se connecter</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.backHomeBtn}
+                onPress={() => router.replace('/(client)')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backHomeText}>Retour à l'accueil</Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </Animated.View>
       </ScrollView>
@@ -434,210 +426,243 @@ export default function RegisterArtisanScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#3B1A05' },
-  scroll: { flexGrow: 1, backgroundColor: colors.bg },
-
-  // ── Header strip ──
-  headerStrip: {
-    paddingTop: spacing.xxxl + spacing.lg,
-    paddingBottom: spacing.xxl + spacing.lg,
-    paddingHorizontal: spacing.xxl,
-    overflow: 'hidden',
-  },
-  decoCircleLg: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    top: -50,
-    right: -60,
-  },
-  decoCircleSm: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    top: 30,
-    right: 70,
-  },
-  headerLabel: {
-    fontSize: 10,
-    fontWeight: fontWeight.semibold,
-    color: 'rgba(255,255,255,0.50)',
-    letterSpacing: 3,
-    marginBottom: spacing.sm,
-  },
-  headerTitle: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.extrabold,
-    color: colors.white,
-    letterSpacing: -0.3,
-    marginBottom: spacing.xs,
-  },
-  headerSub: {
-    fontSize: fontSize.sm,
-    color: 'rgba(255,255,255,0.65)',
-    letterSpacing: 0.3,
-  },
-
-  // ── Card ──
-  card: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -28,
-    paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xxxl,
+  root: {
     flex: 1,
-    ...shadow.lg,
+    backgroundColor: '#FAF8F5',
+  },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 40,
+    justifyContent: 'center',
+  },
+  container: {
+    maxWidth: 440,
+    width: '100%',
+    alignSelf: 'center',
   },
 
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-    letterSpacing: 2.5,
-    marginBottom: spacing.lg,
-  },
-  sectionSeparator: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginBottom: spacing.xl,
-  },
-
-  // Side-by-side row
-  row: {
+  // ── Header Logo ──
+  headerLogoRow: {
     flexDirection: 'row',
-    gap: spacing.xl,
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 28,
   },
-  rowField: { flex: 1 },
+  logoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1A1005',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1005',
+    letterSpacing: -0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
 
-  // ── Metier picker ──
-  fieldWrap: { marginBottom: spacing.xl },
-  pickerLabel: {
-    fontSize: 10,
-    fontWeight: fontWeight.semibold,
-    color: colors.textMuted,
-    letterSpacing: 2.2,
-    marginBottom: spacing.sm,
+  // ── Titre Section ──
+  titleSection: {
+    marginBottom: 24,
   },
-  pickerBtn: {
+  surtitre: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C05A2B',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  mainTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1A1005',
+    letterSpacing: -0.8,
+    lineHeight: 38,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#7A6A58',
+    lineHeight: 20,
+  },
+
+  // ── Formulaire ──
+  form: {
+    gap: 16,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1005',
+  },
+  inputWrapper: {
+    position: 'relative',
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8E2D9',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  inputWrapperError: {
+    borderColor: '#9E2A2B',
+    backgroundColor: '#FFF9F9',
+  },
+  input: {
+    fontSize: 15,
+    color: '#1A1005',
+    width: '100%',
+    height: '100%',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 14,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  selectWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    minHeight: 44,
   },
-  pickerBtnError: {
-    borderBottomColor: colors.error,
-    borderBottomWidth: 1.5,
+  selectTextPlaceholder: {
+    fontSize: 15,
+    color: '#A89684',
   },
-  pickerBtnText: {
-    fontSize: fontSize.base,
-    color: colors.text,
-    flex: 1,
+  selectTextSelected: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1005',
   },
-  pickerBtnPlaceholder: {
-    color: colors.textMuted,
-  },
-  pickerError: {
-    fontSize: fontSize.xs,
-    color: colors.error,
-    marginTop: spacing.xs,
-    letterSpacing: 0.2,
-  },
-  pickerDropdown: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
-    marginTop: spacing.sm,
-    maxHeight: 220,
+  dropdownList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E8E2D9',
+    marginTop: 4,
     overflow: 'hidden',
-    ...shadow.md,
+    shadowColor: '#1A1005',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  pickerItem: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+  dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FAF8F5',
   },
-  pickerItemSelected: {
-    backgroundColor: '#FDF0E6',
+  dropdownItemSelected: {
+    backgroundColor: '#FAF8F5',
   },
-  pickerItemText: {
-    fontSize: fontSize.md,
-    color: colors.text,
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#1A1005',
+  },
+  dropdownItemTextSelected: {
+    fontWeight: '700',
+    color: '#C05A2B',
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#9E2A2B',
+    fontWeight: '500',
+  },
+  errorRowGlobal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF1F1',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F87171',
+  },
+  errorTextGlobal: {
+    fontSize: 13,
+    color: '#9E2A2B',
+    fontWeight: '600',
     flex: 1,
   },
-  pickerItemTextSelected: {
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-  },
-  pickerItemDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
 
-  // ── Global error ──
-  globalErrorWrap: {
-    backgroundColor: colors.errorLight,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.error,
-  },
-  globalError: {
-    fontSize: fontSize.sm,
-    color: colors.error,
-  },
-
-  // ── Button ──
-  btn: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
+  // ── Bouton Principal ──
+  primaryBtn: {
+    height: 52,
+    backgroundColor: '#C05A2B',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.xl,
-    minHeight: 52,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-    ...shadow.md,
+    marginTop: 8,
+    shadowColor: '#C05A2B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  btnDisabled: { opacity: 0.6 },
-  btnLabel: {
-    color: colors.white,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 2,
+  btnDisabled: {
+    opacity: 0.65,
+  },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
-  // ── Login link ──
-  loginRow: {
+  // ── Liens bas ──
+  linksBlock: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
+  },
+  registerRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
+    alignItems: 'center',
   },
-  loginText: {
-    fontSize: fontSize.sm,
-    color: colors.textSub,
+  registerText: {
+    fontSize: 14,
+    color: '#7A6A58',
   },
-  loginLink: {
-    fontSize: fontSize.sm,
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
+  registerLinkBold: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A1005',
+  },
+  backHomeBtn: {
+    paddingVertical: 4,
+  },
+  backHomeText: {
+    fontSize: 14,
+    color: '#7A6A58',
+    textDecorationLine: 'underline',
   },
 })
