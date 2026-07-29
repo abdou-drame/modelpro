@@ -2,6 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database';
 import { Artisan } from './Artisan';
 import { User } from './User';
+import { Creation } from './Creation';
 
 export class Order extends Model {
   declare id: number;
@@ -133,3 +134,5 @@ Artisan.hasMany(Order, { foreignKey: 'artisanId', as: 'orders' });
 Order.belongsTo(Artisan, { foreignKey: 'artisanId', as: 'artisan' });
 User.hasMany(Order, { foreignKey: 'clientId', as: 'clientOrders' });
 Order.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
+Creation.hasMany(Order, { foreignKey: 'modeleId', as: 'orders' });
+Order.belongsTo(Creation, { foreignKey: 'modeleId', as: 'creation' });

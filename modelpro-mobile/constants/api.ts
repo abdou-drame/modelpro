@@ -35,6 +35,7 @@ export const ENDPOINTS = {
   artisanAppointments: '/artisans/appointments',
   artisanAppointmentStatus: (id: number) => `/artisans/appointments/${id}/status`,
   artisanAppointmentReschedule: (id: number) => `/artisans/appointments/${id}/reschedule`,
+  myReviews: '/artisans/reviews',
 
   // Metiers
   metiers: '/metiers',

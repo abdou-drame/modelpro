@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { getMyProfile, searchArtisans, updateArtisanProfile, uploadAtelierPhotos, uploadValidationDocument } from '../controllers/artisanController';
-import { getAppointments, updateAppointmentStatus, getOrders, getOrderDetails, updateOrderStatus, getArtisanStats, updateOrderDeliveryDate, updateOrderPayment, rescheduleAppointment } from '../controllers/artisanDashboardController';
+import { getAppointments, updateAppointmentStatus, getOrders, getOrderDetails, updateOrderStatus, getArtisanStats, updateOrderDeliveryDate, updateOrderPayment, rescheduleAppointment, getMyReviews } from '../controllers/artisanDashboardController';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -30,5 +30,6 @@ router.patch('/orders/:id/delivery-date', protect, restrictTo('artisan'), update
 router.patch('/orders/:id/payment', protect, restrictTo('artisan'), updateOrderPayment);
 
 router.get('/stats', protect, restrictTo('artisan'), getArtisanStats);
+router.get('/reviews', protect, restrictTo('artisan'), getMyReviews);
 
 export default router;

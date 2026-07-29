@@ -2,14 +2,16 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Artisan } from '../models/Artisan';
 import { Creation } from '../models/Creation';
+import { User } from '../models/User';
+import { Metier } from '../models/Metier';
 import sequelize from '../config/database';
 
 import { Op } from 'sequelize';
 
 export const getAllModels = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { metierId, artisanId, minPrice, maxPrice, search, page = 1, limit = 20 } = req.query;
-    
+    const { metier, metierId, artisanId, minPrice, maxPrice, search, localisation, page = 1, limit = 20 } = req.query;
+
     const condition: any = {};
     if (artisanId) condition.artisanId = Number(artisanId);
     if (minPrice || maxPrice) {
@@ -24,29 +26,51 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
         { description: { [likeOp]: `%${search}%` } }
       ];
     }
-    
-    // Pour metierId, il faut filtrer sur la table artisan incluse
+
     const artisanCondition: any = {};
-    // Note: metier dans Artisan est une string. Si metierId est passé, soit adapter la BD, soit chercher par métier (string)
-    // Ici on suppose que le paramètre s'appelle metier ou metierId.
-    if (metierId) artisanCondition.métier = String(metierId);
+    // Filtre métier
+    const rawMetier = metier || metierId;
+    if (rawMetier) {
+      let targetName = String(rawMetier);
+      if (!isNaN(Number(rawMetier))) {
+        const foundMetier = await Metier.findByPk(Number(rawMetier));
+        if (foundMetier) {
+          targetName = foundMetier.nom;
+        }
+      }
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      const rootTerm = targetName.substring(0, 5);
+      artisanCondition.métier = { [likeOp]: `%${rootTerm}%` };
+    }
+    // Filtre localisation
+    if (localisation) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      artisanCondition.localisation = { [likeOp]: `%${localisation}%` };
+    }
+    // Seuls les artisans avec compte actif (non suspendus)
+    const userCondition: any = { statut: 'actif' };
 
     const offset = (Number(page) - 1) * Number(limit);
 
     const { count, rows } = await Creation.findAndCountAll({
       where: condition,
       include: [
-        { 
-          model: Artisan, 
+        {
+          model: Artisan,
           as: 'artisan',
-          where: Object.keys(artisanCondition).length > 0 ? artisanCondition : undefined
+          required: false,
+          where: Object.keys(artisanCondition).length > 0 ? artisanCondition : undefined,
+          include: [{ model: User, as: 'user', required: false, attributes: ['nom', 'prenom', 'photoUrl'] }],
         }
       ],
+      subQuery: false,
+      distinct: true,
       limit: Number(limit),
       offset
     });
 
     res.status(200).json({
+      models: rows,
       data: rows,
       total: count,
       page: Number(page),

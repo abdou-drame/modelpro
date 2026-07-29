@@ -1,10 +1,22 @@
 import { Response } from 'express';
 import { Op } from 'sequelize';
+import sequelize from '../config/database';
+
+function parsePagination(query: any): { page: number; limit: number; offset: number } {
+  const page = Math.max(1, parseInt(query.page) || 1)
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 10))
+  return { page, limit, offset: (page - 1) * limit }
+}
+
+function paginated<T>(data: T[], count: number, page: number, limit: number) {
+  return Object.assign([...data], { data, total: count, page, totalPages: Math.ceil(count / limit), limit })
+}
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Artisan } from '../models/Artisan';
 import { Claim } from '../models/Claim';
 import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
+import { Review } from '../models/Review';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
 import { Appointment } from '../models/Appointment';
@@ -15,6 +27,7 @@ import { createNotification } from '../services/notificationService';
 export const getAllUsers = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { search, role, statut } = req.query;
+    const { page, limit, offset } = parsePagination(req.query)
 
     const whereClause: any = {};
     if (role) whereClause.role = role;
@@ -30,15 +43,15 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response): Pro
       ];
     }
 
-    const users = await User.findAll({
+    const { count, rows } = await User.findAndCountAll({
       where: whereClause,
       attributes: { exclude: ['password'] },
-      include: [
-        { model: Artisan, as: 'artisanProfile', required: false }
-      ],
+      include: [{ model: Artisan, as: 'artisanProfile', required: false }],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
     });
-    res.status(200).json(users);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllUsers :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des utilisateurs.' });
@@ -72,23 +85,78 @@ export const toggleUserStatus = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
-// 3. Liste des artisans en attente
-export const getPendingArtisans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// 2a. Suppression définitive d'un utilisateur (client) par l'admin
+export const deleteUser = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const artisans = await User.findAll({
-      where: { role: 'artisan' },
+    const { id } = req.params;
+    const user = await User.findByPk(Number(id));
+    if (!user) {
+      res.status(404).json({ error: 'Utilisateur introuvable.' });
+      return;
+    }
+    await user.destroy();
+    res.status(200).json({ message: 'Utilisateur supprimé définitivement de la plateforme.' });
+  } catch (error) {
+    console.error('Erreur deleteUser :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la suppression.' });
+  }
+};
+
+// 2b. Suspendre un artisan (Admin) — masque de la plateforme client
+export const suspendArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const artisan = await Artisan.findByPk(Number(id));
+    if (!artisan) { res.status(404).json({ error: 'Artisan introuvable.' }); return; }
+    const user = await User.findByPk(artisan.userId);
+    if (!user) { res.status(404).json({ error: 'Utilisateur introuvable.' }); return; }
+    user.statut = 'suspendu';
+    await user.save();
+    res.status(200).json({ message: 'Artisan suspendu. Son profil est masqué des clients.', statut: 'suspendu' });
+  } catch (error) {
+    console.error('Erreur suspendArtisan :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// 2c. Réactiver un artisan suspendu (Admin)
+export const reactivateArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const artisan = await Artisan.findByPk(Number(id));
+    if (!artisan) { res.status(404).json({ error: 'Artisan introuvable.' }); return; }
+    const user = await User.findByPk(artisan.userId);
+    if (!user) { res.status(404).json({ error: 'Utilisateur introuvable.' }); return; }
+    user.statut = 'actif';
+    await user.save();
+    res.status(200).json({ message: 'Artisan réactivé. Son profil est visible à nouveau.', statut: 'actif' });
+  } catch (error) {
+    console.error('Erreur reactivateArtisan :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// 3. Liste des artisans en attente
+export const getPendingArtisans = async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const artisans = await Artisan.findAll({
+      where: { statutValidation: 'en_attente' },
       include: [
         {
-          model: Artisan,
-          as: 'artisanProfile',
-          where: { statutValidation: 'en_attente' },
-          required: true,
+          model: User,
+          as: 'user',
+          attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'statut', 'photoUrl', 'createdAt'],
         },
       ],
-      attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'role', 'statut'],
     });
 
-    res.status(200).json(artisans);
+    const result = artisans.map((a) => ({
+      ...a.toJSON(),
+      id: a.userId,
+      artisanId: a.id,
+    }));
+
+    res.status(200).json(result);
   } catch (error) {
     console.error('Erreur lors de la récupération des artisans en attente :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des artisans en attente.' });
@@ -98,18 +166,87 @@ export const getPendingArtisans = async (req: AuthenticatedRequest, res: Respons
 // 4. Liste de tous les artisans (Contrôle profils & abonnements)
 export const getAllArtisansAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const artisans = await Artisan.findAll({
+    const { search, metier, location, statutValidation } = req.query;
+    const { page, limit, offset } = parsePagination(req.query);
+
+    const whereClause: any = {};
+    if (statutValidation) whereClause.statutValidation = statutValidation;
+    if (metier) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      whereClause.métier = { [likeOp]: `%${metier}%` };
+    }
+    if (location) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      whereClause.localisation = { [likeOp]: `%${location}%` };
+    }
+
+    if (search) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      const searchTerm = `%${search}%`;
+      whereClause[Op.or] = [
+        { atelier: { [likeOp]: searchTerm } },
+        { métier: { [likeOp]: searchTerm } },
+        { localisation: { [likeOp]: searchTerm } },
+        { '$user.nom$': { [likeOp]: searchTerm } },
+        { '$user.prenom$': { [likeOp]: searchTerm } },
+        { '$user.telephone$': { [likeOp]: searchTerm } },
+        { '$user.email$': { [likeOp]: searchTerm } },
+      ];
+    }
+
+    const { count, rows } = await Artisan.findAndCountAll({
+      where: whereClause,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'statut'] }
+        { model: User, as: 'user', attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'statut', 'photoUrl'] }
       ],
-      order: [['noteMoyenne', 'DESC']],
+      order: [['id', 'DESC']],
+      limit,
+      offset,
+      subQuery: false,
     });
-    res.status(200).json(artisans);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllArtisansAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des artisans.' });
   }
 };
+
+// 4b. Profil détaillé d'un artisan (admin)
+export const getArtisanProfileAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+
+    const artisan = await Artisan.findByPk(Number(id), {
+      include: [
+        { model: User, as: 'user', attributes: { exclude: ['password'] } },
+      ],
+    })
+
+    if (!artisan) {
+      res.status(404).json({ error: 'Artisan introuvable.' })
+      return
+    }
+
+    const [catalogue, reviews] = await Promise.all([
+      Creation.findAll({
+        where: { artisanId: artisan.id },
+        order: [['createdAt', 'DESC']],
+        limit: 20,
+      }),
+      Review.findAll({
+        where: { artisanId: artisan.id },
+        include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'photoUrl'] }],
+        order: [['createdAt', 'DESC']],
+        limit: 20,
+      }),
+    ])
+
+    res.status(200).json({ ...artisan.toJSON(), catalogue, reviews })
+  } catch (error) {
+    console.error('Erreur getArtisanProfileAdmin :', error)
+    res.status(500).json({ error: 'Une erreur est survenue.' })
+  }
+}
 
 // 5. Valider un artisan avec notification
 export const verifyArtisan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -186,27 +323,56 @@ export const rejectArtisan = async (req: AuthenticatedRequest, res: Response): P
 // 7. Liste de toutes les commandes avec identification des retards (Admin)
 export const getAllOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const orders = await Order.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const includeAnnulees = req.query.includeAnnulees === 'true'
+    const { search, statut } = req.query
+
+    const whereClause: any = {}
+    if (statut && statut !== 'tous') {
+      whereClause.statut = statut
+    } else if (!includeAnnulees) {
+      whereClause.statut = { [Op.ne]: 'annulee' }
+    }
+
+    if (search) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      const searchTerm = `%${search}%`;
+      whereClause[Op.or] = [
+        { '$client.nom$': { [likeOp]: searchTerm } },
+        { '$client.prenom$': { [likeOp]: searchTerm } },
+        { '$artisan.atelier$': { [likeOp]: searchTerm } },
+        { '$artisan.user.nom$': { [likeOp]: searchTerm } },
+        { '$artisan.user.prenom$': { [likeOp]: searchTerm } },
+        { '$creation.titre$': { [likeOp]: searchTerm } },
+      ];
+    }
+
+    const { count, rows } = await Order.findAndCountAll({
+      where: whereClause,
       include: [
         { model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] },
-        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
+        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] },
+        { model: Creation, as: 'creation', attributes: ['id', 'titre'] }
       ],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      subQuery: false,
+      distinct: true,
     });
 
     const now = new Date();
-    const formattedOrders = orders.map((o) => {
-      const orderJson: any = o.toJSON();
-      const isLate = Boolean(
+    const data = rows.map((o) => {
+      const json: any = o.toJSON();
+      json.estEnRetard = Boolean(
         o.deliveryDate &&
         new Date(o.deliveryDate) < now &&
         !['livree', 'annulee'].includes(o.statut)
       );
-      orderJson.estEnRetard = isLate;
-      return orderJson;
+      return json;
     });
 
-    res.status(200).json(formattedOrders);
+    res.status(200).json(paginated(data, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllOrders :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des commandes.' });
@@ -224,7 +390,8 @@ export const getOverdueOrders = async (req: AuthenticatedRequest, res: Response)
       },
       include: [
         { model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] },
-        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
+        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] },
+        { model: Creation, as: 'creation', attributes: ['id', 'titre'] }
       ],
       order: [['deliveryDate', 'ASC']],
     });
@@ -239,13 +406,17 @@ export const getOverdueOrders = async (req: AuthenticatedRequest, res: Response)
 // 9. Modération des modèles (Consulter tous les modèles du catalogue)
 export const getAllModelsAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const models = await Creation.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const { count, rows } = await Creation.findAndCountAll({
       include: [
         { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
       ],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
-    res.status(200).json(models);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllModelsAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des modèles.' });
@@ -272,14 +443,18 @@ export const deleteModelForce = async (req: AuthenticatedRequest, res: Response)
 // 11. Consultation globale de tous les Rendez-vous
 export const getAllAppointmentsAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const appointments = await Appointment.findAll({
+    const { page, limit, offset } = parsePagination(req.query)
+    const { count, rows } = await Appointment.findAndCountAll({
       include: [
         { model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] },
         { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] }
       ],
       order: [['date', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
-    res.status(200).json(appointments);
+    res.status(200).json(paginated(rows, count, page, limit));
   } catch (error) {
     console.error('Erreur getAllAppointmentsAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des rendez-vous.' });
@@ -321,6 +496,21 @@ export const updateClaimStatus = async (req: AuthenticatedRequest, res: Response
 
     claim.statut = statut;
     await claim.save();
+
+    const statusLabels: Record<string, string> = {
+      en_cours: 'prise en charge par l\'administration',
+      resolu: 'résolue avec succès',
+      rejete: 'non retenue',
+      en_attente: 'mise en attente'
+    };
+
+    await createNotification(
+      claim.clientId,
+      'commande_statut',
+      'Mise à jour de votre réclamation',
+      `Votre réclamation #${claim.id} est maintenant ${statusLabels[statut] || statut}.`,
+      claim.id
+    );
 
     res.status(200).json(claim);
   } catch (error) {
@@ -458,6 +648,12 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
       Artisan.count({ where: { statutAbonnement: 'actif' } }),
     ]);
 
+    const commandesParStatut = await Order.findAll({
+      attributes: ['statut', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+      group: ['statut'],
+      raw: true,
+    });
+
     // Métiers les plus demandés (basé sur le métier des artisans des commandes)
     const topArtisans = await Artisan.findAll({
       attributes: ['métier', 'noteMoyenne', 'nombreAvis'],
@@ -502,9 +698,113 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
         metiersPlusDemandes,
         artisansMieuxNotes: topArtisans,
       },
+      commandesParStatut,
     });
   } catch (error) {
     console.error('Erreur lors du calcul des statistiques :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors du calcul des statistiques.' });
+  }
+};
+
+// 17. Suppression définitive d'un avis par l'administrateur
+export const deleteReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const review = await Review.findByPk(Number(id));
+    if (!review) {
+      res.status(404).json({ error: 'Avis introuvable.' });
+      return;
+    }
+
+    const artisanId = review.artisanId;
+    await review.destroy();
+
+    // Recalculer la note moyenne et le nombre d'avis de l'artisan
+    const stats = await Review.findOne({
+      where: { artisanId },
+      attributes: [
+        [sequelize.fn('AVG', sequelize.col('note')), 'noteMoyenne'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'countAvis'],
+      ],
+      raw: true,
+    });
+
+    const newAvg = stats ? Number((stats as any).noteMoyenne) || 0 : 0;
+    const newCount = stats ? Number((stats as any).countAvis) || 0 : 0;
+
+    await Artisan.update(
+      { noteMoyenne: newAvg, nombreAvis: newCount },
+      { where: { id: artisanId } }
+    );
+
+    res.status(200).json({ message: 'Avis supprimé définitivement de la plateforme.' });
+  } catch (error) {
+    console.error('Erreur deleteReview :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la suppression de l’avis.' });
+  }
+};
+
+// 17b. Liste complète de tous les avis (Admin)
+export const getAllReviewsAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { page, limit, offset } = parsePagination(req.query);
+    const { search } = req.query;
+
+    const whereClause: any = {};
+    if (search) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      const searchTerm = `%${search}%`;
+      whereClause[Op.or] = [
+        { commentaire: { [likeOp]: searchTerm } },
+        { '$client.nom$': { [likeOp]: searchTerm } },
+        { '$client.prenom$': { [likeOp]: searchTerm } },
+        { '$artisan.atelier$': { [likeOp]: searchTerm } },
+      ];
+    }
+
+    const { count, rows } = await Review.findAndCountAll({
+      where: whereClause,
+      include: [
+        { model: User, as: 'client', attributes: ['id', 'nom', 'prenom', 'photoUrl'] },
+        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }] },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      subQuery: false,
+    });
+
+    res.status(200).json(paginated(rows, count, page, limit));
+  } catch (error) {
+    console.error('Erreur getAllReviewsAdmin :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des avis.' });
+  }
+};
+
+// 18. Suppression définitive d'un artisan par l'administrateur
+export const deleteArtisanAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const artisan = await Artisan.findOne({
+      where: {
+        [Op.or]: [{ id: Number(id) }, { userId: Number(id) }],
+      },
+    });
+
+    if (!artisan) {
+      res.status(404).json({ error: 'Artisan introuvable.' });
+      return;
+    }
+
+    const userId = artisan.userId;
+    await artisan.destroy();
+    await User.destroy({ where: { id: userId } });
+
+    res.status(200).json({ message: 'Artisan et compte utilisateur supprimés définitivement.' });
+  } catch (error) {
+    console.error('Erreur deleteArtisanAdmin :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la suppression de l’artisan.' });
   }
 };

@@ -30,8 +30,10 @@ export const getAppointments = async (req: AuthenticatedRequest, res: Response):
     }
 
     const appointments = await Appointment.findAll({
-      where: { artisanId: artisan.id },
-      include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] }],
+      where: {
+        [Op.or]: [{ artisanId: artisan.id }, { artisanId: userId }]
+      },
+      include: [{ model: User, as: 'client', attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'photoUrl'] }],
       order: [['createdAt', 'DESC']],
     });
 
@@ -70,13 +72,13 @@ export const updateAppointmentStatus = async (req: AuthenticatedRequest, res: Re
       return;
     }
 
-    if (appointment.artisanId !== artisan.id) {
+    if (appointment.artisanId !== artisan.id && appointment.artisanId !== userId) {
       res.status(403).json({ error: 'Vous ne pouvez pas modifier un rendez-vous qui ne vous appartient pas.' });
       return;
     }
 
     const { statut, motifRefus } = req.body;
-    const allowedStatuses = ['confirme', 'annule', 'accepte', 'refuse', 'termine'];
+    const allowedStatuses = ['confirme', 'annule', 'accepte', 'refuse', 'termine', 'reporte'];
     if (!statut || !allowedStatuses.includes(statut)) {
       res.status(400).json({ error: 'Statut invalide.' });
       return;
@@ -88,14 +90,18 @@ export const updateAppointmentStatus = async (req: AuthenticatedRequest, res: Re
     }
     await appointment.save();
 
-    // Notifier le client du changement de statut du RDV
-    await createNotification(
-      appointment.clientId,
-      'rdv_statut',
-      'Mise à jour de votre rendez-vous',
-      `Votre rendez-vous a été marqué comme : ${statut}${motifRefus ? `. Motif : ${motifRefus}` : ''}.`,
-      appointment.id
-    );
+    // Notifier le client du changement de statut du RDV (non-bloquant)
+    try {
+      await createNotification(
+        appointment.clientId,
+        'rdv_statut',
+        'Mise à jour de votre rendez-vous',
+        `Votre rendez-vous a été marqué comme : ${statut}${motifRefus ? `. Motif : ${motifRefus}` : ''}.`,
+        appointment.id
+      );
+    } catch (notifErr) {
+      console.warn('Notification non transmise lors de la MAJ du RDV (non-bloquant) :', notifErr);
+    }
 
     res.status(200).json(appointment);
   } catch (error) {
@@ -130,7 +136,7 @@ export const rescheduleAppointment = async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    if (appointment.artisanId !== artisan.id) {
+    if (appointment.artisanId !== artisan.id && appointment.artisanId !== userId) {
       res.status(403).json({ error: 'Vous ne pouvez pas modifier un rendez-vous qui ne vous appartient pas.' });
       return;
     }
@@ -145,13 +151,17 @@ export const rescheduleAppointment = async (req: AuthenticatedRequest, res: Resp
     appointment.proposedDate = new Date(proposedDate);
     await appointment.save();
 
-    await createNotification(
-      appointment.clientId,
-      'rdv_statut',
-      'Proposition de report de rendez-vous',
-      `L'artisan a proposé une nouvelle date pour votre rendez-vous : ${appointment.proposedDate.toLocaleDateString()}.`,
-      appointment.id
-    );
+    try {
+      await createNotification(
+        appointment.clientId,
+        'rdv_statut',
+        'Proposition de report de rendez-vous',
+        `L'artisan a proposé une nouvelle date pour votre rendez-vous : ${appointment.proposedDate.toLocaleDateString()}.`,
+        appointment.id
+      );
+    } catch (notifErr) {
+      console.warn('Notification non transmise lors du report du RDV (non-bloquant) :', notifErr);
+    }
 
     res.status(200).json(appointment);
   } catch (error) {
@@ -175,7 +185,9 @@ export const getOrders = async (req: AuthenticatedRequest, res: Response): Promi
     }
 
     const orders = await Order.findAll({
-      where: { artisanId: artisan.id },
+      where: {
+        [Op.or]: [{ artisanId: artisan.id }, { artisanId: userId }]
+      },
       include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] }],
       order: [['createdAt', 'DESC']],
     });
@@ -216,7 +228,7 @@ export const getOrderDetails = async (req: AuthenticatedRequest, res: Response):
       return;
     }
 
-    if (order.artisanId !== artisan.id) {
+    if (order.artisanId !== artisan.id && order.artisanId !== userId) {
       res.status(403).json({ error: 'Vous ne pouvez pas accéder à une commande qui ne vous appartient pas.' });
       return;
     }
@@ -256,7 +268,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    if (order.artisanId !== artisan.id) {
+    if (order.artisanId !== artisan.id && order.artisanId !== userId) {
       res.status(403).json({ error: 'Vous ne pouvez pas modifier une commande qui ne vous appartient pas.' });
       return;
     }
@@ -304,7 +316,7 @@ export const updateOrderDeliveryDate = async (req: AuthenticatedRequest, res: Re
     if (order.artisanId !== artisan.id) { res.status(403).json({ error: 'Accès refusé.' }); return; }
 
     const { deliveryDate, deliveryDateReason } = req.body;
-    
+
     order.deliveryDate = deliveryDate ? new Date(deliveryDate) : null;
     order.deliveryDateReason = deliveryDateReason || null;
     await order.save();
@@ -351,7 +363,7 @@ export const updateOrderPayment = async (req: AuthenticatedRequest, res: Respons
     if (paymentStatus) order.paymentStatus = paymentStatus;
     if (depositAmount !== undefined) order.depositAmount = depositAmount;
     if (totalPrice !== undefined) order.totalPrice = totalPrice;
-    
+
     await order.save();
 
     await createNotification(
@@ -417,5 +429,32 @@ export const getArtisanStats = async (req: AuthenticatedRequest, res: Response):
   } catch (error) {
     console.error('Erreur récupération des statistiques artisan :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des statistiques.' });
+  }
+};
+
+export const getMyReviews = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Utilisateur non authentifié.' });
+      return;
+    }
+
+    const artisan = await Artisan.findOne({ where: { userId } });
+    if (!artisan) {
+      res.status(404).json({ error: 'Profil artisan introuvable.' });
+      return;
+    }
+
+    const reviews = await Review.findAll({
+      where: { artisanId: artisan.id },
+      include: [{ model: User, as: 'client', attributes: ['id', 'nom', 'prenom', 'photoUrl', 'telephone'] }],
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.status(200).json(reviews);
+  } catch (error) {
+    console.error('Erreur récupération des avis artisan :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des avis.' });
   }
 };

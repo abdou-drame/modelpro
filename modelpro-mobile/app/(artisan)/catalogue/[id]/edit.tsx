@@ -1,6 +1,6 @@
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  Switch, StyleSheet, KeyboardAvoidingView, Platform,
+  View, Text, TextInput, TouchableOpacity, ScrollView, Image,
+  Switch, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,7 +8,8 @@ import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router, useLocalSearchParams } from 'expo-router'
-import { ArrowLeft, Check } from 'lucide-react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { ArrowLeft, Camera, Trash2, UploadCloud } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 
@@ -16,10 +17,35 @@ const schema = z.object({
   titre: z.string().min(2, 'Au moins 2 caractères').max(80),
   description: z.string().optional(),
   prixEstimatif: z.string().optional(),
+  photoUrl: z.string().optional(),
   disponible: z.boolean(),
 })
 
 type FormValues = z.infer<typeof schema>
+
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <View style={fieldStyles.labelRow}>
+      <Text style={fieldStyles.label}>{label}</Text>
+      {required && <Text style={fieldStyles.required}>requis</Text>}
+    </View>
+  )
+}
+
+const fieldStyles = StyleSheet.create({
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
+  required: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.primary,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+})
 
 export default function EditModelScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -32,17 +58,38 @@ export default function EditModelScreen() {
     select: (models) => models.find((m) => m.id === modelId),
   })
 
-  const { control, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: model
       ? {
           titre: model.titre,
           description: model.description ?? '',
           prixEstimatif: model.prixEstimatif != null ? String(model.prixEstimatif) : '',
+          photoUrl: model.photoUrl ?? '',
           disponible: model.disponible,
         }
       : undefined,
   })
+
+  const currentPhotoUrl = watch('photoUrl')
+
+  const handlePickPhoto = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour choisir une photo.')
+        return
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets.length > 0) {
+      setValue('photoUrl', result.assets[0].uri)
+    }
+  }
 
   const updateMutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -50,6 +97,7 @@ export default function EditModelScreen() {
         titre: values.titre,
         description: values.description ?? undefined,
         prixEstimatif: values.prixEstimatif ? Number(values.prixEstimatif) : undefined,
+        photoUrl: values.photoUrl ? values.photoUrl.trim() : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-models'] })
@@ -66,25 +114,38 @@ export default function EditModelScreen() {
     >
       <View style={styles.container}>
         <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Annuler les modifications"
+          >
             <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={styles.navTitle}>Modifier le modèle</Text>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            {model ? model.titre : 'Modifier le modèle'}
+          </Text>
           <TouchableOpacity
-            style={styles.saveBtn}
+            style={[styles.saveBtn, updateMutation.isPending && styles.saveBtnDisabled]}
             onPress={handleSubmit(onSubmit)}
             disabled={updateMutation.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Enregistrer les modifications"
           >
-            <Check size={18} color={colors.white} strokeWidth={2.5} />
+            {updateMutation.isPending
+              ? <ActivityIndicator size="small" color={colors.white} />
+              : <Text style={styles.saveBtnText}>Enregistrer</Text>
+            }
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
           <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.card}>
-            <Text style={styles.cardTitle}>Informations du modèle</Text>
+            <Text style={styles.cardSection}>Informations</Text>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Titre *</Text>
+              <FieldLabel label="Titre du modèle" required />
               <Controller
                 control={control}
                 name="titre"
@@ -96,6 +157,8 @@ export default function EditModelScreen() {
                     onBlur={onBlur}
                     placeholder="Ex: Ensemble bazin brodé"
                     placeholderTextColor={colors.textMuted}
+                    returnKeyType="next"
+                    autoCapitalize="sentences"
                   />
                 )}
               />
@@ -103,7 +166,7 @@ export default function EditModelScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Description</Text>
+              <FieldLabel label="Description" />
               <Controller
                 control={control}
                 name="description"
@@ -113,38 +176,93 @@ export default function EditModelScreen() {
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
-                    placeholder="Décrivez le modèle, les matières, les finitions..."
+                    placeholder="Décrivez les matières, les finitions, les délais..."
                     placeholderTextColor={colors.textMuted}
                     multiline
                     numberOfLines={4}
                     textAlignVertical="top"
+                    autoCapitalize="sentences"
                   />
                 )}
               />
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Prix estimatif (FCFA)</Text>
+              <FieldLabel label="Prix estimatif (FCFA)" />
               <Controller
                 control={control}
                 name="prixEstimatif"
                 render={({ field: { value, onChange, onBlur } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="Ex: 45000"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                  />
+                  <View style={styles.priceInputWrapper}>
+                    <TextInput
+                      style={[styles.input, styles.priceInput]}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ex: 45000"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                    />
+                    <Text style={styles.priceSuffix}>FCFA</Text>
+                  </View>
                 )}
               />
+              <Text style={styles.hint}>Affiché à titre indicatif sur votre catalogue</Text>
             </View>
 
+            <View style={styles.field}>
+              <FieldLabel label="Photo de la création" />
+
+              {currentPhotoUrl && currentPhotoUrl.trim() !== '' ? (
+                <View style={styles.photoCard}>
+                  <Image source={{ uri: currentPhotoUrl.trim() }} style={styles.photoPreview} resizeMode="cover" />
+                  <View style={styles.photoActions}>
+                    <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickPhoto}>
+                      <Camera size={16} color={colors.white} />
+                      <Text style={styles.changePhotoText}>Changer la photo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.removePhotoBtn} onPress={() => setValue('photoUrl', '')}>
+                      <Trash2 size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.uploadBox} onPress={handlePickPhoto} activeOpacity={0.8}>
+                  <View style={styles.uploadIconWrap}>
+                    <UploadCloud size={28} color={colors.primary} />
+                  </View>
+                  <Text style={styles.uploadTitle}>Ajouter la photo directement</Text>
+                  <Text style={styles.uploadSub}>Touchez pour choisir une image dans votre appareil</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={{ marginTop: spacing.xs }}>
+                <Controller
+                  control={control}
+                  name="photoUrl"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <TextInput
+                      style={[styles.input, { fontSize: fontSize.xs, paddingVertical: spacing.xs, height: 38 }]}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ou collez une URL/Lien d'image..."
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="none"
+                      keyboardType="url"
+                    />
+                  )}
+                />
+              </View>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.delay(110).springify()} style={styles.card}>
+            <Text style={styles.cardSection}>Visibilité</Text>
             <View style={styles.switchRow}>
-              <View>
-                <Text style={styles.label}>Disponible à la commande</Text>
+              <View style={styles.switchInfo}>
+                <Text style={styles.switchLabel}>Disponible à la commande</Text>
                 <Text style={styles.switchSub}>Visible dans votre catalogue public</Text>
               </View>
               <Controller
@@ -156,6 +274,8 @@ export default function EditModelScreen() {
                     onValueChange={onChange}
                     trackColor={{ true: colors.primary, false: colors.borderLight }}
                     thumbColor={colors.white}
+                    accessibilityRole="switch"
+                    accessibilityLabel="Rendre le modèle disponible"
                   />
                 )}
               />
@@ -164,7 +284,7 @@ export default function EditModelScreen() {
 
           {updateMutation.isError && (
             <Animated.View entering={FadeInUp.springify()} style={styles.errorCard}>
-              <Text style={styles.errorCardText}>Erreur lors de la modification. Réessayez.</Text>
+              <Text style={styles.errorCardText}>La modification a échoué. Vérifiez votre connexion et réessayez.</Text>
             </Animated.View>
           )}
         </ScrollView>
@@ -175,42 +295,157 @@ export default function EditModelScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+
   navBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.md,
-    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: 52,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
-  navTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
+  backBtn: { width: 44, height: 44, justifyContent: 'center' },
+  navTitle: { flex: 1, fontSize: fontSize.lg, fontWeight: '700', color: colors.text, marginHorizontal: spacing.md },
   saveBtn: {
-    width: 40, height: 40, borderRadius: radius.full,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
   },
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 60 },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '700' },
+
+  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 80 },
+
   card: {
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
-    padding: spacing.lg, gap: spacing.lg, ...shadow.sm,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    ...shadow.sm,
   },
-  cardTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+  cardSection: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+
   field: { gap: spacing.xs },
-  label: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
   input: {
-    backgroundColor: colors.bgMuted, borderRadius: radius.md,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.md,
-    fontSize: fontSize.base, color: colors.text,
-    borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.bgMuted,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: fontSize.base,
+    color: colors.text,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
-  inputMulti: { minHeight: 100, paddingTop: spacing.md },
-  inputError: { borderColor: colors.error },
-  errorText: { fontSize: fontSize.xs, color: colors.error },
+  inputMulti: { minHeight: 108, paddingTop: spacing.md },
+  inputError: { borderColor: colors.error, backgroundColor: `${colors.error}08` },
+  errorText: { fontSize: fontSize.xs, color: colors.error, fontWeight: '500' },
+  hint: { fontSize: fontSize.xs, color: colors.textMuted },
+  uploadBox: {
+    backgroundColor: colors.bgMuted,
+    borderWidth: 2,
+    borderColor: colors.borderLight,
+    borderStyle: 'dashed',
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: spacing.xs,
+  },
+  uploadIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  uploadTitle: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+  uploadSub: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
+  photoCard: {
+    height: 140,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    position: 'relative',
+    marginVertical: spacing.xs,
+    backgroundColor: colors.bgMuted,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  photoPreview: { width: '100%', height: '100%' },
+  photoActions: {
+    position: 'absolute',
+    bottom: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  changePhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.70)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.lg,
+  },
+  changePhotoText: { color: colors.white, fontSize: fontSize.xs, fontWeight: '700' },
+  removePhotoBtn: {
+    backgroundColor: 'rgba(255,255,255,0.90)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  priceInputWrapper: { position: 'relative' },
+  priceInput: { paddingRight: 56 },
+  priceSuffix: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 0,
+    bottom: 0,
+    textAlignVertical: 'center',
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    color: colors.textMuted,
+    lineHeight: 52,
+  },
+
   switchRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.md,
   },
-  switchSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  switchInfo: { flex: 1, gap: 2 },
+  switchLabel: { fontSize: fontSize.base, fontWeight: '600', color: colors.text },
+  switchSub: { fontSize: fontSize.xs, color: colors.textMuted },
+
   errorCard: {
-    backgroundColor: `${colors.error}18`, borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: `${colors.error}40`,
+    backgroundColor: `${colors.error}10`,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: `${colors.error}35`,
   },
-  errorCardText: { fontSize: fontSize.sm, color: colors.error, textAlign: 'center' },
+  errorCardText: { fontSize: fontSize.sm, color: colors.error, textAlign: 'center', lineHeight: 20 },
 })

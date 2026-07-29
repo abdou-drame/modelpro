@@ -75,7 +75,7 @@ export default function ArtisanSubscriptionScreen() {
     )
   }
 
-  const isActive = subData?.actif
+  const isActive = subData?.statutAbonnement === 'actif'
 
   const PERKS = [
     'Profil visible dans les recherches',
@@ -106,7 +106,9 @@ export default function ArtisanSubscriptionScreen() {
             <View>
               <Text style={styles.activeTitle}>Abonnement actif</Text>
               <Text style={styles.activeSub}>
-                Expire le {formatDate(subData.subscriptions[0].dateFin ?? '')}
+                {subData.subscriptions[0].dateFin
+                  ? `Expire le ${formatDate(subData.subscriptions[0].dateFin)}`
+                  : 'En cours'}
               </Text>
             </View>
           </Animated.View>
@@ -188,7 +190,7 @@ export default function ArtisanSubscriptionScreen() {
                   <Calendar size={14} color={colors.textMuted} strokeWidth={2} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historyDate}>
-                      {formatDate(s.dateDebut)} — {s.dateFin ? formatDate(s.dateFin) : 'En cours'}
+                      {s.dateDebut ? formatDate(s.dateDebut) : '—'} — {s.dateFin ? formatDate(s.dateFin) : 'En cours'}
                     </Text>
                     <Text style={styles.historyAmount}>{formatPrice(s.montant)}</Text>
                   </View>
@@ -236,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, overflow: 'hidden', padding: spacing.lg, ...shadow.sm,
   },
   activeBorder: {
-    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
     borderWidth: 1.5, borderColor: `${colors.success}40`,
   },
   activeTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },

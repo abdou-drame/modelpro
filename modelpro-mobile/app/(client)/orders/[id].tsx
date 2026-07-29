@@ -1,10 +1,12 @@
 import {
   View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Alert,
 } from 'react-native'
+import { showAlert } from '@/lib/utils/alert'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import { ArrowLeft, MessageCircle, XCircle, CreditCard, Star, ShieldAlert } from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { ArrowLeft, MessageCircle, XCircle, CreditCard, Star, ShieldAlert, Clock } from 'lucide-react-native'
 import { ordersApi } from '@/lib/api/orders'
 import { OrderTimeline } from '@/components/shared/OrderTimeline'
 import { Badge } from '@/components/ui/Badge'
@@ -25,6 +27,7 @@ export default function OrderDetailScreen() {
   const { data: orders } = useQuery({
     queryKey: ['my-orders'],
     queryFn: () => ordersApi.myOrders().then((r) => r.data),
+    refetchInterval: 5000,
   })
   const order = orders?.find((o) => o.id === orderId)
 
@@ -32,12 +35,16 @@ export default function OrderDetailScreen() {
     mutationFn: () => ordersApi.cancel(orderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-orders'] })
-      router.back()
+      showAlert('Commande annulée', 'Votre commande a été annulée avec succès.')
+      router.replace('/(client)/orders')
+    },
+    onError: () => {
+      showAlert('Erreur', 'Impossible d’annuler la commande.')
     },
   })
 
   const handleCancel = () => {
-    Alert.alert(
+    showAlert(
       'Annuler la commande',
       'Êtes-vous sûr de vouloir annuler cette commande ?',
       [
@@ -54,47 +61,87 @@ export default function OrderDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => router.replace('/(client)/orders')}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Retour aux commandes"
+        >
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Commande #{order.id}</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Artisan info */}
-        <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.artisanCard}>
-          <View style={styles.artisanRow}>
-            <View style={styles.artisanInfo}>
-              <Text style={styles.artisanName}>{order.artisan.nomAtelier}</Text>
-              <Text style={styles.metier}>{order.artisan.metier.nom}</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* Garment + artisan card */}
+        <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.orderCard}>
+          {order.creation?.photoUrl ? (
+            <View style={styles.garmentHero}>
+              <Image
+                source={{ uri: order.creation.photoUrl }}
+                style={StyleSheet.absoluteFill as any}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(26,16,5,0.72)']}
+                style={StyleSheet.absoluteFill}
+              />
+              {order.creation.titre ? (
+                <Text style={styles.garmentHeroTitle} numberOfLines={2}>
+                  {order.creation.titre}
+                </Text>
+              ) : null}
             </View>
-            <Badge
-              label={ORDER_STATUS_LABELS[order.statut]}
-              variant={STATUS_VARIANT[order.statut]}
-              size="md"
-            />
-          </View>
-          {order.creation && (
-            <View style={styles.modelRow}>
-              {order.creation.photoUrl && (
-                <Image source={{ uri: order.creation.photoUrl }} style={styles.modelThumb} />
-              )}
+          ) : null}
+
+          <View style={styles.orderCardBody}>
+            <View style={styles.artisanRow}>
+              <View style={styles.artisanInfo}>
+                <Text style={styles.artisanName}>{order.artisan.atelier}</Text>
+                {order.artisan.métier ? (
+                  <Text style={styles.artisanMetier}>{order.artisan.métier}</Text>
+                ) : null}
+              </View>
+              <Badge
+                label={ORDER_STATUS_LABELS[order.statut]}
+                variant={STATUS_VARIANT[order.statut]}
+                size="md"
+              />
+            </View>
+
+            {!order.creation?.photoUrl && order.creation?.titre ? (
               <Text style={styles.modelTitle}>{order.creation.titre}</Text>
-            </View>
-          )}
+            ) : null}
+          </View>
         </Animated.View>
 
-        {/* Timeline */}
-        <Animated.View entering={FadeInUp.delay(120).springify()} style={styles.section}>
-          <Text style={styles.sectionTitle}>Avancement</Text>
+        {/* Delivery callout */}
+        {order.dateLivraisonEstimee && !['livree', 'annulee'].includes(order.statut) && (
+          <Animated.View entering={FadeInUp.delay(90).springify()} style={styles.deliveryBanner}>
+            <Clock size={14} color={colors.primary} strokeWidth={2} />
+            <Text style={styles.deliveryText}>
+              Livraison estimée{' '}
+              <Text style={styles.deliveryDate}>
+                {new Date(order.dateLivraisonEstimee).toLocaleDateString('fr-SN', {
+                  weekday: 'long', day: 'numeric', month: 'long',
+                })}
+              </Text>
+            </Text>
+          </Animated.View>
+        )}
+
+        {/* Timeline — visual centerpiece */}
+        <Animated.View entering={FadeInUp.delay(120).springify()} style={styles.timelineCard}>
+          <Text style={styles.timelineHeading}>Suivi de fabrication</Text>
           <OrderTimeline
             statut={order.statut}
             dateLivraisonEstimee={order.dateLivraisonEstimee}
           />
         </Animated.View>
 
-        {/* Paiement */}
+        {/* Payment */}
         <Animated.View entering={FadeInUp.delay(180).springify()} style={styles.section}>
           <Text style={styles.sectionTitle}>Paiement</Text>
           <View style={styles.paymentCard}>
@@ -103,46 +150,62 @@ export default function OrderDetailScreen() {
               <Badge label={PAYMENT_STATUS_LABELS[order.statutPaiement]} variant="neutral" />
             </View>
             {order.prixTotal != null && (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Total</Text>
-                <Text style={styles.paymentValue}>{formatPrice(order.prixTotal)}</Text>
-              </View>
+              <>
+                <View style={styles.paymentDivider} />
+                <View style={styles.paymentRow}>
+                  <Text style={styles.paymentLabel}>Montant total</Text>
+                  <Text style={styles.paymentTotal}>{formatPrice(order.prixTotal)}</Text>
+                </View>
+              </>
             )}
             {order.acompte != null && (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Acompte</Text>
-                <Text style={styles.paymentValue}>{formatPrice(order.acompte)}</Text>
-              </View>
+              <>
+                <View style={styles.paymentDivider} />
+                <View style={styles.paymentRow}>
+                  <Text style={styles.paymentLabel}>Acompte versé</Text>
+                  <Text style={styles.paymentValue}>{formatPrice(order.acompte)}</Text>
+                </View>
+              </>
             )}
           </View>
         </Animated.View>
 
         {/* Description */}
         {order.description && (
-          <Animated.View entering={FadeInUp.delay(240).springify()} style={styles.section}>
+          <Animated.View entering={FadeInUp.delay(220).springify()} style={styles.section}>
             <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{order.description}</Text>
+            <View style={styles.descriptionCard}>
+              <Text style={styles.description}>{order.description}</Text>
+            </View>
           </Animated.View>
         )}
 
         {/* Actions */}
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.actions}>
-          <TouchableOpacity
-            style={styles.btnMessage}
-            onPress={() => router.push(`/(client)/messages/${orderId}`)}
-          >
-            <MessageCircle size={18} color={colors.primary} strokeWidth={2} />
-            <Text style={styles.btnMessageText}>Contacter l'artisan</Text>
-          </TouchableOpacity>
+        <Animated.View entering={FadeInUp.delay(280).springify()} style={styles.actionsSection}>
 
-          <TouchableOpacity
-            style={styles.btnPay}
-            onPress={() => router.push({ pathname: '/(client)/payment', params: { orderId: String(orderId) } })}
-          >
-            <CreditCard size={18} color={colors.white} strokeWidth={2} />
-            <Text style={styles.btnPayText}>Paiement</Text>
-          </TouchableOpacity>
+          {/* Primary: message + payment side by side */}
+          <View style={styles.primaryActions}>
+            <TouchableOpacity
+              style={styles.btnMessage}
+              onPress={() => router.push(`/(client)/messages/${orderId}`)}
+              accessibilityRole="button"
+              accessibilityLabel="Contacter l'artisan"
+            >
+              <MessageCircle size={18} color={colors.primary} strokeWidth={2} />
+              <Text style={styles.btnMessageText}>Contacter</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.btnPay}
+              onPress={() => router.push({ pathname: '/(client)/payment', params: { orderId: String(orderId) } })}
+              accessibilityRole="button"
+              accessibilityLabel="Effectuer un paiement"
+            >
+              <CreditCard size={18} color={colors.white} strokeWidth={2} />
+              <Text style={styles.btnPayText}>Paiement</Text>
+            </TouchableOpacity>
+          </View>
 
+          {/* Review — shown only after delivery */}
           {order.statut === 'livree' && (
             <TouchableOpacity
               style={styles.btnReview}
@@ -150,33 +213,44 @@ export default function OrderDetailScreen() {
                 pathname: '/(client)/review',
                 params: {
                   artisanId: String(order.artisan.id ?? ''),
-                  artisanName: order.artisan.nomAtelier,
+                  artisanName: order.artisan.atelier,
                   orderId: String(orderId),
                 },
               })}
+              accessibilityRole="button"
+              accessibilityLabel="Donner un avis sur l'artisan"
             >
-              <Star size={16} color="#F59E0B" strokeWidth={2} />
+              <Star size={16} color="#B45309" strokeWidth={2} />
               <Text style={styles.btnReviewText}>Donner un avis</Text>
             </TouchableOpacity>
           )}
 
+          {/* Cancel — only when applicable */}
           {canCancel && (
-            <TouchableOpacity style={styles.btnCancel} onPress={handleCancel}>
+            <TouchableOpacity
+              style={styles.btnCancel}
+              onPress={handleCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Annuler la commande"
+            >
               <XCircle size={16} color={colors.error} strokeWidth={2} />
-              <Text style={styles.btnCancelText}>Annuler</Text>
+              <Text style={styles.btnCancelText}>Annuler la commande</Text>
             </TouchableOpacity>
           )}
 
+          {/* Claim — ghost link */}
           <TouchableOpacity
             style={styles.btnClaim}
             onPress={() => router.push({ pathname: '/(client)/claim', params: { orderId: String(orderId) } })}
+            accessibilityRole="button"
+            accessibilityLabel="Signaler un problème"
           >
-            <ShieldAlert size={15} color={colors.textMuted} strokeWidth={2} />
+            <ShieldAlert size={14} color={colors.textMuted} strokeWidth={2} />
             <Text style={styles.btnClaimText}>Signaler un problème</Text>
           </TouchableOpacity>
         </Animated.View>
 
-        <Text style={styles.date}>Commande passée le {formatDate(order.createdAt)}</Text>
+        <Text style={styles.orderDate}>Commande passée le {formatDate(order.createdAt)}</Text>
       </ScrollView>
     </View>
   )
@@ -189,56 +263,139 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.md,
     backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, justifyContent: 'center' },
   navTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  scroll: { padding: spacing.xl, gap: spacing.xl, paddingBottom: 60 },
-  artisanCard: {
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
-    padding: spacing.lg, gap: spacing.md, ...shadow.sm,
+
+  scroll: { paddingBottom: 60 },
+
+  orderCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.xl,
+    margin: spacing.xl,
+    marginBottom: 0,
+    overflow: 'hidden',
+    ...shadow.sm,
   },
-  artisanRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  artisanInfo: { gap: 2 },
-  artisanName: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  metier: { fontSize: fontSize.xs, color: colors.textMuted },
-  modelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  modelThumb: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bgMuted },
-  modelTitle: { flex: 1, fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
-  section: { gap: spacing.md },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
+  garmentHero: {
+    height: 170,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  garmentHeroTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.white,
+    letterSpacing: -0.3,
+  },
+  orderCardBody: {
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  artisanRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  artisanInfo: { gap: 3, flex: 1, marginRight: spacing.sm },
+  artisanName: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+  artisanMetier: { fontSize: fontSize.xs, color: colors.textMuted },
+  modelTitle: { fontSize: fontSize.sm, fontWeight: '500', color: colors.textSub, marginTop: spacing.xs },
+
+  deliveryBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.xl, marginTop: spacing.md,
+    backgroundColor: `${colors.primary}12`,
+    borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 10,
+    borderWidth: 1, borderColor: `${colors.primary}28`,
+  },
+  deliveryText: { fontSize: fontSize.sm, color: colors.textSub, flex: 1 },
+  deliveryDate: { fontWeight: '700', color: colors.primary },
+
+  timelineCard: {
+    backgroundColor: colors.bgMuted,
+    borderRadius: radius.xl,
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  timelineHeading: {
+    fontSize: fontSize.base,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+
+  section: {
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: fontSize.base, fontWeight: '700', color: colors.text, letterSpacing: -0.2,
+  },
+
   paymentCard: {
     backgroundColor: colors.bgCard, borderRadius: radius.xl,
-    padding: spacing.lg, gap: spacing.md, ...shadow.sm,
+    padding: spacing.lg, ...shadow.sm,
   },
-  paymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  paymentRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2,
+  },
+  paymentDivider: { height: 1, backgroundColor: colors.borderLight, marginVertical: spacing.sm },
   paymentLabel: { fontSize: fontSize.sm, color: colors.textSub, fontWeight: '500' },
-  paymentValue: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+  paymentTotal: { fontSize: fontSize.base, fontWeight: '800', color: colors.text },
+  paymentValue: { fontSize: fontSize.sm, fontWeight: '600', color: colors.textSub },
+
+  descriptionCard: {
+    backgroundColor: colors.bgCard, borderRadius: radius.xl,
+    padding: spacing.lg, ...shadow.sm,
+  },
   description: { fontSize: fontSize.md, color: colors.textSub, lineHeight: 24 },
-  actions: { gap: spacing.sm },
+
+  actionsSection: {
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  primaryActions: { flexDirection: 'row', gap: spacing.sm },
   btnMessage: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg,
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
+    borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.lg,
+    paddingVertical: spacing.md, minHeight: 48,
   },
-  btnMessageText: { fontSize: fontSize.base, fontWeight: '600', color: colors.primary },
+  btnMessageText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
   btnPay: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg,
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
+    backgroundColor: colors.primary, borderRadius: radius.lg,
+    paddingVertical: spacing.md, minHeight: 48,
+    ...shadow.sm,
   },
-  btnPayText: { fontSize: fontSize.base, fontWeight: '700', color: colors.white },
+  btnPayText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.white },
   btnReview: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: radius.lg, padding: spacing.md,
-    borderWidth: 1.5, borderColor: '#F59E0B',
+    backgroundColor: colors.warningLight, borderRadius: radius.lg, paddingVertical: spacing.md,
+    borderWidth: 1.5, borderColor: '#D97706', minHeight: 48,
   },
-  btnReviewText: { fontSize: fontSize.sm, fontWeight: '600', color: '#F59E0B' },
+  btnReviewText: { fontSize: fontSize.sm, fontWeight: '700', color: '#B45309' },
   btnCancel: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    borderWidth: 1.5, borderColor: colors.error, borderRadius: radius.lg, padding: spacing.md,
+    borderWidth: 1.5, borderColor: colors.error, borderRadius: radius.lg,
+    paddingVertical: spacing.sm, minHeight: 44,
   },
   btnCancelText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.error },
   btnClaim: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
-    padding: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   btnClaimText: { fontSize: fontSize.xs, fontWeight: '500', color: colors.textMuted },
-  date: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
+
+  orderDate: {
+    fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center',
+    marginTop: spacing.xl, marginBottom: spacing.lg,
+  },
 })

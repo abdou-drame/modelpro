@@ -10,6 +10,7 @@ export class Appointment extends Model {
   declare statut: 'demande' | 'accepte' | 'refuse' | 'reporte' | 'annule' | 'termine' | 'pending' | 'confirme';
   declare date: Date | null;
   declare notes: string | null;
+  declare lieu: string | null;
   // Phase 2
   declare type: 'prise_mesures' | 'consultation' | 'depot_article' | 'essayage' | 'retrait' | 'domicile' | null;
   declare proposedDate: Date | null;
@@ -49,6 +50,10 @@ Appointment.init(
     },
     notes: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    lieu: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     // Phase 2

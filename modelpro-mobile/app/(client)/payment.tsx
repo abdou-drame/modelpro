@@ -46,9 +46,9 @@ export default function PaymentScreen() {
   const createMutation = useMutation({
     mutationFn: () => {
       const montant = selectedType === 'acompte'
-        ? (summary?.acompte ?? summary?.totalPrice ?? 0)
+        ? (summary?.depositAmount ?? summary?.totalPrice ?? 0)
         : selectedType === 'solde'
-          ? (summary?.resteAPayer ?? 0)
+          ? (summary?.remainingBalance ?? 0)
           : (summary?.totalPrice ?? 0)
       return paymentsApi.create({ orderId: id, montant, type: selectedType, moyen: selectedMethod })
     },
@@ -92,23 +92,23 @@ export default function PaymentScreen() {
                 <Text style={styles.summaryLabel}>Total commande</Text>
                 <Text style={styles.summaryVal}>{formatPrice(summary.totalPrice)}</Text>
               </View>
-              {summary.acompte != null && (
+              {summary.totalAcomptePaid > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Acompte versé</Text>
                   <Text style={[styles.summaryVal, { color: colors.success }]}>
-                    -{formatPrice(summary.acompte)}
+                    -{formatPrice(summary.totalAcomptePaid)}
                   </Text>
                 </View>
               )}
-              {summary.frais > 0 && (
+              {summary.totalFraisServicePaid > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Frais de service</Text>
-                  <Text style={styles.summaryVal}>{formatPrice(summary.frais)}</Text>
+                  <Text style={styles.summaryVal}>{formatPrice(summary.totalFraisServicePaid)}</Text>
                 </View>
               )}
               <View style={[styles.summaryRow, styles.summaryTotal]}>
                 <Text style={styles.summaryTotalLabel}>Reste à payer</Text>
-                <Text style={styles.summaryTotalVal}>{formatPrice(summary.resteAPayer)}</Text>
+                <Text style={styles.summaryTotalVal}>{formatPrice(summary.remainingBalance)}</Text>
               </View>
             </View>
           </Animated.View>
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, overflow: 'hidden', ...shadow.sm,
   },
   summaryBorder: {
-    ...StyleSheet.absoluteFill, borderRadius: radius.xl,
+    ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
   },
   summaryTitle: {

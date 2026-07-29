@@ -6,12 +6,12 @@ import { BASE_URL } from '@/constants/api'
 
 const getToken = () =>
   Platform.OS === 'web'
-    ? Promise.resolve(localStorage.getItem('jwt'))
+    ? Promise.resolve(sessionStorage.getItem('jwt') || localStorage.getItem('jwt'))
     : SecureStore.getItemAsync('jwt')
 
 const deleteToken = () =>
   Platform.OS === 'web'
-    ? Promise.resolve(localStorage.removeItem('jwt'))
+    ? Promise.resolve((sessionStorage.removeItem('jwt'), localStorage.removeItem('jwt')))
     : SecureStore.deleteItemAsync('jwt')
 
 const apiClient = axios.create({

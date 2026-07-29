@@ -3,30 +3,30 @@ import { ENDPOINTS } from '@/constants/api'
 
 export interface ArtisanPublic {
   id: number
-  nomAtelier: string
+  atelier: string
+  métier: string
   description: string | null
   localisation: string | null
   zone: string | null
   photoProfil: string | null
   photosAtelier: string[]
-  notemoyenne: number
+  noteMoyenne: number
   nombreAvis: number
-  estValide: boolean
-  metier: { id: number; nom: string }
+  statutValidation: string
   user: { nom: string; prenom: string }
 }
 
 export interface ArtisanReview {
   id: number
-  noteGlobale: number
-  noteQualite: number
-  noteDelai: number
-  noteCommunication: number
-  notePrix: number
-  noteProfessionnalisme: number
+  note: number
+  noteQualite: number | null
+  noteDelai: number | null
+  noteCommunication: number | null
+  notePrix: number | null
+  noteProfessionnalisme: number | null
   commentaire: string | null
   createdAt: string
-  client: { user: { nom: string; prenom: string }; photoProfil: string | null }
+  client: { id: number; nom: string; prenom: string; photoUrl: string | null }
 }
 
 export interface ArtisanSearchParams {
@@ -40,13 +40,20 @@ export interface ArtisanSearchParams {
 
 export const artisansApi = {
   search: (params?: ArtisanSearchParams) =>
-    apiClient.get<{ artisans: ArtisanPublic[]; total: number; page: number }>(
+    apiClient.get<ArtisanPublic[]>(
       ENDPOINTS.artisansSearch,
       { params }
     ),
 
   getById: (id: number) =>
-    apiClient.get<ArtisanPublic>(ENDPOINTS.artisanById(id)),
+    apiClient.get<ArtisanPublic>(ENDPOINTS.artisanById(id)).then((r) => {
+      const p = r.data as any
+      if (typeof p.photosAtelier === 'string') {
+        try { p.photosAtelier = JSON.parse(p.photosAtelier) } catch { p.photosAtelier = [] }
+      }
+      if (!Array.isArray(p.photosAtelier)) p.photosAtelier = []
+      return r
+    }),
 
   getReviews: (id: number) =>
     apiClient.get<ArtisanReview[]>(ENDPOINTS.artisanReviews(id)),

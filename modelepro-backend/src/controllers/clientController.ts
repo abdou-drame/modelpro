@@ -27,24 +27,38 @@ export const createAppointment = async (req: AuthenticatedRequest, res: Response
   try {
     const clientId = req.user?.id;
     if (!clientId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
-    if (req.user?.role !== 'client') return res.status(403).json({ error: 'Accès réservé aux clients.' });
 
-    const { artisanId, date, heure, notes, type } = req.body;
-    if (!artisanId || !date) return res.status(400).json({ error: 'artisanId et date requis.' });
+    const { artisanId, date, dateHeure, notes, type, lieu } = req.body;
+    const rawDate = date || dateHeure;
+    if (!artisanId || !rawDate) return res.status(400).json({ error: 'artisanId et date requis.' });
 
-    const appointment = await Appointment.create({ artisanId, clientId, date, notes, type: type || null, statut: 'demande' });
+    // Chercher le profil artisan soit par son ID direct soit par son userId
+    let artisan = await Artisan.findByPk(Number(artisanId));
+    if (!artisan) {
+      artisan = await Artisan.findOne({ where: { userId: Number(artisanId) } });
+    }
+    if (!artisan) {
+      return res.status(404).json({ error: 'Artisan introuvable.' });
+    }
+
+    const appointment = await Appointment.create({
+      artisanId: artisan.id,
+      clientId,
+      date: new Date(rawDate),
+      notes: notes || null,
+      type: type || null,
+      lieu: lieu || null,
+      statut: 'demande',
+    });
 
     // Notifier l'artisan
-    const artisan = await Artisan.findByPk(artisanId);
-    if (artisan) {
-      await createNotification(
-        artisan.userId,
-        'demande_rdv',
-        'Nouvelle demande de rendez-vous',
-        'Un client a formulé une demande de rendez-vous.',
-        appointment.id
-      );
-    }
+    await createNotification(
+      artisan.userId,
+      'demande_rdv',
+      'Nouvelle demande de rendez-vous',
+      'Un client a formulé une demande de rendez-vous.',
+      appointment.id
+    );
 
     res.status(201).json(appointment);
   } catch (error) {
@@ -64,7 +78,7 @@ export const getMyAppointments = async (req: AuthenticatedRequest, res: Response
         {
           model: Artisan,
           as: 'artisan',
-          include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone'] }],
+          include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone', 'photoUrl'] }],
         },
       ],
       order: [['createdAt', 'DESC']],
@@ -89,8 +103,8 @@ export const cancelAppointment = async (req: AuthenticatedRequest, res: Response
 
     // Client ou Artisan propriétaire
     const artisanProfile = await Artisan.findOne({ where: { userId } });
-    const isClient = appointment.clientId === userId;
-    const isArtisan = artisanProfile && appointment.artisanId === artisanProfile.id;
+    const isClient = Number(appointment.clientId) === Number(userId);
+    const isArtisan = Boolean(artisanProfile && Number(appointment.artisanId) === Number(artisanProfile.id));
 
     if (!isClient && !isArtisan) {
       return res.status(403).json({ error: 'Non autorisé à annuler ce rendez-vous.' });
@@ -99,21 +113,33 @@ export const cancelAppointment = async (req: AuthenticatedRequest, res: Response
     appointment.statut = 'annule';
     await appointment.save();
 
-    const recipientId = isClient ? (artisanProfile ? artisanProfile.userId : (await Artisan.findByPk(appointment.artisanId))?.userId) : appointment.clientId;
-    if (recipientId) {
-      await createNotification(
-        recipientId,
-        'rdv_statut',
-        'Rendez-vous annulé',
-        'Un rendez-vous a été annulé.',
-        appointment.id
-      );
+    // Notifier le destinataire (artisan si annulé par client, client si annulé par artisan)
+    try {
+      let recipientId: number | undefined;
+      if (isClient) {
+        const artisanRecord = await Artisan.findByPk(appointment.artisanId);
+        recipientId = artisanRecord?.userId;
+      } else {
+        recipientId = appointment.clientId;
+      }
+
+      if (recipientId) {
+        await createNotification(
+          recipientId,
+          'rdv_statut',
+          'Rendez-vous annulé',
+          `Le rendez-vous a été annulé par le ${isClient ? 'client' : 'prestataire'}.`,
+          appointment.id
+        );
+      }
+    } catch (notifError) {
+      console.warn('Notification non transmise lors de l’annulation du RDV (non-bloquant) :', notifError);
     }
 
     res.status(200).json(appointment);
   } catch (error) {
     console.error('Erreur cancelAppointment :', error);
-    res.status(500).json({ error: 'Une erreur est survenue.' });
+    res.status(500).json({ error: 'Une erreur est survenue lors de l’annulation.' });
   }
 };
 
@@ -123,22 +149,34 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
   try {
     const clientId = req.user?.id;
     if (!clientId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
-    if (req.user?.role !== 'client') return res.status(403).json({ error: 'Accès réservé aux clients.' });
 
-    const { artisanId, modeleId, mesures, photoTissu, consignes, prix, couleur, taille, matiere, customizationText, customizationPhoto } = req.body;
+    const { artisanId, modeleId, creationId, meubleId, mesures, photoTissu, consignes, description, prix, couleur, taille, matiere, customizationText, customizationPhoto } = req.body;
     if (!artisanId) return res.status(400).json({ error: 'artisanId requis.' });
 
-    const artisan = await Artisan.findByPk(artisanId);
+    const artisan = await Artisan.findOne({
+      where: {
+        [Op.or]: [{ id: Number(artisanId) }, { userId: Number(artisanId) }]
+      }
+    });
     if (!artisan) return res.status(404).json({ error: 'Artisan introuvable.' });
 
+    const targetModeleId = modeleId || creationId || meubleId;
+    let computedPrix = prix ? Number(prix) : 0;
+    if (!computedPrix && targetModeleId) {
+      const creation = await Creation.findByPk(Number(targetModeleId));
+      if (creation && creation.prixEstimatif) {
+        computedPrix = creation.prixEstimatif;
+      }
+    }
+
     const order = await Order.create({
-      artisanId,
+      artisanId: artisan.id,
       clientId,
-      modeleId: modeleId ? Number(modeleId) : null,
-      mesures: mesures || null,
+      modeleId: targetModeleId ? Number(targetModeleId) : null,
+      mesures: typeof mesures === 'object' ? JSON.stringify(mesures) : (mesures || null),
       photoTissu: photoTissu || null,
-      consignes: consignes || null,
-      prix: prix || 0,
+      consignes: consignes || description || null,
+      prix: computedPrix,
       couleur: couleur || null,
       taille: taille || null,
       matiere: matiere || null,
@@ -149,8 +187,8 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
     });
 
     // Incrémenter le nombreCommandes du modèle si lié
-    if (modeleId) {
-      await Creation.increment('nombreCommandes', { where: { id: modeleId } });
+    if (targetModeleId) {
+      await Creation.increment('nombreCommandes', { where: { id: targetModeleId } });
     }
 
     // Notifier automatiquement l'artisan lors d'une nouvelle commande
@@ -173,7 +211,6 @@ export const getMyOrders = async (req: AuthenticatedRequest, res: Response): Pro
   try {
     const clientId = req.user?.id;
     if (!clientId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
-    if (req.user?.role !== 'client') return res.status(403).json({ error: 'Accès réservé aux clients.' });
 
     const orders = await Order.findAll({
       where: { clientId },
@@ -181,7 +218,7 @@ export const getMyOrders = async (req: AuthenticatedRequest, res: Response): Pro
         {
           model: Artisan,
           as: 'artisan',
-          include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone'] }],
+          include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone', 'photoUrl'] }],
         },
       ],
       order: [['createdAt', 'DESC']],
@@ -200,14 +237,14 @@ export const cancelOrder = async (req: AuthenticatedRequest, res: Response): Pro
     if (!userId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
 
     const id = Number(req.params.id);
-    const { motifAnnulation } = req.body;
+    const { motifAnnulation } = req.body || {};
 
     const order = await Order.findByPk(id);
     if (!order) return res.status(404).json({ error: 'Commande introuvable.' });
 
     const artisanProfile = await Artisan.findOne({ where: { userId } });
-    const isClient = order.clientId === userId;
-    const isArtisan = artisanProfile && order.artisanId === artisanProfile.id;
+    const isClient = Number(order.clientId) === Number(userId);
+    const isArtisan = Boolean(artisanProfile && Number(order.artisanId) === Number(artisanProfile.id));
 
     if (!isClient && !isArtisan) {
       return res.status(403).json({ error: 'Non autorisé à annuler cette commande.' });
@@ -217,15 +254,27 @@ export const cancelOrder = async (req: AuthenticatedRequest, res: Response): Pro
     order.motifAnnulation = motifAnnulation || null;
     await order.save();
 
-    const recipientId = isClient ? (artisanProfile ? artisanProfile.userId : (await Artisan.findByPk(order.artisanId))?.userId) : order.clientId;
-    if (recipientId) {
-      await createNotification(
-        recipientId,
-        'commande_statut',
-        'Commande annulée',
-        `La commande a été annulée. Motif : ${motifAnnulation || 'Non spécifié'}.`,
-        order.id
-      );
+    // Notifier l'autre partie
+    try {
+      let recipientId: number | undefined;
+      if (isClient) {
+        const artisanRecord = await Artisan.findByPk(order.artisanId);
+        recipientId = artisanRecord?.userId;
+      } else {
+        recipientId = order.clientId;
+      }
+
+      if (recipientId) {
+        await createNotification(
+          recipientId,
+          'commande_statut',
+          'Commande annulée',
+          `La commande #${order.id} a été annulée. Motif : ${motifAnnulation || 'Non spécifié'}.`,
+          order.id
+        );
+      }
+    } catch (_notifErr) {
+      // notification non bloquante
     }
 
     res.status(200).json(order);

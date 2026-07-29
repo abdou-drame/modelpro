@@ -1,7 +1,6 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import { BlurView } from 'expo-blur'
-import { colors, radius, fontSize, spacing } from '@/constants/theme'
+import { colors, radius, fontSize, spacing, shadow } from '@/constants/theme'
 import { formatRelative } from '@/lib/utils/format'
 import type { Message } from '@/lib/api/messages'
 
@@ -12,35 +11,43 @@ interface Props {
 }
 
 export function MessageBubble({ message, isMine, index }: Props) {
+  // Cap animation delay so long lists don't stall
+  const delay = Math.min(index * 30, 300)
+
   return (
     <Animated.View
-      entering={FadeInUp.delay(index * 30).springify()}
+      entering={FadeInUp.delay(delay).springify()}
       style={[styles.row, isMine ? styles.rowRight : styles.rowLeft]}
     >
       {message.photoUrl ? (
-        <TouchableOpacity activeOpacity={0.9} style={[styles.photoBubble, isMine && styles.photoBubbleMine]}>
+        <TouchableOpacity
+          activeOpacity={0.88}
+          style={[styles.photoBubble, isMine ? styles.photoBubbleMine : styles.photoBubbleTheirs]}
+          accessibilityRole="button"
+          accessibilityLabel={message.texte ? `Photo : ${message.texte}` : 'Photo jointe'}
+        >
           <Image source={{ uri: message.photoUrl }} style={styles.photo} resizeMode="cover" />
-          {isMine && <View style={styles.photoBubbleBorder} />}
-          {message.contenu ? (
+          {message.texte ? (
             <View style={styles.photoCaption}>
-              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-              <Text style={styles.photoCaptionText}>{message.contenu}</Text>
+              <View style={styles.photoCaptionBg} />
+              <Text style={styles.photoCaptionText} numberOfLines={2}>
+                {message.texte}
+              </Text>
             </View>
           ) : null}
         </TouchableOpacity>
       ) : (
-        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-          {!isMine && (
-            <>
-              <BlurView intensity={55} tint="light" style={StyleSheet.absoluteFill} />
-              <View style={styles.bubbleGlassBorder} />
-            </>
-          )}
+        <View
+          style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+          accessible
+          accessibilityLabel={message.texte ?? ''}
+        >
           <Text style={[styles.text, isMine ? styles.textMine : styles.textTheirs]}>
-            {message.contenu}
+            {message.texte}
           </Text>
         </View>
       )}
+
       <Text style={[styles.time, isMine ? styles.timeRight : styles.timeLeft]}>
         {formatRelative(message.createdAt)}
       </Text>
@@ -61,26 +68,26 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     alignItems: 'flex-start',
   },
+
+  // Text bubbles
   bubble: {
     borderRadius: radius.xl,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    overflow: 'hidden',
   },
   bubbleMine: {
     backgroundColor: colors.primary,
     borderBottomRightRadius: radius.sm,
+    ...shadow.sm,
   },
   bubbleTheirs: {
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: colors.bgCard,
     borderBottomLeftRadius: radius.sm,
-  },
-  bubbleGlassBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: colors.border,
+    ...shadow.sm,
   },
+
   text: {
     fontSize: fontSize.md,
     lineHeight: 22,
@@ -91,20 +98,21 @@ const styles = StyleSheet.create({
   textTheirs: {
     color: colors.text,
   },
+
+  // Photo bubbles
   photoBubble: {
     borderRadius: radius.xl,
     overflow: 'hidden',
-    borderBottomLeftRadius: radius.sm,
   },
   photoBubbleMine: {
-    borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.sm,
-  },
-  photoBubbleBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.xl,
     borderWidth: 2,
     borderColor: colors.primary,
+  },
+  photoBubbleTheirs: {
+    borderBottomLeftRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   photo: {
     width: 220,
@@ -119,11 +127,18 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     overflow: 'hidden',
   },
+  photoCaptionBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(26, 16, 5, 0.62)',
+  },
   photoCaptionText: {
     color: colors.white,
     fontSize: fontSize.sm,
+    lineHeight: 18,
     zIndex: 1,
   },
+
+  // Timestamps
   time: {
     fontSize: fontSize.xs,
     color: colors.textMuted,

@@ -10,13 +10,13 @@ export interface Model {
   photos: string[]
   options: string[]
   disponible: boolean
-  artisan: {
+  artisan?: {
     id: number
-    nomAtelier: string
-    notemoyenne: number
-    user: { nom: string; prenom: string }
-    metier: { nom: string }
-  }
+    atelier: string
+    métier: string
+    noteMoyenne: number | null
+    user?: { nom: string; prenom: string }
+  } | null
 }
 
 export interface ModelListParams {
@@ -25,8 +25,21 @@ export interface ModelListParams {
   artisanId?: number
   minPrice?: number
   maxPrice?: number
+  localisation?: string
   page?: number
   limit?: number
+}
+
+function parseModel(m: any): Model {
+  if (typeof m.photos === 'string') {
+    try { m.photos = JSON.parse(m.photos) } catch { m.photos = [] }
+  }
+  if (!Array.isArray(m.photos)) m.photos = []
+  if (typeof m.options === 'string') {
+    try { m.options = JSON.parse(m.options) } catch { m.options = [] }
+  }
+  if (!Array.isArray(m.options)) m.options = []
+  return m
 }
 
 export const modelsApi = {
@@ -34,8 +47,14 @@ export const modelsApi = {
     apiClient.get<{ models: Model[]; total: number; page: number; totalPages: number }>(
       ENDPOINTS.models,
       { params }
-    ),
+    ).then((r) => {
+      if (r.data?.models) r.data.models.forEach(parseModel)
+      return r
+    }),
 
   getById: (id: number) =>
-    apiClient.get<Model>(ENDPOINTS.modelById(id)),
+    apiClient.get<Model>(ENDPOINTS.modelById(id)).then((r) => {
+      parseModel(r.data)
+      return r
+    }),
 }

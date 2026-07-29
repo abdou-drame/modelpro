@@ -3,7 +3,7 @@ import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
-import { ChevronRight, ShoppingBag } from 'lucide-react-native'
+import { ArrowLeft, ChevronRight, ShoppingBag } from 'lucide-react-native'
 import { ordersApi } from '@/lib/api/orders'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -33,8 +33,8 @@ function OrderItem({ order, index }: { order: Order; index: number }) {
       >
         <View style={styles.cardHeader}>
           <View>
-            <Text style={styles.artisanName}>{order.artisan.nomAtelier}</Text>
-            <Text style={styles.metier}>{order.artisan.metier.nom}</Text>
+            <Text style={styles.artisanName}>{order.artisan.atelier}</Text>
+            <Text style={styles.metier}>{order.artisan.métier}</Text>
           </View>
           <Badge label={ORDER_STATUS_LABELS[order.statut]} variant={STATUS_VARIANT[order.statut]} />
         </View>
@@ -61,11 +61,21 @@ export default function ClientOrdersScreen() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['my-orders'],
     queryFn: () => ordersApi.myOrders().then((r) => r.data),
+    refetchInterval: 10000,
   })
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backRow}
+          onPress={() => router.replace('/(client)')}
+          accessibilityRole="button"
+          accessibilityLabel="Retour au catalogue"
+        >
+          <ArrowLeft size={20} color={colors.text} strokeWidth={2} />
+          <Text style={styles.backText}>Catalogue</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Mes commandes</Text>
       </View>
 
@@ -96,8 +106,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.lg,
-    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: spacing.xs,
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
+  backText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
   title: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   card: {
     backgroundColor: colors.bgCard, borderRadius: radius.xl,

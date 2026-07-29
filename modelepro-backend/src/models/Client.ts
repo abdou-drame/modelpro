@@ -25,7 +25,8 @@ Client.init(
     },
     localisation: {
       type: DataTypes.STRING(255),
-      allowNull: false, // Pikine, Dakar, Guédiawaye, etc.
+      allowNull: true,
+      defaultValue: 'Non renseigné',
     },
   },
   {

@@ -7,8 +7,8 @@ export interface RegisterPayload {
   nom: string
   prenom: string
   role: 'client' | 'artisan'
-  metierIdI?: number
-  nomAtelier?: string
+  métier?: string
+  atelier?: string
   localisation?: string
 }
 

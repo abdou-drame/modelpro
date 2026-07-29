@@ -40,8 +40,8 @@ Creation.init(
       allowNull: true,
     },
     photoUrl: {
-      type: DataTypes.STRING(255),
-      allowNull: true, // Contiendra le lien de la photo du catalogue
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     prixEstimatif: {
       type: DataTypes.INTEGER,

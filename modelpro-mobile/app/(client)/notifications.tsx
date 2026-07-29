@@ -2,10 +2,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import { BlurView } from 'expo-blur'
-import { LinearGradient } from 'expo-linear-gradient'
 import {
-  ShoppingBag, MessageCircle, Calendar, Star, AlertCircle, CreditCard, Bell,
+  ShoppingBag, MessageCircle, Calendar, Star, AlertCircle, CreditCard, Bell, Check,
 } from 'lucide-react-native'
 import { notificationsApi } from '@/lib/api/notifications'
 import { formatRelative } from '@/lib/utils/format'
@@ -13,16 +11,14 @@ import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { AppNotification } from '@/lib/api/notifications'
 import type { NotificationType } from '@/constants/enums'
 
-const NOTIF_BG = 'https://images.unsplash.com/photo-1614854262318-831574f15f1f?w=800&q=80'
-
 const NOTIF_META: Record<NotificationType, { icon: any; color: string; bg: string }> = {
-  nouvelle_commande: { icon: ShoppingBag, color: colors.primary, bg: '#FEF3E8' },
-  statut_commande:   { icon: ShoppingBag, color: '#7C3AED', bg: '#EDE9FE' },
-  nouveau_message:   { icon: MessageCircle, color: '#2563EB', bg: '#DBEAFE' },
-  nouveau_rdv:       { icon: Calendar, color: colors.success, bg: colors.successLight },
-  statut_rdv:        { icon: Calendar, color: '#D97706', bg: colors.warningLight },
-  paiement:          { icon: CreditCard, color: colors.success, bg: colors.successLight },
-  avis:              { icon: Star, color: '#F59E0B', bg: '#FEF9C3' },
+  nouveau_message:  { icon: MessageCircle, color: '#2563EB',       bg: '#DBEAFE' },
+  demande_rdv:      { icon: Calendar,      color: colors.success,  bg: colors.successLight },
+  rdv_statut:       { icon: Calendar,      color: colors.warning,  bg: colors.warningLight },
+  commande_statut:  { icon: ShoppingBag,   color: colors.primary,  bg: `${colors.primary}18` },
+  rappel:           { icon: AlertCircle,   color: colors.warning,  bg: colors.warningLight },
+  notation:         { icon: Star,          color: '#D97706',       bg: '#FEF9C3' },
+  paiement:         { icon: CreditCard,    color: colors.success,  bg: colors.successLight },
 }
 
 function NotifItem({ notif, index }: { notif: AppNotification; index: number }) {
@@ -32,8 +28,7 @@ function NotifItem({ notif, index }: { notif: AppNotification; index: number }) 
   return (
     <Animated.View entering={FadeInUp.delay(index * 40).springify()}>
       <View style={[styles.item, !notif.lu && styles.itemUnread]}>
-        {!notif.lu && <BlurView intensity={45} tint="light" style={StyleSheet.absoluteFill} />}
-        {!notif.lu && <View style={styles.itemBorder} />}
+        {!notif.lu && <View style={styles.unreadAccent} />}
 
         <View style={[styles.iconBox, { backgroundColor: meta.bg }]}>
           <Icon size={20} color={meta.color} strokeWidth={1.8} />
@@ -43,7 +38,7 @@ function NotifItem({ notif, index }: { notif: AppNotification; index: number }) 
           <Text style={[styles.notifTitle, !notif.lu && styles.notifTitleUnread]}>
             {notif.titre}
           </Text>
-          <Text style={styles.notifMessage} numberOfLines={2}>{notif.message}</Text>
+          <Text style={styles.notifMessage} numberOfLines={2}>{notif.description}</Text>
           <Text style={styles.notifTime}>{formatRelative(notif.createdAt)}</Text>
         </View>
 
@@ -71,13 +66,17 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <LinearGradient colors={[colors.accent, '#2A2A4E']} style={StyleSheet.absoluteFill} />
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>Notifications</Text>
-            {unreadCount > 0 && (
-              <Text style={styles.headerSub}>{unreadCount} non lue{unreadCount > 1 ? 's' : ''}</Text>
+            {unreadCount > 0 ? (
+              <Text style={styles.headerSub}>
+                {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+              </Text>
+            ) : (
+              <Text style={styles.headerSubEmpty}>Tout est à jour</Text>
             )}
           </View>
           {unreadCount > 0 && (
@@ -85,9 +84,10 @@ export default function NotificationsScreen() {
               style={styles.markAllBtn}
               onPress={() => markAllMutation.mutate()}
               disabled={markAllMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Marquer toutes les notifications comme lues"
             >
-              <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-              <View style={styles.markAllBorder} />
+              <Check size={14} color={colors.primary} strokeWidth={2.5} />
               <Text style={styles.markAllText}>Tout lire</Text>
             </TouchableOpacity>
           )}
@@ -105,10 +105,12 @@ export default function NotificationsScreen() {
           isLoading ? null : (
             <View style={styles.empty}>
               <View style={styles.emptyIconBox}>
-                <Bell size={36} color={colors.textMuted} strokeWidth={1.5} />
+                <Bell size={32} color={colors.textMuted} strokeWidth={1.5} />
               </View>
               <Text style={styles.emptyTitle}>Aucune notification</Text>
-              <Text style={styles.emptySub}>Vous serez notifié des mises à jour de vos commandes ici</Text>
+              <Text style={styles.emptySub}>
+                Vous serez notifié des mises à jour de vos commandes ici.
+              </Text>
             </View>
           )
         }
@@ -119,32 +121,53 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+
   header: {
-    overflow: 'hidden',
     paddingTop: 52,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
     paddingHorizontal: spacing.xl,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
-  headerTitle: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.white, letterSpacing: -0.5 },
-  headerSub: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  headerTitle: {
+    fontSize: fontSize.xxl,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  headerSub: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  headerSubEmpty: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
   markAllBtn: {
-    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    overflow: 'hidden',
-  },
-  markAllBorder: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: radius.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: `${colors.primary}12`,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: `${colors.primary}30`,
   },
-  markAllText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.white, zIndex: 1 },
+  markAllText: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    color: colors.primary,
+  },
 
   item: {
     flexDirection: 'row',
@@ -154,16 +177,22 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
     ...shadow.sm,
   },
   itemUnread: {
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: `${colors.primary}07`,
+    borderColor: `${colors.primary}25`,
   },
-  itemBorder: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
+  unreadAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   iconBox: {
     width: 44,
@@ -186,15 +215,32 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 
-  empty: { alignItems: 'center', paddingTop: 60, gap: spacing.md, paddingHorizontal: spacing.xl },
+  empty: {
+    alignItems: 'center',
+    paddingTop: 72,
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
   emptyIconBox: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     borderRadius: radius.full,
     backgroundColor: colors.bgMuted,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  emptyTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.text },
-  emptySub: { fontSize: fontSize.md, color: colors.textSub, textAlign: 'center', lineHeight: 22 },
+  emptyTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.sm,
+  },
+  emptySub: {
+    fontSize: fontSize.sm,
+    color: colors.textSub,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 })

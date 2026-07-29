@@ -67,7 +67,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="model/[id]" options={{ href: null }} />
       <Tabs.Screen name="order-form" options={{ href: null }} />
       <Tabs.Screen name="orders/[id]" options={{ href: null }} />
-      <Tabs.Screen name="messages/[orderId]" options={{ href: null }} />
+      <Tabs.Screen name="messages/[orderId]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="payment" options={{ href: null }} />
       <Tabs.Screen name="review" options={{ href: null }} />
       <Tabs.Screen name="claim" options={{ href: null }} />

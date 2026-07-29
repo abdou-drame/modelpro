@@ -6,9 +6,9 @@ export interface AppNotification {
   id: number
   type: NotificationType
   titre: string
-  message: string
+  description: string
   lu: boolean
-  data: Record<string, any> | null
+  referenceId: number | null
   createdAt: string
 }
 

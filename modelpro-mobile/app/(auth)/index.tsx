@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   btnGlassBorder: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',

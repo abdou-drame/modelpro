@@ -28,11 +28,11 @@ router.post('/appointments', protect, restrictTo('client'), createAppointment);
 router.patch('/appointments/:id/cancel', protect, cancelAppointment);
 
 router.post('/orders', protect, restrictTo('client'), createOrder);
-router.get('/orders/my-orders', protect, restrictTo('client'), getMyOrders);
+router.get('/orders/my-orders', protect, getMyOrders);
 router.patch('/orders/:id/cancel', protect, cancelOrder);
 
-router.post('/reviews', protect, restrictTo('client'), createReview);
-router.post('/claims', protect, restrictTo('client'), createClaim);
+router.post('/reviews', protect, createReview);
+router.post('/claims', protect, createClaim);
 router.get('/claims/my-claims', protect, getMyClaims);
 
 export default router;

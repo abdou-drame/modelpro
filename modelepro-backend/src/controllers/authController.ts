@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import { User } from '../models/User';
 import { Client } from '../models/Client';
 import { Artisan } from '../models/Artisan';
@@ -32,11 +33,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     // Créer le profil spécifique selon le rôle sélectionné
     if (role === 'client') {
-      if (!localisation) {
-        res.status(400).json({ error: 'La localisation est obligatoire pour un client.' });
-        return;
-      }
-      await Client.create({ userId: newUser.id, localisation });
+      await Client.create({ userId: newUser.id, localisation: localisation || null });
 
       // Générer le jeton JWT pour connecter directement le client après inscription
       const token = generateToken(newUser.id, newUser.role);
@@ -49,7 +46,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           nom: newUser.nom,
           prenom: newUser.prenom,
           telephone: newUser.telephone,
-          role: newUser.role
+          role: newUser.role,
+          photoUrl: newUser.photoUrl || null,
         }
       });
       return;
@@ -89,15 +87,40 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const cleanPhone = (p: string) => {
+  const digits = p.replace(/\D/g, '');
+  if (digits.length === 9) return digits; // ex: 774979236
+  if (digits.length === 10 && digits.startsWith('0')) return digits.slice(1); // ex: 0774979236 -> 774979236
+  if (digits.length === 12 && digits.startsWith('221')) return digits.slice(3); // ex: 221774979236 -> 774979236
+  return digits;
+};
+
 // 2. CONNEXION (MÉTHODE POST)
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { telephone, password } = req.body;
+    const { telephone, email, password } = req.body;
+    const identifier = (telephone || email || '').trim();
 
-    // Chercher l'utilisateur par son numéro de téléphone
-    const user = await User.findOne({ where: { telephone } });
+    if (!identifier) {
+      res.status(400).json({ error: 'Veuillez saisir votre numéro de téléphone ou email.' });
+      return;
+    }
+
+    const phoneNormalized = cleanPhone(identifier);
+
+    // Chercher l'utilisateur par son numéro de téléphone (avec/sans 0 initial) OU par son email
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { telephone: identifier },
+          { telephone: phoneNormalized },
+          { telephone: `0${phoneNormalized}` },
+          { email: identifier }
+        ]
+      }
+    });
     if (!user) {
-      res.status(404).json({ error: 'Aucun compte trouvé avec ce numéro de téléphone.' });
+      res.status(404).json({ error: 'Aucun compte trouvé avec ce numéro de téléphone ou email.' });
       return;
     }
 
@@ -139,7 +162,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         nom: user.nom,
         prenom: user.prenom,
         telephone: user.telephone,
-        role: user.role
+        role: user.role,
+        photoUrl: user.photoUrl || null,
       }
     });
   } catch (error) {
