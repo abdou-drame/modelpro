@@ -100,16 +100,16 @@ export default function CatalogueScreen() {
               </View>
             </View>
 
-            {/* WOW Luxury Gradient Banner */}
+            {/* WOW Noir & Doré Luxury Banner */}
             <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginHorizontal: spacing.sm }}>
               <LinearGradient
-                colors={['#1A1005', '#4A230F', '#8B3A0F']}
+                colors={['#0D0D0D', '#1A1A1A', '#2B2B2B']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bannerCard}
               >
                 <View style={styles.bannerBadge}>
-                  <Crown size={12} color="#FBBF24" />
+                  <Crown size={12} color="#D4AF37" />
                   <Text style={styles.bannerBadgeText}>Artisans Certifiés & Modèles Exclusifs</Text>
                 </View>
                 <Text style={styles.bannerTitle}>L'Élégance Sur-Mesure</Text>
@@ -315,6 +315,8 @@ const styles = StyleSheet.create({
   bannerCard: {
     padding: spacing.lg,
     borderRadius: radius.xl,
+    borderWidth: 1.5,
+    borderColor: '#D4AF37',
     gap: 6,
     ...shadow.md,
   },
@@ -322,14 +324,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#0D0D0D',
+    borderWidth: 1,
+    borderColor: '#D4AF37',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.full,
     alignSelf: 'flex-start',
   },
   bannerBadgeText: {
-    color: '#FBBF24',
+    color: '#D4AF37',
     fontSize: 11,
     fontWeight: '700',
   },

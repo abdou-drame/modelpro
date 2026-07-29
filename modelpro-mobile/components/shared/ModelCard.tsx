@@ -1,7 +1,6 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { Star, Heart } from 'lucide-react-native'
-import { Badge } from '@/components/ui/Badge'
+import { Star } from 'lucide-react-native'
 import { formatPrice } from '@/lib/utils/format'
 import { colors, radius, shadow, fontSize, spacing } from '@/constants/theme'
 import type { Model } from '@/lib/api/models'
@@ -32,20 +31,20 @@ export function ModelCard({ model }: Props) {
           resizeMode="cover"
         />
 
-        {/* Metier tag */}
+        {/* Metier tag - Noir avec texte Blanc */}
         <View style={styles.badgeOverlay}>
           <View style={styles.glassTag}>
             <Text style={styles.glassTagText}>{metier}</Text>
           </View>
         </View>
 
-        {/* Rating overlay */}
+        {/* Rating overlay - Blanc avec étoile Dorée */}
         <View style={styles.ratingBadge}>
-          <Star size={10} color="#EAB308" fill="#EAB308" />
+          <Star size={10} color="#D4AF37" fill="#D4AF37" />
           <Text style={styles.ratingText}>{note}</Text>
         </View>
 
-        {/* Price tag */}
+        {/* Price tag - Noir & Doré */}
         {model.prixEstimatif != null && (
           <View style={styles.pricePill}>
             <Text style={styles.pricePillText}>{formatPrice(model.prixEstimatif)}</Text>
@@ -63,12 +62,12 @@ export function ModelCard({ model }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.white,
     borderRadius: radius.xl,
     overflow: 'hidden',
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderWidth: 1.5,
+    borderColor: '#E6D7C3',
     ...shadow.sm,
   },
   imageWrapper: {
@@ -76,13 +75,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    backgroundColor: colors.bgWarm,
+    backgroundColor: '#0D0D0D',
     height: 155,
   },
   image: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.bgWarm,
+    backgroundColor: '#0D0D0D',
   },
   badgeOverlay: {
     position: 'absolute',
@@ -90,62 +89,69 @@ const styles = StyleSheet.create({
     left: spacing.xs,
   },
   glassTag: {
-    backgroundColor: 'rgba(26, 16, 5, 0.65)',
+    backgroundColor: '#0D0D0D',
     borderRadius: radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
   },
   glassTagText: {
     color: colors.white,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   ratingBadge: {
     position: 'absolute',
     top: spacing.xs,
     right: spacing.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.full,
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
   },
   ratingText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: colors.text,
+    fontWeight: '800',
+    color: '#0D0D0D',
   },
   pricePill: {
     position: 'absolute',
     bottom: spacing.xs,
     right: spacing.xs,
-    backgroundColor: colors.primary,
+    backgroundColor: '#0D0D0D',
     borderRadius: radius.md,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
     ...shadow.sm,
   },
   pricePillText: {
-    color: colors.white,
+    color: '#D4AF37',
     fontSize: 11,
     fontWeight: '800',
   },
   body: {
     padding: spacing.sm,
     gap: 2,
+    backgroundColor: colors.white,
   },
   title: {
     fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: colors.text,
+    fontWeight: '800',
+    color: '#0D0D0D',
     letterSpacing: -0.2,
   },
   artisan: {
     fontSize: fontSize.xs,
-    color: colors.textSub,
-    fontWeight: '500',
+    color: '#4B5563',
+    fontWeight: '600',
   },
 })

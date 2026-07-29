@@ -1,28 +1,28 @@
 export const colors = {
-  primary: '#8B3A0F',
-  primaryLight: '#C06634',
-  primaryDark: '#5C2307',
-  accent: '#120B05',
-  accentSoft: '#24150A',
-  gold: '#D4AF37',
-  goldLight: '#FEF3C7',
-  bg: '#FAF8F5',
-  bgCard: '#FFFFFF',
-  bgMuted: '#F4EFE6',
-  bgWarm: '#EBDDCB',
-  text: '#120B05',
-  textSub: '#6E5D4C',
-  textMuted: '#A89684',
-  success: '#1B4D3E',
-  successLight: '#D1FAE5',
-  error: '#B91C1C',
-  errorLight: '#FEE2E2',
-  warning: '#B45309',
-  warningLight: '#FEF3C7',
-  border: '#E6D7C3',
-  borderLight: '#F0E5D8',
-  white: '#FFFFFF',
-  overlay: 'rgba(18, 11, 5, 0.55)',
+  primary: '#D4AF37',       // Metallic Gold
+  primaryLight: '#FBBF24',  // Bright Gold
+  primaryDark: '#B89222',   // Deep Antique Gold
+  accent: '#0D0D0D',        // Noir Onyx
+  accentSoft: '#1A1A1A',    // Soft Black
+  gold: '#D4AF37',          // Metallic Gold Accent
+  goldLight: '#FFFBEB',     // Soft Gold Tint
+  bg: '#FAFAFA',            // Pure Clean White Background
+  bgCard: '#FFFFFF',        // Crisp White Cards
+  bgMuted: '#F4F4F5',       // Subtle Muted Gray
+  bgWarm: '#0D0D0D',        // Deep Black Container
+  text: '#0D0D0D',          // Pure Black Text
+  textSub: '#4B5563',       // Dark Charcoal Subtext
+  textMuted: '#9CA3AF',     // Muted Slate Text
+  success: '#10B981',       // Emerald Green
+  successLight: '#D1FAE5',  // Soft Green
+  error: '#EF4444',         // Ruby Red
+  errorLight: '#FEE2E2',    // Soft Red
+  warning: '#F59E0B',       // Amber
+  warningLight: '#FEF3C7',   // Soft Amber
+  border: '#D4AF37',        // Metallic Gold Border
+  borderLight: '#E5E7EB',   // Subtle White/Gray Border
+  white: '#FFFFFF',         // Pure White
+  overlay: 'rgba(13, 13, 13, 0.75)',
 } as const
 
 export const radius = {
@@ -64,23 +64,23 @@ export const fontWeight = {
 
 export const shadow = {
   sm: {
-    shadowColor: '#8B3A0F',
+    shadowColor: '#0D0D0D',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 2,
   },
   md: {
-    shadowColor: '#120B05',
+    shadowColor: '#0D0D0D',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.09,
+    shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#120B05',
+    shadowColor: '#0D0D0D',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.18,
     shadowRadius: 22,
     elevation: 8,
   },
