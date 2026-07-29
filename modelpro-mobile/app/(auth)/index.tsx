@@ -5,27 +5,42 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Image,
+  ImageBackground,
 } from 'react-native'
 import { router } from 'expo-router'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import { Crown, User, Scissors, Sparkles, ShieldCheck, Ruler, Package, HeartHandshake, ArrowRight } from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Crown, User, Scissors, Sparkles, ShieldCheck, Ruler, Package, HeartHandshake, ArrowRight, CheckCircle2 } from 'lucide-react-native'
 
 export default function LandingPageScreen() {
   return (
     <View style={styles.root}>
+      {/* Dynamic Background Gradients */}
+      <LinearGradient
+        colors={['#FFFDF9', '#FAF8F5', '#F5EBE1']}
+        style={StyleSheet.absoluteFill}
+      />
+
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInUp.duration(500)} style={styles.container}>
 
-          {/* ── En-tête Navigation ── */}
+          {/* ── En-tête Navigation avec Logo Premium ── */}
           <View style={styles.navHeader}>
             <View style={styles.headerLogoRow}>
-              <View style={styles.logoBox}>
-                <Crown size={22} color="#C05A2B" strokeWidth={2} />
+              <LinearGradient
+                colors={['#FFF8F2', '#F5E6D8']}
+                style={styles.logoBox}
+              >
+                <Crown size={24} color="#C05A2B" strokeWidth={2.2} />
+              </LinearGradient>
+              <View>
+                <Text style={styles.brandTitle}>ModèlePro</Text>
+
               </View>
-              <Text style={styles.brandTitle}>ModèlePro</Text>
             </View>
 
             <TouchableOpacity
@@ -37,54 +52,83 @@ export default function LandingPageScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* ── Hero Section ── */}
-          <View style={styles.heroBlock}>
-            <View style={styles.surtitreBadge}>
-              <Sparkles size={12} color="#C05A2B" />
-              <Text style={styles.surtitreText}>PLATEFORME D'ARTISANAT DU SÉNÉGAL</Text>
-            </View>
-
-            <Text style={styles.heroTitle}>
-              L'excellence sur-mesure &{'\n'}l'artisanat d'exception
-            </Text>
-
-            <Text style={styles.heroSubtitle}>
-              La plateforme n°1 pour commander vos vêtements, coiffures et créations artisanales sur-mesure directement auprès des meilleurs maîtres du Sénégal.
-            </Text>
-
-            {/* Boutons d'Action Principaux */}
-            <View style={styles.heroActions}>
-              <TouchableOpacity
-                style={styles.btnClient}
-                onPress={() => router.push('/(auth)/register-client')}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel="Je suis client"
+          {/* ── Hero Card avec Image de Fond & Overlay ── */}
+          <View style={styles.heroCardContainer}>
+            <ImageBackground
+              source={{ uri: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1000&q=80' }}
+              style={styles.heroBgImage}
+              imageStyle={{ borderRadius: 20, opacity: 0.18 }}
+              resizeMode="cover"
+            >
+              <LinearGradient
+                colors={['rgba(250,248,245,0.70)', 'rgba(250,248,245,0.96)']}
+                style={styles.heroGradientOverlay}
               >
-                <User size={18} color="#FFFFFF" strokeWidth={2} />
-                <Text style={styles.btnClientText}>Je suis client</Text>
-              </TouchableOpacity>
+                <View style={styles.surtitreBadge}>
+                  <Sparkles size={13} color="#C05A2B" />
+                  <Text style={styles.surtitreText}>PLATEFORME D'ARTISANAT DU SÉNÉGAL</Text>
+                </View>
 
-              <TouchableOpacity
-                style={styles.btnArtisan}
-                onPress={() => router.push('/(auth)/register-artisan')}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Je suis artisan"
-              >
-                <Scissors size={18} color="#1A1005" strokeWidth={2} />
-                <Text style={styles.btnArtisanText}>Je suis artisan</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.heroTitle}>
+                  L'excellence sur-mesure &{'\n'}l'artisanat d'exception
+                </Text>
+
+                <Text style={styles.heroSubtitle}>
+                  La plateforme d'élite pour commander vos tenues, coiffures, chaussures et créations artisanales sur-mesure auprès des meilleurs maîtres du Sénégal.
+                </Text>
+
+                {/* Boutons d'Action Principaux */}
+                <View style={styles.heroActions}>
+                  <TouchableOpacity
+                    style={styles.btnClient}
+                    onPress={() => router.push('/(auth)/register-client')}
+                    activeOpacity={0.88}
+                    accessibilityRole="button"
+                    accessibilityLabel="Je suis client"
+                  >
+                    <User size={18} color="#FFFFFF" strokeWidth={2} />
+                    <Text style={styles.btnClientText}>Je suis client</Text>
+                    <ArrowRight size={16} color="#FFFFFF" style={{ marginLeft: 'auto' }} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.btnArtisan}
+                    onPress={() => router.push('/(auth)/register-artisan')}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Je suis artisan"
+                  >
+                    <Scissors size={18} color="#1A1005" strokeWidth={2} />
+                    <Text style={styles.btnArtisanText}>Je suis artisan</Text>
+                    <ArrowRight size={16} color="#1A1005" style={{ marginLeft: 'auto' }} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.trustBadgesRow}>
+                  <View style={styles.trustItem}>
+                    <CheckCircle2 size={13} color="#C05A2B" />
+                    <Text style={styles.trustText}>Artisans vérifiés</Text>
+                  </View>
+                  <View style={styles.trustItem}>
+                    <CheckCircle2 size={13} color="#C05A2B" />
+                    <Text style={styles.trustText}>Paiement sécurisé</Text>
+                  </View>
+                  <View style={styles.trustItem}>
+                    <CheckCircle2 size={13} color="#C05A2B" />
+                    <Text style={styles.trustText}>Sur-mesure garanti</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
           </View>
 
-          {/* ── Section Nos Métiers & Spécialités ── */}
+          {/* ── Section Nos Métiers & Spécialités avec Photos ── */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderBlock}>
               <Text style={styles.sectionSurtitre}>NOS SPÉCIALITÉS</Text>
-              <Text style={styles.sectionMainTitle}>Découvrez l'artisanat d'art</Text>
+              <Text style={styles.sectionMainTitle}>Découvrez nos métiers d'art</Text>
               <Text style={styles.sectionSubtitle}>
-                Des professionnels passionnés qualifiés dans chaque domaine du sur-mesure.
+                Des maîtres artisans passionnés dans chaque domaine du sur-mesure.
               </Text>
             </View>
 
@@ -92,46 +136,82 @@ export default function LandingPageScreen() {
 
               {/* 1. Couture */}
               <View style={styles.craftCard}>
-                <View style={styles.craftIconBox}>
-                  <Scissors size={24} color="#C05A2B" strokeWidth={2} />
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=500&q=80' }}
+                  style={styles.craftPhoto}
+                  resizeMode="cover"
+                />
+                <View style={styles.craftBody}>
+                  <View style={styles.craftHeaderRow}>
+                    <View style={styles.craftIconBox}>
+                      <Scissors size={20} color="#C05A2B" strokeWidth={2} />
+                    </View>
+                    <Text style={styles.craftTitle}>Couture & Sur-Mesure</Text>
+                  </View>
+                  <Text style={styles.craftDesc}>
+                    Bazin riches brodés, Caftans, Costumes sur-mesure, robes de soirée et confections traditionnelles d'exception.
+                  </Text>
                 </View>
-                <Text style={styles.craftTitle}>Couture & Haute Couture</Text>
-                <Text style={styles.craftDesc}>
-                  Bazin riches brodés, Caftans, Costumes sur-mesure, robes de soirée et confections traditionnelles d'exception.
-                </Text>
               </View>
 
               {/* 2. Coiffure */}
               <View style={styles.craftCard}>
-                <View style={styles.craftIconBox}>
-                  <Sparkles size={24} color="#C05A2B" strokeWidth={2} />
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80' }}
+                  style={styles.craftPhoto}
+                  resizeMode="cover"
+                />
+                <View style={styles.craftBody}>
+                  <View style={styles.craftHeaderRow}>
+                    <View style={styles.craftIconBox}>
+                      <Sparkles size={20} color="#C05A2B" strokeWidth={2} />
+                    </View>
+                    <Text style={styles.craftTitle}>Coiffure & Esthétique</Text>
+                  </View>
+                  <Text style={styles.craftDesc}>
+                    Tresses artistiques, coiffures événementielles, soins capillaires et mises en beauté traditionnelles.
+                  </Text>
                 </View>
-                <Text style={styles.craftTitle}>Coiffure & Esthétique</Text>
-                <Text style={styles.craftDesc}>
-                  Tresses artistiques, coiffures événementielles, soins capillaires et mises en beauté traditionnelles.
-                </Text>
               </View>
 
               {/* 3. Cordonnerie & Maroquinerie */}
               <View style={styles.craftCard}>
-                <View style={styles.craftIconBox}>
-                  <Crown size={24} color="#C05A2B" strokeWidth={2} />
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=500&q=80' }}
+                  style={styles.craftPhoto}
+                  resizeMode="cover"
+                />
+                <View style={styles.craftBody}>
+                  <View style={styles.craftHeaderRow}>
+                    <View style={styles.craftIconBox}>
+                      <Crown size={20} color="#C05A2B" strokeWidth={2} />
+                    </View>
+                    <Text style={styles.craftTitle}>Cordonnerie & Cuir</Text>
+                  </View>
+                  <Text style={styles.craftDesc}>
+                    Chaussures et babouches en cuir véritable fait main, sacs d'artisan, ceintures et maroquinerie fine.
+                  </Text>
                 </View>
-                <Text style={styles.craftTitle}>Cordonnerie & Maroquinerie</Text>
-                <Text style={styles.craftDesc}>
-                  Chaussures et babouches en cuir véritable fait main, sacs d'artisan, ceintures et articles en cuir façonnés.
-                </Text>
               </View>
 
-              {/* 4. Bijouterie & Orfèvrerie */}
+              {/* 4. Bijouterie */}
               <View style={styles.craftCard}>
-                <View style={styles.craftIconBox}>
-                  <HeartHandshake size={24} color="#C05A2B" strokeWidth={2} />
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&q=80' }}
+                  style={styles.craftPhoto}
+                  resizeMode="cover"
+                />
+                <View style={styles.craftBody}>
+                  <View style={styles.craftHeaderRow}>
+                    <View style={styles.craftIconBox}>
+                      <HeartHandshake size={20} color="#C05A2B" strokeWidth={2} />
+                    </View>
+                    <Text style={styles.craftTitle}>Bijouterie & Orfèvrerie</Text>
+                  </View>
+                  <Text style={styles.craftDesc}>
+                    Parures en or, filigrane d'argent et bijoux en perles traditionnelles façonnés par des orfèvres réputés.
+                  </Text>
                 </View>
-                <Text style={styles.craftTitle}>Bijouterie & Orfèvrerie</Text>
-                <Text style={styles.craftDesc}>
-                  Créations en or, filigrane d'argent et parures de perles traditionnelles façonnées par nos maître orfèvres.
-                </Text>
               </View>
 
             </View>
@@ -148,9 +228,9 @@ export default function LandingPageScreen() {
                   <ShieldCheck size={20} color="#C05A2B" />
                 </View>
                 <View style={styles.advantageContent}>
-                  <Text style={styles.advantageTitle}>Artisans Certifiés & Vérifiés</Text>
+                  <Text style={styles.advantageTitle}>Artisans Certifiés & Évalués</Text>
                   <Text style={styles.advantageText}>
-                    Tous nos artisans sont sélectionnés pour la qualité éprouvée de leur savoir-faire et évalués par les clients.
+                    Chaque maître artisan est sélectionné pour son savoir-faire d'excellence et évalué par ses clients.
                   </Text>
                 </View>
               </View>
@@ -160,9 +240,9 @@ export default function LandingPageScreen() {
                   <Ruler size={20} color="#C05A2B" />
                 </View>
                 <View style={styles.advantageContent}>
-                  <Text style={styles.advantageTitle}>Prise de Mesures Personnalisée</Text>
+                  <Text style={styles.advantageTitle}>Prise de Mesures Sur-Mesure</Text>
                   <Text style={styles.advantageText}>
-                    Commandez avec vos mensurations exactes pour obtenir un ajustement impeccable et personnalisé.
+                    Fournissez vos mensurations précises pour une confection personnalisée ajustée à la perfection.
                   </Text>
                 </View>
               </View>
@@ -172,9 +252,9 @@ export default function LandingPageScreen() {
                   <Package size={20} color="#C05A2B" />
                 </View>
                 <View style={styles.advantageContent}>
-                  <Text style={styles.advantageTitle}>Suivi de Fabrication en Temps Réel</Text>
+                  <Text style={styles.advantageTitle}>Suivi en Temps Réel</Text>
                   <Text style={styles.advantageText}>
-                    Suivez la progression de la confection de votre commande étape par étape jusqu'à la livraison finale.
+                    Suivez en direct chaque étape de fabrication de votre commande de l'atelier à la livraison.
                   </Text>
                 </View>
               </View>
@@ -184,9 +264,9 @@ export default function LandingPageScreen() {
 
           {/* ── Footer CTA ── */}
           <View style={styles.footerBlock}>
-            <Text style={styles.footerTitle}>Prêt à commencer ?</Text>
+            <Text style={styles.footerTitle}>Prêt à créer ou commander ?</Text>
             <Text style={styles.footerSub}>
-              Rejoignez dès maintenant des milliers de passionnés et d'artisans d'art.
+              Rejoignez la plus grande communauté d'artisans d'art et de clients du Sénégal.
             </Text>
 
             <View style={styles.footerCtaRow}>
@@ -241,27 +321,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   headerLogoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   logoBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: '#E8E2D9',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1005',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowColor: '#C05A2B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
   brandTitle: {
     fontSize: 22,
@@ -269,6 +348,13 @@ const styles = StyleSheet.create({
     color: '#1A1005',
     letterSpacing: -0.5,
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  brandTagline: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#C05A2B',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   loginHeaderBtn: {
     paddingHorizontal: 16,
@@ -284,9 +370,25 @@ const styles = StyleSheet.create({
     color: '#1A1005',
   },
 
-  // ── Hero Block ──
-  heroBlock: {
-    marginBottom: 40,
+  // ── Hero Card Container ──
+  heroCardContainer: {
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+    overflow: 'hidden',
+    marginBottom: 36,
+    shadowColor: '#1A1005',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  heroBgImage: {
+    width: '100%',
+  },
+  heroGradientOverlay: {
+    padding: 22,
   },
   surtitreBadge: {
     flexDirection: 'row',
@@ -299,7 +401,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: '#F3D2C1',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   surtitreText: {
     fontSize: 11,
@@ -308,22 +410,23 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   heroTitle: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '800',
     color: '#1A1005',
     letterSpacing: -0.8,
-    lineHeight: 42,
+    lineHeight: 40,
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     marginBottom: 12,
   },
   heroSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#7A6A58',
-    lineHeight: 23,
+    lineHeight: 22,
     marginBottom: 24,
   },
   heroActions: {
     gap: 12,
+    marginBottom: 20,
   },
   btnClient: {
     height: 52,
@@ -331,7 +434,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 18,
     gap: 10,
     shadowColor: '#C05A2B',
     shadowOffset: { width: 0, height: 3 },
@@ -352,13 +455,34 @@ const styles = StyleSheet.create({
     borderColor: '#E8E2D9',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 18,
     gap: 10,
   },
   btnArtisanText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1A1005',
+  },
+
+  trustBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E2D9',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  trustText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7A6A58',
   },
 
   // ── Section Crafts ──
@@ -389,31 +513,43 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   craftsGrid: {
-    gap: 14,
+    gap: 16,
   },
   craftCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 18,
     borderWidth: 1,
     borderColor: '#E8E2D9',
-    gap: 8,
+    overflow: 'hidden',
     shadowColor: '#1A1005',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
   },
+  craftPhoto: {
+    width: '100%',
+    height: 160,
+    aspectRatio: 1.8,
+  },
+  craftBody: {
+    padding: 16,
+    gap: 8,
+  },
+  craftHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   craftIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: '#FFF4EE',
     borderWidth: 1,
     borderColor: '#F3D2C1',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
   craftTitle: {
     fontSize: 16,
