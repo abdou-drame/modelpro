@@ -331,7 +331,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.bgCard,
     borderRadius: radius.xl,
-    ...shadow.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    ...shadow.lg,
     overflow: 'hidden',
   },
   // Primary KPI — takes ~58% of width

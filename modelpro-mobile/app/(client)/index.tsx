@@ -2,7 +2,9 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator 
 import { useState } from 'react'
 import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Bell, ChevronLeft, ChevronRight, SlidersHorizontal, MapPin, X, Sparkles } from 'lucide-react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import Animated, { FadeInUp } from 'react-native-reanimated'
+import { Search, Bell, ChevronLeft, ChevronRight, SlidersHorizontal, MapPin, X, Sparkles, Crown } from 'lucide-react-native'
 import { router } from 'expo-router'
 import { modelsApi } from '@/lib/api/models'
 import { metiersApi } from '@/lib/api/metiers'
@@ -77,14 +79,14 @@ export default function CatalogueScreen() {
         estimatedItemSize={280}
         contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: 95 }}
         ListHeaderComponent={
-          <View>
-            {/* Header Hero */}
+          <View style={{ gap: spacing.sm }}>
+            {/* Header Top Bar */}
             <View style={styles.heroHeader}>
               <View style={styles.heroRow}>
                 <View>
                   <View style={styles.welcomePill}>
                     <Sparkles size={12} color={colors.primary} />
-                    <Text style={styles.welcomePillText}>Sur-Mesure & Haute Couture</Text>
+                    <Text style={styles.welcomePillText}>Haute Couture Sénégal</Text>
                   </View>
                   <Text style={styles.greeting}>Bonjour, {prenom}</Text>
                 </View>
@@ -97,6 +99,25 @@ export default function CatalogueScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* WOW Luxury Gradient Banner */}
+            <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginHorizontal: spacing.sm }}>
+              <LinearGradient
+                colors={['#1A1005', '#4A230F', '#8B3A0F']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bannerCard}
+              >
+                <View style={styles.bannerBadge}>
+                  <Crown size={12} color="#FBBF24" />
+                  <Text style={styles.bannerBadgeText}>Artisans Certifiés & Modèles Exclusifs</Text>
+                </View>
+                <Text style={styles.bannerTitle}>L'Élégance Sur-Mesure</Text>
+                <Text style={styles.bannerSub}>
+                  Découvrez les créations des maîtres tailleurs du Sénégal et commandez avec vos propres mesures.
+                </Text>
+              </LinearGradient>
+            </Animated.View>
 
             {/* Search Box */}
             <View style={styles.searchRow}>
@@ -286,10 +307,42 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.bgCard,
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.borderLight,
     ...shadow.sm,
+  },
+  bannerCard: {
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    gap: 6,
+    ...shadow.md,
+  },
+  bannerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start',
+  },
+  bannerBadgeText: {
+    color: '#FBBF24',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bannerTitle: {
+    color: colors.white,
+    fontSize: fontSize.xl,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  bannerSub: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: fontSize.xs,
+    lineHeight: 18,
   },
   searchRow: {
     flexDirection: 'row',
