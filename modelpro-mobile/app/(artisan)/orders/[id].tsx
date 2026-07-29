@@ -213,33 +213,55 @@ export default function ArtisanOrderDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Paiement */}
+        {/* Section Paiement Complète */}
         <Animated.View entering={FadeInUp.delay(240).springify()} style={styles.section}>
-          <SectionHeader title="Paiement" />
+          <SectionHeader title="Détails du Paiement" />
           <View style={styles.payCard}>
-            {order.prixTotal != null && (
-              <View style={styles.payRow}>
-                <Text style={styles.payLabel}>Total commande</Text>
-                <Text style={styles.payValPrimary}>{formatPrice(order.prixTotal)}</Text>
-              </View>
-            )}
-            {order.acompte != null && (
-              <>
-                {order.prixTotal != null && <View style={styles.payDivider} />}
-                <View style={styles.payRow}>
-                  <Text style={styles.payLabel}>Acompte reçu</Text>
-                  <Text style={styles.payVal}>{formatPrice(order.acompte)}</Text>
-                </View>
-                {order.prixTotal != null && (
-                  <View style={styles.payRow}>
-                    <Text style={styles.payLabel}>Restant dû</Text>
-                    <Text style={[styles.payVal, { color: order.prixTotal - order.acompte > 0 ? colors.warning : colors.success }]}>
-                      {formatPrice(order.prixTotal - order.acompte)}
-                    </Text>
-                  </View>
+            <View style={styles.payHeaderRow}>
+              <Text style={styles.payHeaderTitle}>Statut du paiement</Text>
+              <Badge
+                label={order.statutPaiement ? (PAYMENT_STATUS_LABELS[order.statutPaiement] ?? order.statutPaiement) : (order.acompte ? 'Acompte versé' : 'En attente')}
+                variant={order.statutPaiement === 'paye' || (order.acompte && order.prixTotal && order.acompte >= order.prixTotal) ? 'success' : (order.acompte ? 'warning' : 'neutral')}
+              />
+            </View>
+
+            <View style={styles.payDivider} />
+
+            <View style={styles.payRow}>
+              <Text style={styles.payLabel}>Prix total de la prestation</Text>
+              <Text style={styles.payValPrimary}>
+                {formatPrice(order.prixTotal ?? order.creation?.prixEstimatif ?? 0)}
+              </Text>
+            </View>
+
+            <View style={styles.payRow}>
+              <Text style={styles.payLabel}>Acompte perçu (50%)</Text>
+              <Text style={styles.payVal}>
+                {formatPrice(order.acompte ?? ((order.prixTotal ?? order.creation?.prixEstimatif ?? 0) * 0.5))}
+              </Text>
+            </View>
+
+            <View style={styles.payDivider} />
+
+            <View style={styles.payRow}>
+              <Text style={styles.payLabelBold}>Solde restant à la livraison</Text>
+              <Text style={styles.payValHighlight}>
+                {formatPrice(
+                  Math.max(
+                    0,
+                    (order.prixTotal ?? order.creation?.prixEstimatif ?? 0) -
+                    (order.acompte ?? ((order.prixTotal ?? order.creation?.prixEstimatif ?? 0) * 0.5))
+                  )
                 )}
-              </>
-            )}
+              </Text>
+            </View>
+
+            <View style={styles.payFooterRow}>
+              <Text style={styles.payFooterLabel}>Mode de règlement :</Text>
+              <Text style={styles.payFooterValue}>
+                {(order as any).modePaiement ?? 'Wave / Orange Money / Espèces'}
+              </Text>
+            </View>
           </View>
         </Animated.View>
 
@@ -375,17 +397,52 @@ const styles = StyleSheet.create({
   mesureVal: { fontSize: fontSize.base, fontWeight: '700', color: colors.text, marginTop: 2 },
 
   payCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
     padding: spacing.lg,
     gap: spacing.md,
     ...shadow.sm,
   },
-  payDivider: { height: 1, backgroundColor: colors.borderLight },
+  payHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  payHeaderTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: '#1A1005',
+  },
+  payDivider: { height: 1, backgroundColor: '#E8E2D9' },
   payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  payLabel: { fontSize: fontSize.sm, color: colors.textSub },
-  payVal: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
-  payValPrimary: { fontSize: fontSize.base, fontWeight: '800', color: colors.primary },
+  payLabel: { fontSize: fontSize.sm, color: '#7A6A58' },
+  payLabelBold: { fontSize: fontSize.sm, fontWeight: '700', color: '#1A1005' },
+  payVal: { fontSize: fontSize.sm, fontWeight: '700', color: '#1A1005' },
+  payValPrimary: { fontSize: fontSize.lg, fontWeight: '800', color: '#1A1005' },
+  payValHighlight: { fontSize: fontSize.base, fontWeight: '800', color: '#C05A2B' },
+  payFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FAF8F5',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+    marginTop: 4,
+  },
+  payFooterLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+    color: '#7A6A58',
+  },
+  payFooterValue: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    color: '#1A1005',
+  },
 
   secondaryActions: { gap: spacing.sm },
   btnMessage: {
