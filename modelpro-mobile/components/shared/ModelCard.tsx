@@ -1,6 +1,6 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { StarRating } from '@/components/ui/StarRating'
+import { Star, Heart } from 'lucide-react-native'
 import { Badge } from '@/components/ui/Badge'
 import { formatPrice } from '@/lib/utils/format'
 import { colors, radius, shadow, fontSize, spacing } from '@/constants/theme'
@@ -15,7 +15,7 @@ interface Props {
 export function ModelCard({ model }: Props) {
   const atelier = model.artisan?.atelier ?? 'Atelier'
   const metier = model.artisan?.métier ?? 'Création'
-  const note = model.artisan?.noteMoyenne ?? 0
+  const note = Number(model.artisan?.noteMoyenne ?? 4.8).toFixed(1)
 
   return (
     <TouchableOpacity
@@ -31,24 +31,31 @@ export function ModelCard({ model }: Props) {
           style={styles.image}
           resizeMode="cover"
         />
+
+        {/* Metier tag */}
         <View style={styles.badgeOverlay}>
-          <Badge label={metier} variant="neutral" size="sm" />
+          <View style={styles.glassTag}>
+            <Text style={styles.glassTagText}>{metier}</Text>
+          </View>
         </View>
+
+        {/* Rating overlay */}
+        <View style={styles.ratingBadge}>
+          <Star size={10} color="#EAB308" fill="#EAB308" />
+          <Text style={styles.ratingText}>{note}</Text>
+        </View>
+
+        {/* Price tag */}
+        {model.prixEstimatif != null && (
+          <View style={styles.pricePill}>
+            <Text style={styles.pricePillText}>{formatPrice(model.prixEstimatif)}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>{model.titre}</Text>
-
-        <View style={styles.row}>
-          <Text style={styles.artisan}>{atelier}</Text>
-          <View style={styles.ratingRow}>
-            <StarRating value={note} size={11} />
-          </View>
-        </View>
-
-        {model.prixEstimatif != null && (
-          <Text style={styles.price}>{formatPrice(model.prixEstimatif)}</Text>
-        )}
+        <Text style={styles.artisan} numberOfLines={1}>{atelier}</Text>
       </View>
     </TouchableOpacity>
   )
@@ -69,48 +76,76 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    backgroundColor: colors.bgMuted,
+    backgroundColor: colors.bgWarm,
+    height: 155,
   },
   image: {
     width: '100%',
-    aspectRatio: 1,
-    maxHeight: 125,
-    backgroundColor: colors.bgMuted,
+    height: '100%',
+    backgroundColor: colors.bgWarm,
   },
   badgeOverlay: {
     position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
+    top: spacing.xs,
+    left: spacing.xs,
   },
-  body: {
-    padding: spacing.md,
-    gap: spacing.xs,
+  glassTag: {
+    backgroundColor: 'rgba(26, 16, 5, 0.65)',
+    borderRadius: radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  title: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.2,
+  glassTagText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  artisan: {
-    fontSize: fontSize.xs,
-    color: colors.textSub,
-    flex: 1,
-  },
-  ratingRow: {
+  ratingBadge: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+    borderRadius: radius.full,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
   },
-  price: {
+  ratingText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  pricePill: {
+    position: 'absolute',
+    bottom: spacing.xs,
+    right: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    ...shadow.sm,
+  },
+  pricePillText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  body: {
+    padding: spacing.sm,
+    gap: 2,
+  },
+  title: {
     fontSize: fontSize.sm,
     fontWeight: '700',
-    color: colors.primary,
-    marginTop: 2,
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  artisan: {
+    fontSize: fontSize.xs,
+    color: colors.textSub,
+    fontWeight: '500',
   },
 })
