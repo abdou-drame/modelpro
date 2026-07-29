@@ -1,5 +1,5 @@
 import {
-  View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions,
+  View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
