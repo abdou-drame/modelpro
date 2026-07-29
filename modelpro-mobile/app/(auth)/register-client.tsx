@@ -326,7 +326,7 @@ export default function RegisterClientScreen() {
 
               <TouchableOpacity
                 style={styles.backHomeBtn}
-                onPress={() => router.replace('/(client)')}
+                onPress={() => router.replace('/(auth)')}
                 activeOpacity={0.7}
               >
                 <Text style={styles.backHomeText}>Retour à l'accueil</Text>

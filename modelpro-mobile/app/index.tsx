@@ -15,7 +15,7 @@ export default function RootIndex() {
     if (!isInitialized) return
 
     if (!isAuthenticated) {
-      router.replace('/(auth)/login')
+      router.replace('/(auth)')
     } else if (user?.role === 'artisan') {
       router.replace('/(artisan)/dashboard')
     } else {

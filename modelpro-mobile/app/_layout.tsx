@@ -84,7 +84,7 @@ function AuthGuard() {
     const inClientGroup = segments[0] === '(client)'
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/login')
+      router.replace('/(auth)')
     } else if (isAuthenticated) {
       if (inAuthGroup) {
         if (user?.role === 'artisan') {
