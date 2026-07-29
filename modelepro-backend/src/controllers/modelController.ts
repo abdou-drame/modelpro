@@ -19,15 +19,21 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
       if (minPrice) condition.prixEstimatif[Op.gte] = Number(minPrice);
       if (maxPrice) condition.prixEstimatif[Op.lte] = Number(maxPrice);
     }
+
+    const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+
     if (search) {
-      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      const s = String(search).trim();
       condition[Op.or] = [
-        { titre: { [likeOp]: `%${search}%` } },
-        { description: { [likeOp]: `%${search}%` } }
+        { titre: { [likeOp]: `%${s}%` } },
+        { description: { [likeOp]: `%${s}%` } },
+        { '$artisan.atelier$': { [likeOp]: `%${s}%` } },
+        { '$artisan.métier$': { [likeOp]: `%${s}%` } },
       ];
     }
 
     const artisanCondition: any = {};
+
     // Filtre métier
     const rawMetier = metier || metierId;
     if (rawMetier) {
@@ -38,18 +44,16 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
           targetName = foundMetier.nom;
         }
       }
-      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
-      const rootTerm = targetName.substring(0, 5);
+      const rootTerm = targetName.length > 4 ? targetName.substring(0, 5) : targetName;
       artisanCondition.métier = { [likeOp]: `%${rootTerm}%` };
     }
+
     // Filtre localisation
     if (localisation) {
-      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
-      artisanCondition.localisation = { [likeOp]: `%${localisation}%` };
+      artisanCondition.localisation = { [likeOp]: `%${String(localisation).trim()}%` };
     }
-    // Seuls les artisans avec compte actif (non suspendus)
-    const userCondition: any = { statut: 'actif' };
 
+    const hasArtisanFilter = Object.keys(artisanCondition).length > 0 || Boolean(search);
     const offset = (Number(page) - 1) * Number(limit);
 
     const { count, rows } = await Creation.findAndCountAll({
@@ -58,7 +62,7 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
         {
           model: Artisan,
           as: 'artisan',
-          required: false,
+          required: hasArtisanFilter,
           where: Object.keys(artisanCondition).length > 0 ? artisanCondition : undefined,
           include: [{ model: User, as: 'user', required: false, attributes: ['nom', 'prenom', 'photoUrl'] }],
         }
