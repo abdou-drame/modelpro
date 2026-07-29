@@ -297,8 +297,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   statsCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     flexDirection: 'row',
@@ -307,44 +309,50 @@ const styles = StyleSheet.create({
     ...shadow.lg,
   },
   statCol: { alignItems: 'center', gap: 4, flex: 1 },
-  statDivider: { width: 1, height: 38, backgroundColor: colors.border },
+  statDivider: { width: 1, height: 38, backgroundColor: '#E8E2D9' },
   statValue: {
-    fontSize: fontSize.xxl, fontWeight: '800', color: colors.text, letterSpacing: -1,
+    fontSize: fontSize.xxl, fontWeight: '800', color: '#1A1005', letterSpacing: -1,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   // Invisible spacer that aligns the label row with star rows in other columns
   statSpacer: { fontSize: 12, lineHeight: 16 },
-  statLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: '500' },
+  statLabel: { fontSize: fontSize.xs, color: '#7A6A58', fontWeight: '500' },
 
   // ── Body ──
   body: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, gap: spacing.xl },
 
   ctaRow: { flexDirection: 'row', gap: spacing.sm },
   btnPrimary: {
-    flex: 1, backgroundColor: colors.primary,
-    borderRadius: radius.xl, paddingVertical: 15,
+    flex: 1, backgroundColor: '#C05A2B',
+    borderRadius: 10, paddingVertical: 15,
     alignItems: 'center', minHeight: 52,
     ...shadow.md,
   },
-  btnPrimaryText: { color: colors.white, fontSize: fontSize.base, fontWeight: '700', letterSpacing: 0.2 },
+  btnPrimaryText: { color: '#FFFFFF', fontSize: fontSize.base, fontWeight: '700', letterSpacing: 0.2 },
   btnOutline: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: radius.xl, paddingVertical: 15, paddingHorizontal: spacing.lg,
-    borderWidth: 1.5, borderColor: colors.primary,
+    borderRadius: 10, paddingVertical: 15, paddingHorizontal: spacing.lg,
+    borderWidth: 1.5, borderColor: '#C05A2B',
     minHeight: 52,
   },
-  btnOutlineText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.primary },
+  btnOutlineText: { fontSize: fontSize.sm, fontWeight: '600', color: '#C05A2B' },
 
   // ── Sections ──
   section: { gap: spacing.md },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  sectionCount: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '500' },
-  description: { fontSize: fontSize.md, color: colors.textSub, lineHeight: 24 },
+  sectionTitle: {
+    fontSize: fontSize.lg, fontWeight: '800', color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    letterSpacing: -0.3,
+  },
+  sectionCount: { fontSize: fontSize.sm, color: '#7A6A58', fontWeight: '500' },
+  description: { fontSize: fontSize.md, color: '#7A6A58', lineHeight: 24 },
 
-  // Atelier strip
+  // Atelier strip — RÈGLE STRICTE 1 : Format carré obligatoire (aspectRatio: 1) + resizeMode: 'cover'
   atelierPhoto: {
-    width: 118, height: 88,
-    borderRadius: radius.lg, backgroundColor: colors.bgMuted,
+    width: 100, aspectRatio: 1,
+    borderRadius: 12, backgroundColor: '#FAF8F5',
+    borderWidth: 1, borderColor: '#E8E2D9',
   },
 
   // Catalogue slot
@@ -352,23 +360,24 @@ const styles = StyleSheet.create({
 
   // ── Reviews ──
   reviewCard: {
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF', borderRadius: 14,
+    borderWidth: 1, borderColor: '#E8E2D9',
     padding: spacing.lg, gap: spacing.md, ...shadow.sm,
     marginBottom: spacing.sm,
   },
   reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   reviewAvatar: {
-    width: 42, height: 42, borderRadius: radius.full,
-    backgroundColor: '#F5E6D8',
+    width: 42, height: 42, aspectRatio: 1, borderRadius: 10,
+    backgroundColor: '#FAF8F5', borderWidth: 1, borderColor: '#E8E2D9',
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
     flexShrink: 0,
   },
-  reviewAvatarImg: { width: 42, height: 42, borderRadius: radius.full },
-  reviewAvatarText: { fontSize: fontSize.sm, fontWeight: '800', color: colors.primary },
-  reviewName: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+  reviewAvatarImg: { width: 42, height: 42, aspectRatio: 1, borderRadius: 10 },
+  reviewAvatarText: { fontSize: fontSize.sm, fontWeight: '800', color: '#C05A2B' },
+  reviewName: { fontSize: fontSize.sm, fontWeight: '700', color: '#1A1005' },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  reviewDate: { fontSize: fontSize.xs, color: colors.textMuted },
-  reviewText: { fontSize: fontSize.sm, color: colors.textSub, lineHeight: 20 },
+  reviewDate: { fontSize: fontSize.xs, color: '#7A6A58' },
+  reviewText: { fontSize: fontSize.sm, color: '#7A6A58', lineHeight: 20 },
 
   // ── Back button ──
   backBtn: {

@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
@@ -103,23 +103,28 @@ export default function ClientOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
   header: {
     paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.lg,
-    borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: spacing.xs,
+    borderBottomWidth: 1, borderBottomColor: '#E8E2D9', gap: spacing.xs,
   },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
-  backText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
-  title: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
+  backText: { fontSize: fontSize.sm, fontWeight: '600', color: '#1A1005' },
+  title: {
+    fontSize: fontSize.xxl, fontWeight: '800', color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    letterSpacing: -0.5,
+  },
   card: {
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF', borderRadius: 14,
+    borderWidth: 1, borderColor: '#E8E2D9',
     padding: spacing.lg, gap: spacing.sm, ...shadow.sm,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  artisanName: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
-  metier: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
-  modelName: { fontSize: fontSize.sm, color: colors.textSub, fontStyle: 'italic' },
+  artisanName: { fontSize: fontSize.base, fontWeight: '700', color: '#1A1005' },
+  metier: { fontSize: fontSize.xs, color: '#7A6A58', marginTop: 2 },
+  modelName: { fontSize: fontSize.sm, color: '#7A6A58', fontStyle: 'italic' },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
-  date: { fontSize: fontSize.xs, color: colors.textMuted, flex: 1 },
-  price: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
+  date: { fontSize: fontSize.xs, color: '#7A6A58', flex: 1 },
+  price: { fontSize: fontSize.sm, fontWeight: '800', color: '#C05A2B' },
 })

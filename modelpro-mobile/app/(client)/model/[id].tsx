@@ -252,41 +252,47 @@ const styles = StyleSheet.create({
 
   titleBlock: { gap: spacing.sm },
   title: {
-    fontSize: fontSize.xxl, fontWeight: '800', color: colors.text,
+    fontSize: fontSize.xxl, fontWeight: '800', color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     letterSpacing: -0.5, lineHeight: 34,
   },
 
   // Artisan card
   artisanCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF', borderRadius: 14,
+    borderWidth: 1, borderColor: '#E8E2D9',
     padding: spacing.lg, ...shadow.sm,
   },
   artisanAvatar: {
-    width: 48, height: 48, borderRadius: radius.full,
-    backgroundColor: '#F5E6D8',
+    width: 48, height: 48, aspectRatio: 1, borderRadius: 10,
+    backgroundColor: '#FAF8F5', borderWidth: 1, borderColor: '#E8E2D9',
     alignItems: 'center', justifyContent: 'center',
   },
-  artisanAvatarText: { fontSize: fontSize.lg, fontWeight: '800', color: colors.primary },
+  artisanAvatarText: { fontSize: fontSize.lg, fontWeight: '800', color: '#C05A2B' },
   artisanInfo: { flex: 1, gap: 4 },
-  artisanName: { fontSize: fontSize.base, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
+  artisanName: { fontSize: fontSize.base, fontWeight: '700', color: '#1A1005', letterSpacing: -0.2 },
   artisanMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  artisanRating: { fontSize: fontSize.xs, fontWeight: '700', color: colors.text },
-  artisanMetier: { fontSize: fontSize.xs, color: colors.textMuted },
+  artisanRating: { fontSize: fontSize.xs, fontWeight: '700', color: '#1A1005' },
+  artisanMetier: { fontSize: fontSize.xs, color: '#7A6A58' },
 
   // Sections
   section: { gap: spacing.md },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  description: { fontSize: fontSize.md, color: colors.textSub, lineHeight: 24 },
+  sectionTitle: {
+    fontSize: fontSize.lg, fontWeight: '800', color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    letterSpacing: -0.3,
+  },
+  description: { fontSize: fontSize.md, color: '#7A6A58', lineHeight: 24 },
 
   // Options
   optionChip: {
-    backgroundColor: '#F5E6D8',
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.full,
     paddingHorizontal: spacing.md, paddingVertical: 7,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1, borderColor: '#E8E2D9',
   },
-  optionText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
+  optionText: { fontSize: fontSize.sm, color: '#C05A2B', fontWeight: '600' },
 
   // ── Floating buttons ──
   floatBtn: {
@@ -308,12 +314,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   ctaPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  ctaPriceLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: '500' },
-  ctaPrice: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  ctaPriceLabel: { fontSize: fontSize.xs, color: '#7A6A58', fontWeight: '500' },
+  ctaPrice: { fontSize: fontSize.lg, fontWeight: '800', color: '#1A1005', letterSpacing: -0.3 },
   ctaBtn: {
-    backgroundColor: colors.primary, borderRadius: radius.xl,
+    backgroundColor: '#C05A2B', borderRadius: 10,
     paddingVertical: 16, alignItems: 'center', minHeight: 52,
     ...shadow.lg,
   },
-  ctaBtnText: { color: colors.white, fontSize: fontSize.base, fontWeight: '700', letterSpacing: 0.2 },
+  ctaBtnText: { color: '#FFFFFF', fontSize: fontSize.base, fontWeight: '700', letterSpacing: 0.2 },
 })

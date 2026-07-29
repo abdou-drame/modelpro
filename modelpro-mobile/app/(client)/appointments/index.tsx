@@ -1,5 +1,5 @@
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Image,
+  View, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Image, Platform,
 } from 'react-native'
 import { showAlert } from '@/lib/utils/alert'
 import { FlashList } from '@shopify/flash-list'
@@ -346,18 +346,30 @@ export default function ClientAppointmentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
   header: {
-    paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.md,
-    borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: spacing.xs,
+    paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.lg,
+    borderBottomWidth: 1, borderBottomColor: '#E8E2D9', gap: spacing.xs,
   },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
-  backText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
-  title: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-  count: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  backText: { fontSize: fontSize.xs, fontWeight: '600', color: '#7A6A58', textTransform: 'uppercase', letterSpacing: 0.5 },
+  title: {
+    fontSize: fontSize.xxl, fontWeight: '800', color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    letterSpacing: -0.5,
+  },
+  count: { fontSize: fontSize.xs, color: '#7A6A58', fontWeight: '500' },
+  newBtn: {
+    backgroundColor: '#C05A2B', borderRadius: 10,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+    ...shadow.sm, minHeight: 40, justifyContent: 'center',
+  },
+  newBtnText: { color: '#FFFFFF', fontSize: fontSize.sm, fontWeight: '700' },
 
   card: {
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF', borderRadius: 14,
+    borderWidth: 1, borderColor: '#E8E2D9',
     overflow: 'hidden', ...shadow.sm,
   },
   cardPending: {
