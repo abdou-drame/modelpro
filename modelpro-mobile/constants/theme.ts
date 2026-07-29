@@ -2,27 +2,27 @@ export const colors = {
   primary: '#D4AF37',       // Metallic Gold
   primaryLight: '#FBBF24',  // Bright Gold
   primaryDark: '#B89222',   // Deep Antique Gold
-  accent: '#0D0D0D',        // Noir Onyx
-  accentSoft: '#1A1A1A',    // Soft Black
+  accent: '#D4AF37',        // Gold Accent
+  accentSoft: '#242424',    // Dark Slate
   gold: '#D4AF37',          // Metallic Gold Accent
   goldLight: '#FFFBEB',     // Soft Gold Tint
-  bg: '#FAFAFA',            // Pure Clean White Background
-  bgCard: '#FFFFFF',        // Crisp White Cards
-  bgMuted: '#F4F4F5',       // Subtle Muted Gray
-  bgWarm: '#0D0D0D',        // Deep Black Container
-  text: '#0D0D0D',          // Pure Black Text
-  textSub: '#4B5563',       // Dark Charcoal Subtext
+  bg: '#0A0A0A',            // Deep Noir Black Background
+  bgCard: '#141414',        // Luxury Dark Charcoal Cards
+  bgMuted: '#1E1E1E',       // Soft Dark Muted Containers
+  bgWarm: '#121212',        // Dark Warm Background
+  text: '#FFFFFF',          // Pure White Primary Text
+  textSub: '#E5E7EB',       // Soft Silver Secondary Text
   textMuted: '#9CA3AF',     // Muted Slate Text
   success: '#10B981',       // Emerald Green
-  successLight: '#D1FAE5',  // Soft Green
+  successLight: 'rgba(16, 185, 129, 0.15)',
   error: '#EF4444',         // Ruby Red
-  errorLight: '#FEE2E2',    // Soft Red
+  errorLight: 'rgba(239, 68, 68, 0.15)',
   warning: '#F59E0B',       // Amber
-  warningLight: '#FEF3C7',   // Soft Amber
+  warningLight: 'rgba(245, 158, 11, 0.15)',
   border: '#D4AF37',        // Metallic Gold Border
-  borderLight: '#E5E7EB',   // Subtle White/Gray Border
+  borderLight: '#2D2D2D',   // Dark Border
   white: '#FFFFFF',         // Pure White
-  overlay: 'rgba(13, 13, 13, 0.75)',
+  overlay: 'rgba(0, 0, 0, 0.85)',
 } as const
 
 export const radius = {
@@ -64,24 +64,24 @@ export const fontWeight = {
 
 export const shadow = {
   sm: {
-    shadowColor: '#0D0D0D',
+    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 3,
   },
   md: {
-    shadowColor: '#0D0D0D',
+    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.18,
     shadowRadius: 12,
-    elevation: 4,
+    elevation: 5,
   },
   lg: {
-    shadowColor: '#0D0D0D',
+    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.25,
     shadowRadius: 22,
-    elevation: 8,
+    elevation: 9,
   },
 } as const

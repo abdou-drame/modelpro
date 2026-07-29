@@ -5,7 +5,7 @@ import { StyleSheet } from 'react-native'
 import { colors } from '@/constants/theme'
 
 function TabBarBackground() {
-  return <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+  return <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
 }
 
 export default function ArtisanLayout() {

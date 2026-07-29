@@ -31,20 +31,20 @@ export function ModelCard({ model }: Props) {
           resizeMode="cover"
         />
 
-        {/* Metier tag - Noir avec texte Blanc */}
+        {/* Metier tag */}
         <View style={styles.badgeOverlay}>
           <View style={styles.glassTag}>
             <Text style={styles.glassTagText}>{metier}</Text>
           </View>
         </View>
 
-        {/* Rating overlay - Blanc avec étoile Dorée */}
+        {/* Rating overlay */}
         <View style={styles.ratingBadge}>
           <Star size={10} color="#D4AF37" fill="#D4AF37" />
           <Text style={styles.ratingText}>{note}</Text>
         </View>
 
-        {/* Price tag - Noir & Doré */}
+        {/* Price tag */}
         {model.prixEstimatif != null && (
           <View style={styles.pricePill}>
             <Text style={styles.pricePillText}>{formatPrice(model.prixEstimatif)}</Text>
@@ -62,12 +62,12 @@ export function ModelCard({ model }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: '#141414',
     borderRadius: radius.xl,
     overflow: 'hidden',
     flex: 1,
     borderWidth: 1.5,
-    borderColor: '#E6D7C3',
+    borderColor: '#D4AF37',
     ...shadow.sm,
   },
   imageWrapper: {
@@ -75,13 +75,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#0A0A0A',
     height: 155,
   },
   image: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#0A0A0A',
   },
   badgeOverlay: {
     position: 'absolute',
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     left: spacing.xs,
   },
   glassTag: {
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#0A0A0A',
     borderRadius: radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     borderColor: '#D4AF37',
   },
   glassTagText: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.xs,
     right: spacing.xs,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#141414',
     borderRadius: radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -119,39 +119,37 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#0D0D0D',
+    color: '#FFFFFF',
   },
   pricePill: {
     position: 'absolute',
     bottom: spacing.xs,
     right: spacing.xs,
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#D4AF37',
     borderRadius: radius.md,
     paddingHorizontal: 9,
     paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#D4AF37',
     ...shadow.sm,
   },
   pricePillText: {
-    color: '#D4AF37',
+    color: '#0A0A0A',
     fontSize: 11,
     fontWeight: '800',
   },
   body: {
     padding: spacing.sm,
     gap: 2,
-    backgroundColor: colors.white,
+    backgroundColor: '#141414',
   },
   title: {
     fontSize: fontSize.sm,
     fontWeight: '800',
-    color: '#0D0D0D',
+    color: '#FFFFFF',
     letterSpacing: -0.2,
   },
   artisan: {
     fontSize: fontSize.xs,
-    color: '#4B5563',
+    color: '#D4AF37',
     fontWeight: '600',
   },
 })
