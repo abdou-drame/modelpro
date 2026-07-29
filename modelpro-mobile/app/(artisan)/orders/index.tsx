@@ -89,6 +89,27 @@ function OrderRow({ order, index }: { order: ArtisanOrder; index: number }) {
               <Text style={styles.price}>{formatPrice(order.prixTotal)}</Text>
             )}
           </View>
+
+          {/* Boutons d'action rapides pour demandes en attente */}
+          {order.statut === 'en_attente' && (
+            <View style={styles.actionRowPending}>
+              <TouchableOpacity
+                style={styles.acceptBtn}
+                onPress={() => router.push(`/(artisan)/orders/${order.id}`)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.acceptBtnText}>Accepter</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.refuseBtn}
+                onPress={() => router.push(`/(artisan)/orders/${order.id}`)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.refuseBtnText}>Refuser</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -227,6 +248,43 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   title: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   count: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  actionRowPending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E2D9',
+  },
+  acceptBtn: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#C05A2B',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  refuseBtn: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refuseBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1005',
+  },
 
   urgentBanner: {
     flexDirection: 'row',

@@ -100,16 +100,16 @@ export default function CatalogueScreen() {
               </View>
             </View>
 
-            {/* WOW Noir & Doré Luxury Banner */}
+            {/* ImmoClair / ModèlePro Terracotta Banner */}
             <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginHorizontal: spacing.sm }}>
               <LinearGradient
-                colors={['#0D0D0D', '#1A1A1A', '#2B2B2B']}
+                colors={['#9C431D', '#C05A2B', '#D87A4A']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bannerCard}
               >
                 <View style={styles.bannerBadge}>
-                  <Crown size={12} color="#D4AF37" />
+                  <Crown size={12} color="#FFFFFF" />
                   <Text style={styles.bannerBadgeText}>Artisans Certifiés & Modèles Exclusifs</Text>
                 </View>
                 <Text style={styles.bannerTitle}>L'Élégance Sur-Mesure</Text>
@@ -423,17 +423,17 @@ const styles = StyleSheet.create({
   chipsWrapper: { marginVertical: spacing.xs, paddingHorizontal: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: radius.full,
     marginRight: spacing.xs,
-    backgroundColor: '#141414',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#2D2D2D',
+    borderColor: '#E8E2D9',
     ...shadow.sm,
   },
-  chipActive: { backgroundColor: '#0A0A0A', borderColor: '#D4AF37' },
-  chipText: { fontSize: fontSize.sm, fontWeight: '600', color: '#9CA3AF' },
-  chipTextActive: { color: '#D4AF37', fontWeight: '800' },
+  chipActive: { backgroundColor: '#C05A2B', borderColor: '#C05A2B' },
+  chipText: { fontSize: fontSize.sm, fontWeight: '600', color: '#7A6A58' },
+  chipTextActive: { color: '#FFFFFF', fontWeight: '800' },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',

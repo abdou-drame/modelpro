@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
@@ -30,6 +30,7 @@ export function ModelCard({ model, index = 0 }: Props) {
         accessibilityRole="button"
         accessibilityLabel={`${model.titre}, par ${atelier}${model.prixEstimatif != null ? `, à partir de ${formatPrice(model.prixEstimatif)}` : ''}`}
       >
+        {/* RÈGLE STRICTE 1 : Format carré (aspectRatio: 1) + resizeMode: 'cover' */}
         <View style={styles.imageWrapper}>
           <Image
             source={{ uri: model.photoUrl ?? PLACEHOLDER }}
@@ -46,7 +47,7 @@ export function ModelCard({ model, index = 0 }: Props) {
 
           {/* Rating overlay */}
           <View style={styles.ratingBadge}>
-            <Star size={10} color="#D4AF37" fill="#D4AF37" />
+            <Star size={10} color="#C05A2B" fill="#C05A2B" />
             <Text style={styles.ratingText}>{note}</Text>
           </View>
 
@@ -69,26 +70,25 @@ export function ModelCard({ model, index = 0 }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#141414',
-    borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     overflow: 'hidden',
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#D4AF37',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
     ...shadow.sm,
   },
   imageWrapper: {
     position: 'relative',
     overflow: 'hidden',
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    backgroundColor: '#0A0A0A',
-    height: 155,
+    width: '100%',
+    aspectRatio: 1, // Format carré obligatoire
+    backgroundColor: '#FAF8F5',
   },
   image: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#FAF8F5',
   },
   badgeOverlay: {
     position: 'absolute',
@@ -96,12 +96,10 @@ const styles = StyleSheet.create({
     left: spacing.xs,
   },
   glassTag: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: 'rgba(26, 16, 5, 0.75)',
     borderRadius: radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: '#D4AF37',
   },
   glassTagText: {
     color: '#FFFFFF',
@@ -113,7 +111,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.xs,
     right: spacing.xs,
-    backgroundColor: '#141414',
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -121,42 +119,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: '#E8E2D9',
   },
   ratingText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#1A1005',
   },
   pricePill: {
     position: 'absolute',
     bottom: spacing.xs,
     right: spacing.xs,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#C05A2B',
     borderRadius: radius.md,
     paddingHorizontal: 9,
     paddingVertical: 4,
     ...shadow.sm,
   },
   pricePillText: {
-    color: '#0A0A0A',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
   },
   body: {
     padding: spacing.sm,
     gap: 2,
-    backgroundColor: '#141414',
+    backgroundColor: '#FFFFFF',
   },
   title: {
     fontSize: fontSize.sm,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     letterSpacing: -0.2,
   },
   artisan: {
     fontSize: fontSize.xs,
-    color: '#D4AF37',
+    color: '#7A6A58',
     fontWeight: '600',
   },
 })

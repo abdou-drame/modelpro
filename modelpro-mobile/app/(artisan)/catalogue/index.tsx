@@ -212,12 +212,14 @@ const styles = StyleSheet.create({
   statText: { fontSize: fontSize.xs, fontWeight: '600', color: colors.textSub },
 
   card: {
-    borderRadius: radius.xl,
+    borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: colors.text,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
     ...shadow.md,
   },
-  cardImage: { width: '100%', aspectRatio: 1, maxHeight: 125 },
+  cardImage: { width: '100%', aspectRatio: 1 },
   cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
 
   availBadge: {

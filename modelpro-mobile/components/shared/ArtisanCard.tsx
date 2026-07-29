@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { MapPin, ShieldCheck, Star } from 'lucide-react-native'
@@ -30,19 +30,19 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
         accessibilityRole="button"
         accessibilityLabel={`Voir le profil de ${artisan.atelier}, ${artisan.métier}, note ${rating.toFixed(1)} sur 5`}
       >
-        {/* Cover — 3:4 ratio */}
+        {/* RÈGLE STRICTE 1 : Cover en format carré obligatoire (aspectRatio: 1) + resizeMode: 'cover' */}
         <View style={styles.coverWrapper}>
           <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
 
-          {/* Métier badge — top right */}
+          {/* Métier badge */}
           <View style={styles.métierBadge}>
             <Text style={styles.métierText} numberOfLines={1}>{artisan.métier}</Text>
           </View>
 
-          {/* Validation badge — top left */}
+          {/* Validation badge */}
           {artisan.statutValidation === 'valide' && (
             <View style={styles.validBadge}>
-              <ShieldCheck size={11} color="#10B981" strokeWidth={2.5} />
+              <ShieldCheck size={11} color="#2E7D32" strokeWidth={2.5} />
               <Text style={styles.validText}>Vérifié</Text>
             </View>
           )}
@@ -52,15 +52,17 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
         <View style={styles.info}>
           {/* Avatar + name row */}
           <View style={styles.nameRow}>
+            {/* RÈGLE STRICTE 1 : Photo profil carrée arrondie + resizeMode: 'cover' */}
             <Image
               source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
               style={styles.avatar}
+              resizeMode="cover"
             />
             <View style={styles.nameBlock}>
               <Text style={styles.atelierName} numberOfLines={1}>{artisan.atelier}</Text>
               {artisan.localisation ? (
                 <View style={styles.locationRow}>
-                  <MapPin size={11} color="#9CA3AF" strokeWidth={2} />
+                  <MapPin size={11} color="#7A6A58" strokeWidth={2} />
                   <Text style={styles.locationText} numberOfLines={1}>{artisan.localisation}</Text>
                 </View>
               ) : null}
@@ -74,8 +76,8 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
                 <Star
                   key={n}
                   size={12}
-                  color={n <= Math.round(rating) ? '#D4AF37' : '#2D2D2D'}
-                  fill={n <= Math.round(rating) ? '#D4AF37' : 'transparent'}
+                  color={n <= Math.round(rating) ? '#C05A2B' : '#E8E2D9'}
+                  fill={n <= Math.round(rating) ? '#C05A2B' : 'transparent'}
                   strokeWidth={1.5}
                 />
               ))}
@@ -86,7 +88,7 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
             </Text>
           </View>
 
-          {/* Photo gallery preview strip */}
+          {/* RÈGLE STRICTE 1 : Galerie photos de prévisualisation strictement carrées (aspectRatio: 1) */}
           {previewPhotos.length > 0 && (
             <View style={styles.galleryStrip}>
               {previewPhotos.map((photoUrl, idx) => (
@@ -107,17 +109,18 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#141414',
-    borderRadius: radius.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#D4AF37',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
     ...shadow.md,
   },
   coverWrapper: {
     position: 'relative',
-    height: 140,
-    backgroundColor: '#0A0A0A',
+    width: '100%',
+    aspectRatio: 1, // Format carré obligatoire
+    backgroundColor: '#FAF8F5',
   },
   cover: {
     width: '100%',
@@ -127,15 +130,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.sm,
     right: spacing.sm,
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1,
-    borderColor: '#D4AF37',
+    backgroundColor: 'rgba(26, 16, 5, 0.75)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.full,
   },
   métierText: {
-    color: '#D4AF37',
+    color: '#FFFFFF',
     fontSize: fontSize.xs,
     fontWeight: '700',
   },
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: '#141414',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -151,10 +152,10 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: '#E8E2D9',
   },
   validText: {
-    color: '#10B981',
+    color: '#2E7D32',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -170,15 +171,17 @@ const styles = StyleSheet.create({
   avatar: {
     width: 42,
     height: 42,
-    borderRadius: radius.full,
-    borderWidth: 1.5,
-    borderColor: '#D4AF37',
+    aspectRatio: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
   },
   nameBlock: { flex: 1 },
   atelierName: {
     fontSize: fontSize.md,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#1A1005',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     letterSpacing: -0.3,
   },
   locationRow: {
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: fontSize.xs,
-    color: '#9CA3AF',
+    color: '#7A6A58',
   },
   ratingRow: {
     flexDirection: 'row',
@@ -205,11 +208,11 @@ const styles = StyleSheet.create({
   ratingValue: {
     fontSize: fontSize.xs,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#1A1005',
   },
   ratingCount: {
     fontSize: fontSize.xs,
-    color: '#9CA3AF',
+    color: '#7A6A58',
   },
   galleryStrip: {
     flexDirection: 'row',
@@ -219,8 +222,9 @@ const styles = StyleSheet.create({
   galleryThumb: {
     width: 48,
     height: 48,
+    aspectRatio: 1, // Format carré obligatoire
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#2D2D2D',
+    borderColor: '#E8E2D9',
   },
 })
