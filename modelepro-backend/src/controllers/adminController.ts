@@ -16,11 +16,11 @@ import { Artisan } from '../models/Artisan';
 import { Claim } from '../models/Claim';
 import { Creation } from '../models/Creation';
 import { Order } from '../models/Order';
+import { Payment } from '../models/Payment';
 import { Review } from '../models/Review';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
 import { Appointment } from '../models/Appointment';
-import { Payment } from '../models/Payment';
 import { createNotification } from '../services/notificationService';
 
 // 1. Liste et recherche de tous les utilisateurs (Clients & Artisans & Admins)
@@ -808,3 +808,71 @@ export const deleteArtisanAdmin = async (req: AuthenticatedRequest, res: Respons
     res.status(500).json({ error: 'Une erreur est survenue lors de la suppression de l’artisan.' });
   }
 };
+
+export const updateArtisanSubscriptionAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { statutAbonnement, days } = req.body;
+
+    const artisan = await Artisan.findOne({
+      where: {
+        [Op.or]: [{ id: Number(id) }, { userId: Number(id) }],
+      },
+    });
+
+    if (!artisan) {
+      res.status(404).json({ error: 'Profil artisan introuvable.' });
+      return;
+    }
+
+    const now = new Date();
+    const daysToAdd = Number(days) || 30;
+
+    let newEndDate: Date;
+    if (artisan.dateFinAbonnement && new Date(artisan.dateFinAbonnement) > now) {
+      newEndDate = new Date(artisan.dateFinAbonnement);
+    } else {
+      newEndDate = new Date(now);
+    }
+    newEndDate.setDate(newEndDate.getDate() + daysToAdd);
+
+    const targetStatut = statutAbonnement || 'actif';
+
+    artisan.statutAbonnement = targetStatut as any;
+    artisan.dateFinAbonnement = targetStatut === 'actif' ? newEndDate : (targetStatut === 'inactif' ? null : newEndDate);
+    await artisan.save();
+
+    if (targetStatut === 'actif') {
+      await Payment.create({
+        orderId: null,
+        artisanId: artisan.id,
+        montant: 5000,
+        type: 'abonnement',
+        moyen: 'especes',
+        statut: 'confirme',
+        referenceTransaction: `ADMIN_ACTIVATE_${Date.now()}`,
+      });
+    }
+
+    try {
+      await createNotification(
+        artisan.userId,
+        'paiement',
+        'Abonnement artisan mis à jour',
+        `Votre abonnement artisan est désormais : ${targetStatut}${targetStatut === 'actif' ? ` jusqu'au ${newEndDate.toLocaleDateString()}` : ''}.`,
+        artisan.id
+      );
+    } catch (notifErr) {
+      console.warn('Notification non transmise :', notifErr);
+    }
+
+    res.status(200).json({
+      message: `Abonnement mis à jour avec succès (${targetStatut}).`,
+      artisan,
+    });
+  } catch (error) {
+    console.error('Erreur updateArtisanSubscriptionAdmin :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour de l’abonnement.' });
+  }
+};
+

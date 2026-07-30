@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, Star, MapPin, Clock, Award, Package,
-  MessageSquare, CheckCircle, XCircle, Calendar, Trash2,
+  MessageSquare, CheckCircle, XCircle, Calendar, Trash2, Crown,
 } from 'lucide-react'
 import { artisansAdminApi, reviewsAdminApi, AdminReview } from '@/lib/api'
 import { Badge, statusVariant } from '@/components/shared/Badge'
@@ -133,10 +133,22 @@ export default function ArtisanProfile() {
     queryClient.invalidateQueries({ queryKey: ['admin-artisan-profile', artisanId] })
     queryClient.invalidateQueries({ queryKey: ['admin-artisans'] })
     queryClient.invalidateQueries({ queryKey: ['admin-pending-artisans'] })
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
   }
 
   const [deleteReviewId, setDeleteReviewId] = useState<number | null>(null)
   const [showDeleteArtisan, setShowDeleteArtisan] = useState(false)
+
+  const subscriptionMutation = useMutation({
+    mutationFn: (days: number = 30) => artisansAdminApi.updateSubscription(artisanId, { statutAbonnement: 'actif', days }),
+    onSuccess: () => {
+      invalidate()
+      alert('Abonnement activé avec succès pour 30 jours !')
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || "Erreur lors de l'activation de l'abonnement.")
+    },
+  })
 
   const deleteReviewMutation = useMutation({
     mutationFn: (reviewId: number) => reviewsAdminApi.delete(reviewId),
@@ -275,25 +287,37 @@ export default function ArtisanProfile() {
               </>
             )}
             {artisan.statutValidation === 'valide' && (
-              artisan.user?.statut === 'suspendu' ? (
+              <>
                 <button
-                  onClick={() => reactivateMutation.mutate()}
-                  disabled={reactivateMutation.isPending}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200 disabled:opacity-50"
+                  onClick={() => subscriptionMutation.mutate(30)}
+                  disabled={subscriptionMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+                  title="Activer ou prolonger l'abonnement de 30 jours"
                 >
-                  <CheckCircle size={15} />
-                  {reactivateMutation.isPending ? 'En cours…' : 'Réactiver'}
+                  <Crown size={15} />
+                  {subscriptionMutation.isPending ? 'Activation…' : 'Activer Abonnement (+30j)'}
                 </button>
-              ) : (
-                <button
-                  onClick={() => suspendMutation.mutate()}
-                  disabled={suspendMutation.isPending}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200 disabled:opacity-50"
-                >
-                  <XCircle size={15} />
-                  {suspendMutation.isPending ? 'En cours…' : 'Suspendre'}
-                </button>
-              )
+
+                {artisan.user?.statut === 'suspendu' ? (
+                  <button
+                    onClick={() => reactivateMutation.mutate()}
+                    disabled={reactivateMutation.isPending}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200 disabled:opacity-50"
+                  >
+                    <CheckCircle size={15} />
+                    {reactivateMutation.isPending ? 'En cours…' : 'Réactiver'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => suspendMutation.mutate()}
+                    disabled={suspendMutation.isPending}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200 disabled:opacity-50"
+                  >
+                    <XCircle size={15} />
+                    {suspendMutation.isPending ? 'En cours…' : 'Suspendre'}
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={() => setShowDeleteArtisan(true)}

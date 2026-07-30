@@ -4,7 +4,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
-import { ArrowLeft, Share2, ChevronRight } from 'lucide-react-native'
+import { ArrowLeft, Share2, ChevronRight, Calendar } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { modelsApi } from '@/lib/api/models'
 import { StarRating } from '@/components/ui/StarRating'
@@ -205,14 +205,28 @@ export default function ModelDetailScreen() {
             <Text style={styles.ctaPrice}>{formatPrice(model.prixEstimatif)}</Text>
           </View>
         )}
-        <TouchableOpacity
-          style={styles.ctaBtn}
-          onPress={() => router.push(`/(client)/order-form?artisanId=${model.artisan?.id}&modelId=${model.id}`)}
-          accessibilityRole="button"
-          accessibilityLabel={`Commander ${model.titre}`}
-        >
-          <Text style={styles.ctaBtnText}>Commander ce modèle</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+              borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10,
+              paddingHorizontal: spacing.md, paddingVertical: 16, minHeight: 52,
+            }}
+            onPress={() => router.push(`/(client)/appointments/new?artisanId=${model.artisan?.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Prendre un rendez-vous"
+          >
+            <Calendar size={18} color={colors.primary} strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ctaBtn, { flex: 1 }]}
+            onPress={() => router.push(`/(client)/order-form?artisanId=${model.artisan?.id}&modelId=${model.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Commander ${model.titre}`}
+          >
+            <Text style={styles.ctaBtnText}>Commander ce modèle</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </View>
   )

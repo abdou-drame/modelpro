@@ -30,8 +30,10 @@ interface OrderRaw {
   paymentStatus: PaymentStatus
   consignes: string | null
   mesures: string | null
-  totalPrice: number | null
-  depositAmount: number | null
+  totalPrice?: number | null
+  prix?: number | null
+  depositAmount?: number | null
+  acompte?: number | null
   deliveryDate: string | null
   createdAt: string
   updatedAt: string
@@ -46,14 +48,17 @@ interface OrderRaw {
 }
 
 function normalizeOrder(raw: OrderRaw): Order {
+  const prixTotal = raw.totalPrice ?? raw.prix ?? null
+  const acompte = raw.depositAmount ?? raw.acompte ?? (prixTotal ? Math.round(prixTotal * 0.5) : null)
+
   return {
     id: raw.id,
     statut: raw.statut,
     statutPaiement: raw.paymentStatus ?? 'unpaid',
     description: raw.consignes,
     mesures: raw.mesures,
-    prixTotal: raw.totalPrice,
-    acompte: raw.depositAmount,
+    prixTotal,
+    acompte,
     dateLivraisonEstimee: raw.deliveryDate,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,

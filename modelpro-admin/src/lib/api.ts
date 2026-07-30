@@ -51,6 +51,8 @@ export const artisansAdminApi = {
     api.patch(`/admin/artisans/${id}/reject`, { motifRejet }),
   suspend: (id: number) => api.patch(`/admin/artisans/${id}/suspend`),
   reactivate: (id: number) => api.patch(`/admin/artisans/${id}/reactivate`),
+  updateSubscription: (id: number, data: { statutAbonnement?: string; days?: number }) =>
+    api.patch(`/admin/artisans/${id}/subscription`, data),
   delete: (id: number) => api.delete(`/admin/artisans/${id}`),
 }
 
@@ -186,6 +188,9 @@ export interface AdminOrder {
   id: number
   statut: string
   prix: number
+  totalPrice?: number | null
+  depositAmount?: number | null
+  paymentStatus?: string | null
   createdAt: string
   dateLivraisonEstimee: string | null
   estEnRetard?: boolean

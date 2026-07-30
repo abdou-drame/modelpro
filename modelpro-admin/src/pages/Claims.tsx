@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/shared/Badge'
 import { TableSkeleton } from '@/components/shared/Skeleton'
-import { claimsAdminApi } from '@/lib/api'
+import { claimsAdminApi, AdminClaim } from '@/lib/api'
 import { cn, formatDate, CLAIM_STATUS_LABELS } from '@/lib/utils'
 
 type ClaimStatus = 'en_attente' | 'en_cours' | 'resolu' | 'rejete'
@@ -45,7 +45,7 @@ export default function Claims() {
     queryKey: ['admin', 'claims'],
     queryFn: () => claimsAdminApi.list().then((r) => r.data),
   })
-  const claims = Array.isArray(claimsData) ? claimsData : ((claimsData as any)?.data ?? [])
+  const claims: AdminClaim[] = Array.isArray(claimsData) ? claimsData : ((claimsData as any)?.data ?? [])
 
   const { mutate: setStatus } = useMutation({
     mutationFn: ({ id, statut }: { id: number; statut: string }) =>

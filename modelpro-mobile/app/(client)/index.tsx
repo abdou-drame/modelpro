@@ -4,7 +4,7 @@ import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { StatusBar } from 'expo-status-bar'
-import { Search, Bell, SlidersHorizontal, MapPin, X, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { Search, Bell, SlidersHorizontal, MapPin, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react-native'
 import { router } from 'expo-router'
 import { modelsApi } from '@/lib/api/models'
 import { metiersApi } from '@/lib/api/metiers'
@@ -69,12 +69,25 @@ export default function CatalogueScreen() {
                 <Text style={styles.greeting}>Bonjour {prenom}</Text>
                 <Text style={styles.tagline}>Trouvez votre artisan</Text>
               </View>
-              <TouchableOpacity
-                style={styles.bellBtn}
-                onPress={() => router.push('/(client)/notifications')}
-              >
-                <Bell size={22} color={colors.text} strokeWidth={1.5} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: colors.primarySoft, paddingHorizontal: spacing.md, paddingVertical: 6,
+                    borderRadius: radius.full,
+                  }}
+                  onPress={() => router.push('/(client)/appointments/new')}
+                >
+                  <Calendar size={14} color={colors.primary} strokeWidth={2} />
+                  <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.primary }}>RDV</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.bellBtn}
+                  onPress={() => router.push('/(client)/notifications')}
+                >
+                  <Bell size={22} color={colors.text} strokeWidth={1.5} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Search */}

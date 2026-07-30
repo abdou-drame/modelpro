@@ -1,6 +1,7 @@
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native'
+import { showAlert } from '@/lib/utils/alert'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
@@ -11,16 +12,17 @@ import { paymentsApi } from '@/lib/api/payments'
 import { formatPrice, formatDateTime } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { PaymentType, PaymentMethod } from '@/constants/enums'
+import { PaymentMethodLogo } from '@/components/shared/PaymentMethodLogo'
 
-const METHODS: { key: PaymentMethod; label: string; sub: string; icon: any }[] = [
-  { key: 'wave', label: 'Wave', sub: 'Paiement mobile Wave', icon: Smartphone },
-  { key: 'orange_money', label: 'Orange Money', sub: 'Paiement mobile OM', icon: Smartphone },
-  { key: 'free_money', label: 'Free Money', sub: 'Paiement mobile Free', icon: Smartphone },
-  { key: 'especes', label: 'Espèces', sub: 'Paiement en main propre', icon: Banknote },
+const METHODS: { key: PaymentMethod; label: string; sub: string }[] = [
+  { key: 'wave', label: 'Wave', sub: 'Paiement mobile instantané Wave' },
+  { key: 'orange_money', label: 'Orange Money', sub: 'Paiement mobile Orange Money' },
+  { key: 'free_money', label: 'Free Money', sub: 'Paiement mobile Free Money' },
+  { key: 'especes', label: 'Espèces', sub: 'Paiement en main propre' },
 ]
 
 const TYPES: { key: PaymentType; label: string; desc: string }[] = [
-  { key: 'acompte', label: 'Acompte', desc: 'Paiement partiel au démarrage' },
+  { key: 'acompte', label: 'Acompte', desc: 'Paiement partiel au démarrage (50%)' },
   { key: 'solde', label: 'Solde', desc: 'Paiement du reste à payer' },
   { key: 'integral', label: 'Intégral', desc: 'Paiement total en une fois' },
 ]
@@ -43,26 +45,43 @@ export default function PaymentScreen() {
     queryFn: () => paymentsApi.orderPayments(id).then((r) => r.data),
   })
 
+  const totalPrice = summary?.totalPrice ?? 0
+  const acompteAmount = (summary?.depositAmount && summary.depositAmount > 0)
+    ? summary.depositAmount
+    : Math.round(totalPrice * 0.5)
+  const remainingBalance = summary?.remainingBalance ?? 0
+  const integralAmount = (summary?.totalAcomptePaid ?? 0) > 0 ? remainingBalance : totalPrice
+
+  const getAmountForType = (type: PaymentType) => {
+    if (type === 'acompte') return acompteAmount
+    if (type === 'solde') return remainingBalance
+    return integralAmount
+  }
+
+  const currentMontant = getAmountForType(selectedType)
+
   const createMutation = useMutation({
     mutationFn: () => {
-      const montant = selectedType === 'acompte'
-        ? (summary?.depositAmount ?? summary?.totalPrice ?? 0)
-        : selectedType === 'solde'
-          ? (summary?.remainingBalance ?? 0)
-          : (summary?.totalPrice ?? 0)
-      return paymentsApi.create({ orderId: id, montant, type: selectedType, moyen: selectedMethod })
+      return paymentsApi.create({ orderId: id, montant: currentMontant, type: selectedType, moyen: selectedMethod })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['order-payments', id] })
       queryClient.invalidateQueries({ queryKey: ['payment-summary', id] })
-      Alert.alert('Paiement enregistré', 'Votre paiement a bien été enregistré.')
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-orders'] })
+      showAlert('Paiement enregistré', 'Votre paiement a bien été confirmé.')
+    },
+    onError: () => {
+      showAlert('Erreur', 'Impossible d’enregistrer le paiement.')
     },
   })
 
   const handlePay = () => {
-    Alert.alert(
+    const typeLabel = TYPES.find((t) => t.key === selectedType)?.label
+    const methodLabel = METHODS.find((m) => m.key === selectedMethod)?.label
+    showAlert(
       'Confirmer le paiement',
-      `Type : ${TYPES.find((t) => t.key === selectedType)?.label}\nMoyen : ${METHODS.find((m) => m.key === selectedMethod)?.label}`,
+      `Type : ${typeLabel}\nMontant : ${formatPrice(currentMontant)}\nMoyen : ${methodLabel}`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Confirmer', onPress: () => createMutation.mutate() },
@@ -120,6 +139,7 @@ export default function PaymentScreen() {
           <View style={styles.typeGrid}>
             {TYPES.map((t) => {
               const active = selectedType === t.key
+              const amount = getAmountForType(t.key)
               return (
                 <TouchableOpacity
                   key={t.key}
@@ -128,6 +148,9 @@ export default function PaymentScreen() {
                 >
                   {active && <View style={styles.typeCheck}><Check size={12} color={colors.white} strokeWidth={3} /></View>}
                   <Text style={[styles.typeLabel, active && styles.typeLabelActive]}>{t.label}</Text>
+                  <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: active ? colors.primary : colors.text }}>
+                    {formatPrice(amount)}
+                  </Text>
                   <Text style={styles.typeDesc}>{t.desc}</Text>
                 </TouchableOpacity>
               )
@@ -141,16 +164,13 @@ export default function PaymentScreen() {
           <View style={styles.methodList}>
             {METHODS.map((m) => {
               const active = selectedMethod === m.key
-              const Icon = m.icon
               return (
                 <TouchableOpacity
                   key={m.key}
                   style={[styles.methodItem, active && styles.methodItemActive]}
                   onPress={() => setSelectedMethod(m.key)}
                 >
-                  <View style={[styles.methodIcon, active && styles.methodIconActive]}>
-                    <Icon size={18} color={active ? colors.white : colors.textMuted} strokeWidth={1.8} />
-                  </View>
+                  <PaymentMethodLogo method={m.key} size={38} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.methodLabel, active && styles.methodLabelActive]}>{m.label}</Text>
                     <Text style={styles.methodSub}>{m.sub}</Text>
@@ -194,7 +214,7 @@ export default function PaymentScreen() {
           >
             <CreditCard size={18} color={colors.white} strokeWidth={2} />
             <Text style={styles.payBtnText}>
-              {createMutation.isPending ? 'Traitement...' : 'Enregistrer le paiement'}
+              {createMutation.isPending ? 'Traitement...' : `Payer ${formatPrice(currentMontant)}`}
             </Text>
           </TouchableOpacity>
         </Animated.View>

@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { artisanApi } from '@/lib/api/artisan'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, formatPrice, ORDER_STATUS_LABELS } from '@/lib/utils/format'
+import { formatDate, formatPrice, getMontantPaye, ORDER_STATUS_LABELS } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import { OrderStatus } from '@/constants/enums'
 import type { ArtisanOrder } from '@/lib/api/artisan'
@@ -43,6 +43,7 @@ function getInitials(prenom: string, nom: string) {
 
 function OrderRow({ order, index }: { order: ArtisanOrder; index: number }) {
   const accentColor = STATUS_ACCENT[order.statut]
+  const montantPaye = getMontantPaye(order)
 
   return (
     <Animated.View entering={FadeInUp.delay(index * 45).springify()}>
@@ -86,7 +87,12 @@ function OrderRow({ order, index }: { order: ArtisanOrder; index: number }) {
               </View>
             )}
             {order.prixTotal != null && (
-              <Text style={styles.price}>{formatPrice(order.prixTotal)}</Text>
+              <View style={{ alignItems: 'flex-end', marginLeft: 'auto' }}>
+                <Text style={styles.price}>{formatPrice(order.prixTotal)}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.success }}>
+                  Payé: {formatPrice(montantPaye)}
+                </Text>
+              </View>
             )}
           </View>
 

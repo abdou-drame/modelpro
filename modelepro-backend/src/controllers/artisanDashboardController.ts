@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Artisan } from '../models/Artisan';
 import { Appointment } from '../models/Appointment';
 import { Order } from '../models/Order';
+import { Payment } from '../models/Payment';
 import { Review } from '../models/Review';
 import { User } from '../models/User';
 import { createNotification } from '../services/notificationService';
@@ -395,12 +396,37 @@ export const getArtisanStats = async (req: AuthenticatedRequest, res: Response):
       return;
     }
 
-    const chiffreAffaires = await Order.sum('prix', {
+    // 1. Somme des paiements réels confirmés pour cet artisan (Acompte, Solde, Intégral)
+    const sumPayments = await Payment.sum('montant', {
       where: {
         artisanId: artisan.id,
-        statut: 'livree',
+        statut: 'confirme',
+        type: { [Op.in]: ['acompte', 'solde', 'integral'] },
       },
     });
+
+    // 2. Somme basée sur les statuts de paiement des commandes non annulées
+    const orders = await Order.findAll({
+      where: {
+        artisanId: artisan.id,
+        statut: { [Op.ne]: 'annulee' },
+      },
+      attributes: ['prix', 'totalPrice', 'depositAmount', 'paymentStatus', 'statut'],
+    });
+
+    let sumOrdersPaid = 0;
+    orders.forEach((o) => {
+      const orderPrice = Number(o.totalPrice ?? o.prix ?? 0);
+      const acompte = Number(o.depositAmount && o.depositAmount > 0 ? o.depositAmount : Math.round(orderPrice * 0.5));
+
+      if (o.paymentStatus === 'fully_paid' || o.statut === 'livree') {
+        sumOrdersPaid += orderPrice;
+      } else if (o.paymentStatus === 'deposit_paid') {
+        sumOrdersPaid += acompte;
+      }
+    });
+
+    const chiffreAffaires = Math.max(Number(sumPayments || 0), sumOrdersPaid);
 
     const commandesEnCours = await Order.count({
       where: {
@@ -422,7 +448,7 @@ export const getArtisanStats = async (req: AuthenticatedRequest, res: Response):
     const noteGlobale = reviewResult ? Number((reviewResult as any).noteGlobale) || 0 : 0;
 
     res.status(200).json({
-      chiffreAffaires: Number(chiffreAffaires || 0),
+      chiffreAffaires,
       commandesEnCours,
       noteGlobale,
     });

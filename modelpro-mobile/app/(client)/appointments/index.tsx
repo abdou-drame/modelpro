@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Calendar, MapPin, Clock, CalendarX, X, FileText, User, ArrowLeft } from 'lucide-react-native'
+import { Calendar, MapPin, Clock, CalendarX, X, FileText, User, ArrowLeft, Plus } from 'lucide-react-native'
 import { appointmentsApi, type Appointment } from '@/lib/api/appointments'
 import { Badge } from '@/components/ui/Badge'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
@@ -121,7 +121,7 @@ function AppointmentCard({ appt, onPress, onCancel, index }: {
               accessibilityRole="button"
               accessibilityLabel="Annuler ce rendez-vous"
             >
-              <Text style={styles.cancelBtnText}>Annuler ce rendez-vous</Text>
+              <Text style={styles.cancelBtnText}>Annuler le RDV</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -179,13 +179,29 @@ export default function ClientAppointmentsScreen() {
           <ArrowLeft size={20} color={colors.text} strokeWidth={2} />
           <Text style={styles.backText}>Catalogue</Text>
         </TouchableOpacity>
-        <View>
-          <Text style={styles.title}>Rendez-vous</Text>
-          {upcomingCount > 0 ? (
-            <Text style={styles.count}>{upcomingCount} à venir</Text>
-          ) : (
-            <Text style={styles.count}>{appointments?.length ?? 0} au total</Text>
-          )}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={styles.title}>Rendez-vous</Text>
+            {upcomingCount > 0 ? (
+              <Text style={styles.count}>{upcomingCount} à venir</Text>
+            ) : (
+              <Text style={styles.count}>{appointments?.length ?? 0} au total</Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: 8,
+              borderRadius: radius.full, ...shadow.sm,
+            }}
+            onPress={() => router.push('/(client)/appointments/new')}
+            accessibilityRole="button"
+            accessibilityLabel="Prendre un nouveau rendez-vous"
+          >
+            <Plus size={16} color={colors.white} strokeWidth={2.5} />
+            <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.white }}>Demander RDV</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -210,8 +226,20 @@ export default function ClientAppointmentsScreen() {
               </View>
               <Text style={styles.emptyTitle}>Aucun rendez-vous</Text>
               <Text style={styles.emptySub}>
-                Prenez rendez-vous depuis la fiche d'un artisan
+                Prenez rendez-vous avec un artisan pour vos prises de mesures ou essayages.
               </Text>
+              <TouchableOpacity
+                style={{
+                  marginTop: spacing.md, backgroundColor: colors.primary,
+                  paddingHorizontal: spacing.xl, paddingVertical: 12, borderRadius: radius.lg,
+                  ...shadow.sm,
+                }}
+                onPress={() => router.push('/(client)/appointments/new')}
+              >
+                <Text style={{ color: colors.white, fontWeight: '700', fontSize: fontSize.sm }}>
+                  Prendre un rendez-vous
+                </Text>
+              </TouchableOpacity>
             </View>
           )
         }

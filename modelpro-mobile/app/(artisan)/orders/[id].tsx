@@ -9,7 +9,7 @@ import { ArrowLeft, MessageCircle, ChevronRight, Phone, Package } from 'lucide-r
 import { artisanApi } from '@/lib/api/artisan'
 import { OrderTimeline } from '@/components/shared/OrderTimeline'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, formatPrice, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/utils/format'
+import { formatDate, formatPrice, getMontantPaye, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import { ORDER_STATUSES, OrderStatus } from '@/constants/enums'
 
@@ -101,12 +101,45 @@ export default function ArtisanOrderDetailScreen() {
     )
   }
 
+  const paymentMutation = useMutation({
+    mutationFn: (paymentStatus: 'deposit_paid' | 'fully_paid') =>
+      artisanApi.updatePayment(orderId, { paymentStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artisan-order', orderId] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
+      showAlert('Paiement mis à jour !', 'Le statut du paiement a été mis à jour avec succès.')
+    },
+    onError: () => {
+      showAlert('Erreur', 'Impossible de mettre à jour le paiement.')
+    },
+  })
+
+  const handleUpdatePayment = (status: 'deposit_paid' | 'fully_paid') => {
+    const label = status === 'deposit_paid' ? 'Acompte perçu (50%)' : 'Paiement intégral / solde réglé (100%)'
+    showAlert(
+      'Confirmer la mise à jour',
+      `Marquer la commande comme : ${label} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Confirmer', onPress: () => paymentMutation.mutate(status) },
+      ]
+    )
+  }
+
   if (!order) return <View style={{ flex: 1, backgroundColor: colors.bg }} />
 
   const nextStatus = NEXT_STATUS[order.statut]
   const canAdvance = !!nextStatus
   const canRefuse = order.statut === 'en_attente'
   const isTerminal = order.statut === 'livree' || order.statut === 'annulee'
+
+  const montantPaye = getMontantPaye(order)
+  const total = order.prixTotal ?? 0
+  const acompteVal = order.acompte ?? Math.round(total * 0.5)
+  const soldeRestant = Math.max(0, total - montantPaye)
+  const isFullyPaid = (order as any).statutPaiement === 'fully_paid' || (order as any).paymentStatus === 'fully_paid' || montantPaye >= total
+  const isDepositPaid = (order as any).statutPaiement === 'deposit_paid' || (order as any).paymentStatus === 'deposit_paid' || (montantPaye > 0 && !isFullyPaid)
 
   return (
     <View style={styles.container}>
@@ -220,8 +253,8 @@ export default function ArtisanOrderDetailScreen() {
             <View style={styles.payHeaderRow}>
               <Text style={styles.payHeaderTitle}>Statut du paiement</Text>
               <Badge
-                label={order.acompte ? 'Acompte versé' : 'En attente'}
-                variant={order.acompte && order.prixTotal && order.acompte >= order.prixTotal ? 'success' : (order.acompte ? 'warning' : 'neutral')}
+                label={isFullyPaid ? 'Payé (100%)' : (isDepositPaid ? 'Acompte versé (50%)' : 'Non payé')}
+                variant={isFullyPaid ? 'success' : (isDepositPaid ? 'warning' : 'neutral')}
               />
             </View>
 
@@ -230,14 +263,21 @@ export default function ArtisanOrderDetailScreen() {
             <View style={styles.payRow}>
               <Text style={styles.payLabel}>Prix total de la prestation</Text>
               <Text style={styles.payValPrimary}>
-                {formatPrice(order.prixTotal ?? 0)}
+                {formatPrice(total)}
               </Text>
             </View>
 
             <View style={styles.payRow}>
-              <Text style={styles.payLabel}>Acompte perçu (50%)</Text>
+              <Text style={styles.payLabel}>Montant payé (reçu)</Text>
+              <Text style={[styles.payVal, { color: colors.success }]}>
+                {formatPrice(montantPaye)}
+              </Text>
+            </View>
+
+            <View style={styles.payRow}>
+              <Text style={styles.payLabel}>Acompte fixé (50%)</Text>
               <Text style={styles.payVal}>
-                {formatPrice(order.acompte ?? ((order.prixTotal ?? 0) * 0.5))}
+                {formatPrice(acompteVal)}
               </Text>
             </View>
 
@@ -246,15 +286,29 @@ export default function ArtisanOrderDetailScreen() {
             <View style={styles.payRow}>
               <Text style={styles.payLabelBold}>Solde restant à la livraison</Text>
               <Text style={styles.payValHighlight}>
-                {formatPrice(
-                  Math.max(
-                    0,
-                    (order.prixTotal ?? 0) -
-                    (order.acompte ?? ((order.prixTotal ?? 0) * 0.5))
-                  )
-                )}
+                {formatPrice(soldeRestant)}
               </Text>
             </View>
+
+            {/* Quick payment actions for artisan */}
+            {!isFullyPaid && (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {!isDepositPaid && (
+                  <TouchableOpacity
+                    style={{ flex: 1, backgroundColor: colors.warningLight, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning, alignItems: 'center' }}
+                    onPress={() => handleUpdatePayment('deposit_paid')}
+                  >
+                    <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.warning }}>+ Acompte (50%)</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: `${colors.success}15`, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.success, alignItems: 'center' }}
+                  onPress={() => handleUpdatePayment('fully_paid')}
+                >
+                  <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.success }}>+ Total (100%)</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.payFooterRow}>
               <Text style={styles.payFooterLabel}>Mode de règlement :</Text>
