@@ -136,7 +136,6 @@ export default function ArtisanCatalogueScreen() {
         data={models ?? []}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
-        estimatedItemSize={240}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => (

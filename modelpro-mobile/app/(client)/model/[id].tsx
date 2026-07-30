@@ -207,7 +207,7 @@ export default function ModelDetailScreen() {
         )}
         <TouchableOpacity
           style={styles.ctaBtn}
-          onPress={() => router.push(`/(client)/order-form?artisanId=${model.artisan.id}&modelId=${model.id}`)}
+          onPress={() => router.push(`/(client)/order-form?artisanId=${model.artisan?.id}&modelId=${model.id}`)}
           accessibilityRole="button"
           accessibilityLabel={`Commander ${model.titre}`}
         >

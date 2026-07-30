@@ -192,7 +192,6 @@ export default function ClientAppointmentsScreen() {
       <FlashList
         data={appointments ?? []}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={200}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => (

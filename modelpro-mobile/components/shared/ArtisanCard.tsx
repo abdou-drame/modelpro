@@ -1,8 +1,9 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
-import { MapPin, ShieldCheck, Star } from 'lucide-react-native'
-import { colors, radius, shadow, fontSize, spacing } from '@/constants/theme'
+import { LinearGradient } from 'expo-linear-gradient'
+import { MapPin, ShieldCheck, Star, ChevronRight } from 'lucide-react-native'
+import { colors, radius, shadow, fontSize, spacing, fontFamily } from '@/constants/theme'
 import type { ArtisanPublic } from '@/lib/api/artisans'
 
 const PLACEHOLDER_COVER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80'
@@ -26,69 +27,79 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push(`/(client)/artisan/${artisan.id}`)}
-        activeOpacity={0.92}
+        activeOpacity={0.95}
         accessibilityRole="button"
         accessibilityLabel={`Voir le profil de ${artisan.atelier}, ${artisan.métier}, note ${rating.toFixed(1)} sur 5`}
       >
-        {/* RÈGLE STRICTE 1 : Cover en format carré obligatoire (aspectRatio: 1) + resizeMode: 'cover' */}
+        {/* Cover Image */}
         <View style={styles.coverWrapper}>
           <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
 
-          {/* Métier badge */}
-          <View style={styles.métierBadge}>
-            <Text style={styles.métierText} numberOfLines={1}>{artisan.métier}</Text>
-          </View>
+          {/* Gradient overlay */}
+          <LinearGradient
+            colors={['transparent', 'rgba(28,21,16,0.7)']}
+            style={styles.coverGradient}
+          />
 
-          {/* Validation badge */}
+          {/* Métier badge - top right */}
+          <LinearGradient
+            colors={[colors.gradientDark, colors.primary]}
+            style={styles.metierBadge}
+          >
+            <Text style={styles.metierText} numberOfLines={1}>{artisan.métier}</Text>
+          </LinearGradient>
+
+          {/* Validation badge - top left */}
           {artisan.statutValidation === 'valide' && (
             <View style={styles.validBadge}>
-              <ShieldCheck size={11} color="#2E7D32" strokeWidth={2.5} />
+              <ShieldCheck size={12} color={colors.success} strokeWidth={2.5} />
               <Text style={styles.validText}>Vérifié</Text>
             </View>
           )}
+
+          {/* Rating overlay - bottom */}
+          <View style={styles.ratingOverlay}>
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star
+                  key={n}
+                  size={14}
+                  color={n <= Math.round(rating) ? colors.gold : 'rgba(255,255,255,0.3)'}
+                  fill={n <= Math.round(rating) ? colors.gold : 'transparent'}
+                  strokeWidth={1.5}
+                />
+              ))}
+            </View>
+            <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
+            <Text style={styles.reviewCount}>({reviewCount})</Text>
+          </View>
         </View>
 
         {/* Info section */}
         <View style={styles.info}>
           {/* Avatar + name row */}
           <View style={styles.nameRow}>
-            {/* RÈGLE STRICTE 1 : Photo profil carrée arrondie + resizeMode: 'cover' */}
-            <Image
-              source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
-              style={styles.avatar}
-              resizeMode="cover"
-            />
+            <View style={styles.avatarWrapper}>
+              <Image
+                source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
+                style={styles.avatar}
+                resizeMode="cover"
+              />
+              <View style={styles.avatarRing} />
+            </View>
             <View style={styles.nameBlock}>
               <Text style={styles.atelierName} numberOfLines={1}>{artisan.atelier}</Text>
-              {artisan.localisation ? (
+              {artisan.localisation && (
                 <View style={styles.locationRow}>
-                  <MapPin size={11} color="#7A6A58" strokeWidth={2} />
+                  <MapPin size={12} color={colors.primary} strokeWidth={2} />
                   <Text style={styles.locationText} numberOfLines={1}>{artisan.localisation}</Text>
                 </View>
-              ) : null}
+              )}
             </View>
+            <ChevronRight size={20} color={colors.textMuted} />
           </View>
 
-          {/* Rating row */}
-          <View style={styles.ratingRow}>
-            <View style={styles.stars}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <Star
-                  key={n}
-                  size={12}
-                  color={n <= Math.round(rating) ? '#C05A2B' : '#E8E2D9'}
-                  fill={n <= Math.round(rating) ? '#C05A2B' : 'transparent'}
-                  strokeWidth={1.5}
-                />
-              ))}
-            </View>
-            <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
-            <Text style={styles.ratingCount}>
-              ({reviewCount} avis)
-            </Text>
-          </View>
-
-          {/* RÈGLE STRICTE 1 : Galerie photos de prévisualisation strictement carrées (aspectRatio: 1) */}
+          {/* Gallery preview */}
           {previewPhotos.length > 0 && (
             <View style={styles.galleryStrip}>
               {previewPhotos.map((photoUrl, idx) => (
@@ -99,6 +110,11 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
                   resizeMode="cover"
                 />
               ))}
+              {previewPhotos.length >= 3 && (
+                <View style={styles.morePhotos}>
+                  <Text style={styles.morePhotosText}>+</Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -109,122 +125,167 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E8E2D9',
-    ...shadow.md,
+    borderColor: colors.border,
+    ...shadow.lg,
   },
   coverWrapper: {
     position: 'relative',
     width: '100%',
-    aspectRatio: 1, // Format carré obligatoire
-    backgroundColor: '#FAF8F5',
+    aspectRatio: 1.4,
+    backgroundColor: colors.bgMuted,
   },
   cover: {
     width: '100%',
     height: '100%',
   },
-  métierBadge: {
+  coverGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+  },
+
+  // Métier badge
+  metierBadge: {
     position: 'absolute',
     top: spacing.sm,
     right: spacing.sm,
-    backgroundColor: 'rgba(26, 16, 5, 0.75)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
     borderRadius: radius.full,
   },
-  métierText: {
-    color: '#FFFFFF',
+  metierText: {
+    color: colors.white,
     fontSize: fontSize.xs,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
+
+  // Valid badge
   validBadge: {
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bgCard,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
+    ...shadow.sm,
   },
   validText: {
-    color: '#2E7D32',
+    color: colors.success,
     fontSize: 10,
     fontWeight: '700',
   },
-  info: {
-    padding: spacing.md,
+
+  // Rating overlay
+  ratingOverlay: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    left: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  ratingValue: {
+    fontSize: fontSize.sm,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  reviewCount: {
+    fontSize: fontSize.xs,
+    color: 'rgba(255,255,255,0.6)',
+  },
+
+  // Info section
+  info: {
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  avatarWrapper: {
+    position: 'relative',
   },
   avatar: {
-    width: 42,
-    height: 42,
-    aspectRatio: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: colors.bgCard,
   },
-  nameBlock: { flex: 1 },
+  avatarRing: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: radius.lg + 2,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  nameBlock: {
+    flex: 1,
+    gap: 2,
+  },
   atelierName: {
     fontSize: fontSize.md,
     fontWeight: '800',
-    color: '#1A1005',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    color: colors.text,
+    fontFamily: fontFamily.serif,
     letterSpacing: -0.3,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginTop: 2,
+    gap: 4,
   },
   locationText: {
     fontSize: fontSize.xs,
-    color: '#7A6A58',
+    color: colors.textSub,
+    fontWeight: '500',
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  stars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  ratingValue: {
-    fontSize: fontSize.xs,
-    fontWeight: '800',
-    color: '#1A1005',
-  },
-  ratingCount: {
-    fontSize: fontSize.xs,
-    color: '#7A6A58',
-  },
+
+  // Gallery
   galleryStrip: {
     flexDirection: 'row',
     gap: spacing.xs,
-    marginTop: spacing.xs,
   },
   galleryThumb: {
-    width: 48,
-    height: 48,
-    aspectRatio: 1, // Format carré obligatoire
+    width: 52,
+    height: 52,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#E8E2D9',
+    borderColor: colors.borderLight,
+  },
+  morePhotos: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  morePhotosText: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
 })

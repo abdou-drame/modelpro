@@ -182,7 +182,6 @@ export default function ArtisanOrdersScreen() {
           data={FILTERS}
           horizontal
           keyExtractor={(item) => item.value}
-          estimatedItemSize={90}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: spacing.lg }}
           renderItem={({ item }) => {
@@ -213,7 +212,6 @@ export default function ArtisanOrdersScreen() {
       <FlashList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={120}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item, index }) => <OrderRow order={item} index={index} />}

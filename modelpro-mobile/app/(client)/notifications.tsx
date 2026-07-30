@@ -97,7 +97,6 @@ export default function NotificationsScreen() {
       <FlashList
         data={notifications ?? []}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={90}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item, index }) => <NotifItem notif={item} index={index} />}

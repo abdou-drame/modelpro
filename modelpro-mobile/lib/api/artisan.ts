@@ -178,6 +178,8 @@ export const artisanApi = {
     apiClient.post<MyModel>(ENDPOINTS.models, data),
   updateModel: (id: number, data: Partial<CreateModelPayload>) =>
     apiClient.put<MyModel>(ENDPOINTS.modelById(id), data),
+  deleteModel: (id: number) =>
+    apiClient.delete(ENDPOINTS.modelById(id)),
   // Reviews
   getReviews: () =>
     apiClient.get<any[]>(ENDPOINTS.myReviews),

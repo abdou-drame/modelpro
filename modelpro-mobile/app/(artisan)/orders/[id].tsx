@@ -220,8 +220,8 @@ export default function ArtisanOrderDetailScreen() {
             <View style={styles.payHeaderRow}>
               <Text style={styles.payHeaderTitle}>Statut du paiement</Text>
               <Badge
-                label={order.statutPaiement ? (PAYMENT_STATUS_LABELS[order.statutPaiement] ?? order.statutPaiement) : (order.acompte ? 'Acompte versé' : 'En attente')}
-                variant={order.statutPaiement === 'paye' || (order.acompte && order.prixTotal && order.acompte >= order.prixTotal) ? 'success' : (order.acompte ? 'warning' : 'neutral')}
+                label={order.acompte ? 'Acompte versé' : 'En attente'}
+                variant={order.acompte && order.prixTotal && order.acompte >= order.prixTotal ? 'success' : (order.acompte ? 'warning' : 'neutral')}
               />
             </View>
 
@@ -230,14 +230,14 @@ export default function ArtisanOrderDetailScreen() {
             <View style={styles.payRow}>
               <Text style={styles.payLabel}>Prix total de la prestation</Text>
               <Text style={styles.payValPrimary}>
-                {formatPrice(order.prixTotal ?? order.creation?.prixEstimatif ?? 0)}
+                {formatPrice(order.prixTotal ?? 0)}
               </Text>
             </View>
 
             <View style={styles.payRow}>
               <Text style={styles.payLabel}>Acompte perçu (50%)</Text>
               <Text style={styles.payVal}>
-                {formatPrice(order.acompte ?? ((order.prixTotal ?? order.creation?.prixEstimatif ?? 0) * 0.5))}
+                {formatPrice(order.acompte ?? ((order.prixTotal ?? 0) * 0.5))}
               </Text>
             </View>
 
@@ -249,8 +249,8 @@ export default function ArtisanOrderDetailScreen() {
                 {formatPrice(
                   Math.max(
                     0,
-                    (order.prixTotal ?? order.creation?.prixEstimatif ?? 0) -
-                    (order.acompte ?? ((order.prixTotal ?? order.creation?.prixEstimatif ?? 0) * 0.5))
+                    (order.prixTotal ?? 0) -
+                    (order.acompte ?? ((order.prixTotal ?? 0) * 0.5))
                   )
                 )}
               </Text>

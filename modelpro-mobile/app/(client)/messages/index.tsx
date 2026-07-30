@@ -129,7 +129,6 @@ export default function MessagesScreen() {
       <FlashList
         data={conversations ?? []}
         keyExtractor={(item) => String(item.orderId)}
-        estimatedItemSize={80}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={

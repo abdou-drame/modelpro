@@ -399,7 +399,7 @@ export default function ArtisanProfileScreen() {
 
       {/* Reviews Modal */}
       {showReviewsModal && (
-        <View style={StyleSheet.absoluteFillObject} style={{ zIndex: 999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={[StyleSheet.absoluteFillObject, { zIndex: 999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }]}>
           <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: radius.xxl ?? 24, borderTopRightRadius: radius.xxl ?? 24, padding: spacing.xl, maxHeight: '80%', gap: spacing.lg }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ fontSize: fontSize.lg, fontWeight: '700', color: colors.text }}>Avis clients ({artisanReviews.length})</Text>
