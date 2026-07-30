@@ -82,7 +82,6 @@ export default function ClientOrdersScreen() {
       <FlashList
         data={orders ?? []}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={130}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => <OrderItem order={item} index={index} />}

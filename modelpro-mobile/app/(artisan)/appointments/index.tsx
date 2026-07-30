@@ -271,7 +271,6 @@ export default function ArtisanAppointmentsScreen() {
           data={FILTERS}
           horizontal
           keyExtractor={(item) => item.value}
-          estimatedItemSize={90}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: spacing.lg }}
           renderItem={({ item }) => {
@@ -294,7 +293,6 @@ export default function ArtisanAppointmentsScreen() {
       <FlashList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={220}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => (

@@ -15,27 +15,34 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import Animated, { FadeInUp } from 'react-native-reanimated'
-import { Eye, EyeOff, AlertCircle, Crown, ChevronDown, ChevronUp, Check } from 'lucide-react-native'
+import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
+import { StatusBar } from 'expo-status-bar'
+import { Eye, EyeOff, ArrowLeft, Scissors, ChevronDown, Check } from 'lucide-react-native'
 import { authApi } from '@/lib/api/auth'
 import { metiersApi } from '@/lib/api/metiers'
 import { useAuthStore } from '@/lib/store/authStore'
+import { colors, spacing, radius, fontSize, fontFamily, shadow } from '@/constants/theme'
+
+const DEFAULT_METIERS = [
+  { id: 1, nom: 'Couture', actif: true },
+  { id: 2, nom: 'Coiffure', actif: true },
+  { id: 3, nom: 'Cordonnerie', actif: true },
+  { id: 4, nom: 'Bijouterie', actif: true },
+  { id: 5, nom: 'Maroquinerie', actif: true },
+]
 
 const schema = z
   .object({
-    nom: z.string().min(2, 'Nom requis'),
     prenom: z.string().min(2, 'Prénom requis'),
-    telephone: z.string().min(9, 'Numéro invalide (min 9 chiffres)'),
-    password: z.string().min(6, 'Mot de passe trop court (min 6 caractères)'),
-    confirm: z.string(),
-    nomAtelier: z.string().min(2, "Nom de l'atelier requis"),
-    localisation: z.string().min(2, 'Localisation requise'),
+    nom: z.string().min(2, 'Nom requis'),
+    nomAtelier: z.string().min(2, 'Nom atelier requis'),
     metierId: z.number({ message: 'Choisissez un métier' }),
+    telephone: z.string().min(9, 'Numéro invalide'),
+    localisation: z.string().min(2, 'Localisation requise'),
+    password: z.string().min(6, 'Min 6 caractères'),
+    confirm: z.string(),
   })
-  .refine((d) => d.password === d.confirm, {
-    message: 'Les mots de passe ne correspondent pas',
-    path: ['confirm'],
-  })
+  .refine((d) => d.password === d.confirm, { message: 'Mots de passe différents', path: ['confirm'] })
 
 type FormData = z.infer<typeof schema>
 
@@ -44,22 +51,17 @@ export default function RegisterArtisanScreen() {
   const [error, setError] = useState('')
   const [metierOpen, setMetierOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
 
-  const { data: metiers } = useQuery({
+  const { data: metiersData } = useQuery({
     queryKey: ['metiers'],
     queryFn: () => metiersApi.list().then((r) => r.data),
   })
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  const metiers = metiersData?.length ? metiersData : DEFAULT_METIERS
+
+  const { control, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { nom: '', prenom: '', telephone: '', password: '', confirm: '', nomAtelier: '', localisation: '' },
+    defaultValues: { prenom: '', nom: '', nomAtelier: '', telephone: '', localisation: '', password: '', confirm: '' },
   })
 
   const selectedMetierId = watch('metierId')
@@ -81,588 +83,219 @@ export default function RegisterArtisanScreen() {
       await setAuth(res.data.user as any, res.data.token)
       router.replace('/(artisan)/dashboard')
     } catch (e: any) {
-      if (!e.response) {
-        setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
-      } else {
-        setError(e.response?.data?.error || "Erreur lors de l'inscription")
-      }
+      setError(e.response?.data?.error || 'Erreur lors de l\'inscription')
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.root}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeInUp.duration(500)} style={styles.container}>
+    <View style={styles.root}>
+      <StatusBar style="dark" />
 
-          {/* ── En-tête Logo ── */}
-          <View style={styles.headerLogoRow}>
-            <View style={styles.logoBox}>
-              <Crown size={22} color="#C05A2B" strokeWidth={2} />
-            </View>
-            <Text style={styles.brandTitle}>ModèlePro</Text>
-          </View>
-
-          {/* ── Titre & Surtitre ── */}
-          <View style={styles.titleSection}>
-            <Text style={styles.surtitre}>ESPACE ARTISAN — INSCRIPTION</Text>
-            <Text style={styles.mainTitle}>Ouvrez votre atelier</Text>
-            <Text style={styles.subtitle}>
-              Rejoignez la communauté des maîtres artisans et développez votre activité
-            </Text>
-          </View>
-
-          {/* ── Formulaire ── */}
-          <View style={styles.form}>
-
-            {/* Prénom */}
-            <Controller
-              control={control}
-              name="prenom"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Prénom</Text>
-                  <View style={[styles.inputWrapper, !!errors.prenom && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="ex: Mamadou"
-                      placeholderTextColor="#A89684"
-                      style={styles.input}
-                      accessibilityLabel="Prénom"
-                    />
-                  </View>
-                  {errors.prenom && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.prenom.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Nom */}
-            <Controller
-              control={control}
-              name="nom"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Nom</Text>
-                  <View style={[styles.inputWrapper, !!errors.nom && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="ex: Sow"
-                      placeholderTextColor="#A89684"
-                      style={styles.input}
-                      accessibilityLabel="Nom"
-                    />
-                  </View>
-                  {errors.nom && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.nom.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Nom de l'atelier */}
-            <Controller
-              control={control}
-              name="nomAtelier"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Nom de l'atelier</Text>
-                  <View style={[styles.inputWrapper, !!errors.nomAtelier && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="ex: Atelier Excellence Couture"
-                      placeholderTextColor="#A89684"
-                      style={styles.input}
-                      accessibilityLabel="Nom de l'atelier"
-                    />
-                  </View>
-                  {errors.nomAtelier && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.nomAtelier.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Sélecteur de Métier */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Spécialité / Métier</Text>
-              <TouchableOpacity
-                style={[styles.inputWrapper, !!errors.metierId && styles.inputWrapperError, styles.selectWrapper]}
-                onPress={() => setMetierOpen(!metierOpen)}
-                activeOpacity={0.8}
-              >
-                <Text style={selectedMetier ? styles.selectTextSelected : styles.selectTextPlaceholder}>
-                  {selectedMetier ? selectedMetier.nom : 'Sélectionner votre spécialité'}
-                </Text>
-                {metierOpen ? <ChevronUp size={18} color="#7A6A58" /> : <ChevronDown size={18} color="#7A6A58" />}
-              </TouchableOpacity>
-
-              {metierOpen && (
-                <View style={styles.dropdownList}>
-                  {metiers?.map((m) => (
-                    <TouchableOpacity
-                      key={m.id}
-                      style={[styles.dropdownItem, selectedMetierId === m.id && styles.dropdownItemSelected]}
-                      onPress={() => {
-                        setValue('metierId', m.id, { shouldValidate: true })
-                        setMetierOpen(false)
-                      }}
-                    >
-                      <Text style={[styles.dropdownItemText, selectedMetierId === m.id && styles.dropdownItemTextSelected]}>
-                        {m.nom}
-                      </Text>
-                      {selectedMetierId === m.id && <Check size={16} color="#C05A2B" strokeWidth={2.5} />}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {errors.metierId && (
-                <View style={styles.errorRow}>
-                  <AlertCircle size={14} color="#9E2A2B" />
-                  <Text style={styles.errorText}>{errors.metierId.message}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Téléphone */}
-            <Controller
-              control={control}
-              name="telephone"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Téléphone professionnel</Text>
-                  <View style={[styles.inputWrapper, !!errors.telephone && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="ex: 0701000001"
-                      placeholderTextColor="#A89684"
-                      keyboardType="phone-pad"
-                      style={styles.input}
-                      accessibilityLabel="Téléphone professionnel"
-                    />
-                  </View>
-                  {errors.telephone && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.telephone.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Localisation */}
-            <Controller
-              control={control}
-              name="localisation"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Localisation de l'atelier</Text>
-                  <View style={[styles.inputWrapper, !!errors.localisation && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="ex: Dakar, Marché HLM"
-                      placeholderTextColor="#A89684"
-                      style={styles.input}
-                      accessibilityLabel="Localisation de l'atelier"
-                    />
-                  </View>
-                  {errors.localisation && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.localisation.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Mot de passe */}
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Mot de passe</Text>
-                  <View style={[styles.inputWrapper, !!errors.password && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="••••••••"
-                      placeholderTextColor="#A89684"
-                      secureTextEntry={!showPassword}
-                      style={[styles.input, { paddingRight: 44 }]}
-                      accessibilityLabel="Mot de passe"
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeBtn}
-                      onPress={() => setShowPassword(!showPassword)}
-                      activeOpacity={0.7}
-                    >
-                      {showPassword ? <EyeOff size={18} color="#7A6A58" /> : <Eye size={18} color="#7A6A58" />}
-                    </TouchableOpacity>
-                  </View>
-                  {errors.password && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.password.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Confirmation mot de passe */}
-            <Controller
-              control={control}
-              name="confirm"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Confirmer le mot de passe</Text>
-                  <View style={[styles.inputWrapper, !!errors.confirm && styles.inputWrapperError]}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="••••••••"
-                      placeholderTextColor="#A89684"
-                      secureTextEntry={!showConfirm}
-                      style={[styles.input, { paddingRight: 44 }]}
-                      accessibilityLabel="Confirmer le mot de passe"
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeBtn}
-                      onPress={() => setShowConfirm(!showConfirm)}
-                      activeOpacity={0.7}
-                    >
-                      {showConfirm ? <EyeOff size={18} color="#7A6A58" /> : <Eye size={18} color="#7A6A58" />}
-                    </TouchableOpacity>
-                  </View>
-                  {errors.confirm && (
-                    <View style={styles.errorRow}>
-                      <AlertCircle size={14} color="#9E2A2B" />
-                      <Text style={styles.errorText}>{errors.confirm.message}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            />
-
-            {/* Erreur serveur */}
-            {error ? (
-              <View style={styles.errorRowGlobal}>
-                <AlertCircle size={15} color="#9E2A2B" />
-                <Text style={styles.errorTextGlobal}>{error}</Text>
-              </View>
-            ) : null}
-
-            {/* Bouton Inscription Artisan */}
-            <TouchableOpacity
-              style={[styles.primaryBtn, isSubmitting && styles.btnDisabled]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={isSubmitting}
-              activeOpacity={0.88}
-              accessibilityRole="button"
-              accessibilityLabel={isSubmitting ? "Création de l'atelier en cours" : "Créer mon atelier"}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.primaryBtnText}>Créer mon atelier</Text>
-              )}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+              <ArrowLeft size={24} color={colors.text} strokeWidth={1.5} />
             </TouchableOpacity>
+          </View>
 
-            {/* Liens bas */}
-            <View style={styles.linksBlock}>
-              <View style={styles.registerRow}>
-                <Text style={styles.registerText}>Déjà un compte ? </Text>
-                <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-                  <Text style={styles.registerLinkBold}>Se connecter</Text>
-                </TouchableOpacity>
+          <Animated.View entering={FadeInUp.duration(500)} style={styles.content}>
+            {/* Logo */}
+            <View style={styles.logoSection}>
+              <View style={styles.logoMark}>
+                <Scissors size={24} color={colors.accent} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.title}>Ouvrir un atelier</Text>
+              <Text style={styles.subtitle}>Rejoignez les maîtres artisans</Text>
+            </View>
+
+            {/* Form */}
+            <View style={styles.form}>
+              <View style={styles.row}>
+                <Controller
+                  control={control}
+                  name="prenom"
+                  render={({ field: { onChange, value, onBlur } }) => (
+                    <View style={[styles.fieldGroup, { flex: 1 }]}>
+                      <Text style={styles.label}>Prénom</Text>
+                      <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="Mamadou" placeholderTextColor={colors.textLight} style={[styles.input, errors.prenom && styles.inputError]} />
+                    </View>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="nom"
+                  render={({ field: { onChange, value, onBlur } }) => (
+                    <View style={[styles.fieldGroup, { flex: 1 }]}>
+                      <Text style={styles.label}>Nom</Text>
+                      <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="Sow" placeholderTextColor={colors.textLight} style={[styles.input, errors.nom && styles.inputError]} />
+                    </View>
+                  )}
+                />
               </View>
 
+              <Controller
+                control={control}
+                name="nomAtelier"
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Nom de l'atelier</Text>
+                    <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="Atelier Excellence" placeholderTextColor={colors.textLight} style={[styles.input, errors.nomAtelier && styles.inputError]} />
+                  </View>
+                )}
+              />
+
+              {/* Métier Dropdown */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Spécialité</Text>
+                <TouchableOpacity
+                  style={[styles.selectBtn, errors.metierId && styles.inputError]}
+                  onPress={() => setMetierOpen(!metierOpen)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={selectedMetier ? styles.selectBtnTextActive : styles.selectBtnText}>
+                    {selectedMetier?.nom ?? 'Choisir votre métier'}
+                  </Text>
+                  <ChevronDown size={20} color={colors.textMuted} strokeWidth={1.5} style={{ transform: [{ rotate: metierOpen ? '180deg' : '0deg' }] }} />
+                </TouchableOpacity>
+
+                {metierOpen && (
+                  <Animated.View entering={FadeInDown.duration(150)} style={styles.dropdown}>
+                    {metiers.filter(m => m.actif !== false).map((m) => (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[styles.dropdownItem, selectedMetierId === m.id && styles.dropdownItemActive]}
+                        onPress={() => { setValue('metierId', m.id, { shouldValidate: true }); setMetierOpen(false) }}
+                      >
+                        <Text style={[styles.dropdownItemText, selectedMetierId === m.id && styles.dropdownItemTextActive]}>{m.nom}</Text>
+                        {selectedMetierId === m.id && <Check size={18} color={colors.accent} strokeWidth={2} />}
+                      </TouchableOpacity>
+                    ))}
+                  </Animated.View>
+                )}
+                {errors.metierId && <Text style={styles.errorText}>{errors.metierId.message}</Text>}
+              </View>
+
+              <Controller
+                control={control}
+                name="telephone"
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Téléphone</Text>
+                    <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="77 123 45 67" placeholderTextColor={colors.textLight} keyboardType="phone-pad" style={[styles.input, errors.telephone && styles.inputError]} />
+                    {errors.telephone && <Text style={styles.errorText}>{errors.telephone.message}</Text>}
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="localisation"
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Localisation atelier</Text>
+                    <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="Dakar, Marché HLM" placeholderTextColor={colors.textLight} style={[styles.input, errors.localisation && styles.inputError]} />
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Mot de passe</Text>
+                    <View style={styles.passwordWrapper}>
+                      <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="••••••••" placeholderTextColor={colors.textLight} secureTextEntry={!showPassword} style={[styles.input, styles.passwordInput, errors.password && styles.inputError]} />
+                      <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <EyeOff size={20} color={colors.textMuted} /> : <Eye size={20} color={colors.textMuted} />}
+                      </TouchableOpacity>
+                    </View>
+                    {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="confirm"
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Confirmer</Text>
+                    <TextInput value={value} onChangeText={onChange} onBlur={onBlur} placeholder="••••••••" placeholderTextColor={colors.textLight} secureTextEntry={!showPassword} style={[styles.input, errors.confirm && styles.inputError]} />
+                    {errors.confirm && <Text style={styles.errorText}>{errors.confirm.message}</Text>}
+                  </View>
+                )}
+              />
+
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorBoxText}>{error}</Text>
+                </View>
+              ) : null}
+
               <TouchableOpacity
-                style={styles.backHomeBtn}
-                onPress={() => router.replace('/(auth)')}
-                activeOpacity={0.7}
+                style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+                onPress={handleSubmit(onSubmit)}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
               >
-                <Text style={styles.backHomeText}>Retour à l'accueil</Text>
+                {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.submitBtnText}>Créer mon atelier</Text>}
               </TouchableOpacity>
             </View>
 
-          </View>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <View style={styles.footerLink}>
+              <Text style={styles.footerText}>Déjà un compte ? </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+                <Text style={styles.footerLinkText}>Se connecter</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#FAF8F5',
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 40,
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: 440,
-    width: '100%',
-    alignSelf: 'center',
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingBottom: 40 },
+  header: { paddingTop: 56, marginBottom: spacing.md },
+  backBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  content: { flex: 1 },
+  logoSection: { alignItems: 'center', marginBottom: spacing.xxl },
+  logoMark: { width: 52, height: 52, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg },
+  title: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif, marginBottom: spacing.xs },
+  subtitle: { fontSize: fontSize.md, color: colors.textMuted },
 
-  // ── Header Logo ──
-  headerLogoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 28,
-  },
-  logoBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1A1005',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1A1005',
-    letterSpacing: -0.5,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
+  form: { gap: spacing.lg, marginBottom: spacing.xxl },
+  row: { flexDirection: 'row', gap: spacing.md },
+  fieldGroup: { gap: spacing.xs },
+  label: { fontSize: fontSize.sm, fontWeight: '500', color: colors.text },
+  input: { height: 52, backgroundColor: colors.bgCard, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, fontSize: fontSize.md, color: colors.text },
+  inputError: { borderColor: colors.error },
+  passwordWrapper: { position: 'relative' },
+  passwordInput: { paddingRight: 52 },
+  eyeBtn: { position: 'absolute', right: 0, top: 0, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
 
-  // ── Titre Section ──
-  titleSection: {
-    marginBottom: 24,
-  },
-  surtitre: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#C05A2B',
-    letterSpacing: 1.5,
-    marginBottom: 6,
-  },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1A1005',
-    letterSpacing: -0.8,
-    lineHeight: 38,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#7A6A58',
-    lineHeight: 20,
-  },
+  selectBtn: { height: 52, backgroundColor: colors.bgCard, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  selectBtnText: { fontSize: fontSize.md, color: colors.textLight },
+  selectBtnTextActive: { fontSize: fontSize.md, color: colors.text, fontWeight: '500' },
 
-  // ── Formulaire ──
-  form: {
-    gap: 16,
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1005',
-  },
-  inputWrapper: {
-    position: 'relative',
-    height: 52,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E8E2D9',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  inputWrapperError: {
-    borderColor: '#9E2A2B',
-    backgroundColor: '#FFF9F9',
-  },
-  input: {
-    fontSize: 15,
-    color: '#1A1005',
-    width: '100%',
-    height: '100%',
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right: 14,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  selectWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectTextPlaceholder: {
-    fontSize: 15,
-    color: '#A89684',
-  },
-  selectTextSelected: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1005',
-  },
-  dropdownList: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
-    marginTop: 4,
-    overflow: 'hidden',
-    shadowColor: '#1A1005',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FAF8F5',
-  },
-  dropdownItemSelected: {
-    backgroundColor: '#FAF8F5',
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: '#1A1005',
-  },
-  dropdownItemTextSelected: {
-    fontWeight: '700',
-    color: '#C05A2B',
-  },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#9E2A2B',
-    fontWeight: '500',
-  },
-  errorRowGlobal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFF1F1',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#F87171',
-  },
-  errorTextGlobal: {
-    fontSize: 13,
-    color: '#9E2A2B',
-    fontWeight: '600',
-    flex: 1,
-  },
+  dropdown: { backgroundColor: colors.bgCard, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginTop: spacing.xs, overflow: 'hidden', ...shadow.md },
+  dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  dropdownItemActive: { backgroundColor: colors.bgMuted },
+  dropdownItemText: { fontSize: fontSize.md, color: colors.text },
+  dropdownItemTextActive: { fontWeight: '600', color: colors.accent },
 
-  // ── Bouton Principal ──
-  primaryBtn: {
-    height: 52,
-    backgroundColor: '#C05A2B',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    shadowColor: '#C05A2B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  btnDisabled: {
-    opacity: 0.65,
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  // ── Liens bas ──
-  linksBlock: {
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 10,
-  },
-  registerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  registerText: {
-    fontSize: 14,
-    color: '#7A6A58',
-  },
-  registerLinkBold: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1A1005',
-  },
-  backHomeBtn: {
-    paddingVertical: 4,
-  },
-  backHomeText: {
-    fontSize: 14,
-    color: '#7A6A58',
-    textDecorationLine: 'underline',
-  },
+  errorText: { fontSize: fontSize.xs, color: colors.error },
+  errorBox: { backgroundColor: colors.errorBg, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.error },
+  errorBoxText: { fontSize: fontSize.sm, color: colors.error, textAlign: 'center' },
+  submitBtn: { height: 52, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, ...shadow.sm },
+  submitBtnDisabled: { opacity: 0.6 },
+  submitBtnText: { fontSize: fontSize.lg, fontWeight: '600', color: colors.white },
+  footerLink: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  footerText: { fontSize: fontSize.md, color: colors.textMuted },
+  footerLinkText: { fontSize: fontSize.md, color: colors.accent, fontWeight: '600' },
 })

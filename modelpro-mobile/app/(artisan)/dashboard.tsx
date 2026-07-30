@@ -1,128 +1,83 @@
-import {
-  View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
-} from 'react-native'
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
+import { StatusBar } from 'expo-status-bar'
 import { router } from 'expo-router'
 import {
   TrendingUp, ShoppingBag, Star, ChevronRight, AlertCircle,
-  BookOpen, CalendarDays, MessageCircle, Crown, User,
+  BookOpen, CalendarDays, MessageCircle, Crown, User, Bell,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
 import { StarRating } from '@/components/ui/StarRating'
 import { Badge } from '@/components/ui/Badge'
 import { formatPrice, formatDate, ORDER_STATUS_LABELS } from '@/lib/utils/format'
-import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
+import { colors, spacing, fontSize, radius, shadow, fontFamily } from '@/constants/theme'
 import type { OrderStatus } from '@/constants/enums'
 
 const AVATAR_FALLBACK = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80'
-const HERO_IMAGE = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80'
 
 const STATUS_VARIANT: Record<OrderStatus, 'neutral' | 'primary' | 'success' | 'error' | 'warning'> = {
   en_attente: 'neutral', acceptee: 'primary', en_cours: 'primary',
   en_finition: 'warning', prete: 'success', livree: 'success', annulee: 'error',
 }
 
-// ── Editorial KPI card ────────────────────────────────────────────────────────
-// CA dominant (60% width) + 2 secondary stacked on right
-
-function KpiCard({ stats }: {
-  stats: { chiffreAffaires: number; commandesEnCours: number; noteGlobale: number }
-}) {
+function KpiCard({ stats }: { stats: { chiffreAffaires: number; commandesEnCours: number; noteGlobale: number } }) {
   return (
-    <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.kpiCard}>
-
-      {/* Primary — CA */}
-      <View style={styles.kpiPrimary}>
-        <View style={[styles.kpiIconDot, { backgroundColor: `${colors.success}18` }]}>
-          <TrendingUp size={14} color={colors.success} strokeWidth={2} />
+    <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.kpiCard}>
+      <View style={styles.kpiItem}>
+        <View style={[styles.kpiIcon, { backgroundColor: `${colors.success}15` }]}>
+          <TrendingUp size={18} color={colors.success} strokeWidth={1.5} />
         </View>
-        <Text style={styles.kpiPrimaryLabel}>Chiffre d'affaires</Text>
-        <Text
-          style={styles.kpiPrimaryValue}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.65}
-        >
-          {formatPrice(stats.chiffreAffaires ?? 0)}
-        </Text>
-        <Text style={styles.kpiPrimarySub}>Total cumulé</Text>
+        <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{formatPrice(stats.chiffreAffaires ?? 0)}</Text>
+        <Text style={styles.kpiLabel}>Chiffre d'affaires</Text>
       </View>
 
-      <View style={styles.kpiDividerV} />
+      <View style={styles.kpiDivider} />
 
-      {/* Secondary stack */}
-      <View style={styles.kpiSecondaryStack}>
-        <View style={styles.kpiSecondaryItem}>
-          <View style={[styles.kpiIconDot, { backgroundColor: `${colors.primary}18` }]}>
-            <ShoppingBag size={12} color={colors.primary} strokeWidth={2} />
-          </View>
-          <View>
-            <Text style={styles.kpiSecValue} numberOfLines={1}>
-              {stats.commandesEnCours ?? 0}
-            </Text>
-            <Text style={styles.kpiSecLabel}>En cours</Text>
-          </View>
+      <View style={styles.kpiItem}>
+        <View style={[styles.kpiIcon, { backgroundColor: `${colors.primary}15` }]}>
+          <ShoppingBag size={18} color={colors.primary} strokeWidth={1.5} />
         </View>
-
-        <View style={styles.kpiDividerH} />
-
-        <TouchableOpacity
-          style={styles.kpiSecondaryItem}
-          onPress={() => router.push('/(artisan)/reviews')}
-          accessibilityRole="button"
-          accessibilityLabel="Consulter mes avis clients"
-        >
-          <View style={[styles.kpiIconDot, { backgroundColor: '#F59E0B18' }]}>
-            <Star size={12} color="#F59E0B" strokeWidth={2} />
-          </View>
-          <View>
-            <Text style={styles.kpiSecValue} numberOfLines={1}>
-              {(stats.noteGlobale ?? 0).toFixed(1)}
-            </Text>
-            <Text style={styles.kpiSecLabel}>Avis</Text>
-          </View>
-        </TouchableOpacity>
+        <Text style={styles.kpiValue}>{stats.commandesEnCours ?? 0}</Text>
+        <Text style={styles.kpiLabel}>En cours</Text>
       </View>
+
+      <View style={styles.kpiDivider} />
+
+      <TouchableOpacity style={styles.kpiItem} onPress={() => router.push('/(artisan)/reviews')}>
+        <View style={[styles.kpiIcon, { backgroundColor: `${colors.accent}15` }]}>
+          <Star size={18} color={colors.accent} strokeWidth={1.5} />
+        </View>
+        <Text style={styles.kpiValue}>{(stats.noteGlobale ?? 0).toFixed(1)}</Text>
+        <Text style={styles.kpiLabel}>Note</Text>
+      </TouchableOpacity>
     </Animated.View>
   )
 }
 
-// ── Quick actions — horizontal scroll ─────────────────────────────────────────
-
 const QUICK_ACTIONS = [
-  { label: 'Commandes',   icon: ShoppingBag,  route: '/(artisan)/orders',        color: colors.primary, bg: '#F5E6D8' },
-  { label: 'Catalogue',   icon: BookOpen,     route: '/(artisan)/catalogue',     color: colors.success, bg: '#D1FAE5' },
-  { label: 'Rendez-vous', icon: CalendarDays, route: '/(artisan)/appointments',  color: '#7C3AED',      bg: '#EDE9FE' },
-  { label: 'Messages',    icon: MessageCircle,route: '/(artisan)/messages',      color: '#0284C7',      bg: '#E0F2FE' },
-  { label: 'Abonnement',  icon: Crown,        route: '/(artisan)/subscription',  color: '#D97706',      bg: '#FEF3C7' },
-  { label: 'Profil',      icon: User,         route: '/(artisan)/profile',       color: colors.textSub, bg: colors.bgMuted },
+  { label: 'Commandes', icon: ShoppingBag, route: '/(artisan)/orders', color: colors.primary, bg: colors.bgMuted },
+  { label: 'Catalogue', icon: BookOpen, route: '/(artisan)/catalogue', color: colors.success, bg: '#D1FAE520' },
+  { label: 'RDV', icon: CalendarDays, route: '/(artisan)/appointments', color: '#7C3AED', bg: '#EDE9FE20' },
+  { label: 'Messages', icon: MessageCircle, route: '/(artisan)/messages', color: '#0284C7', bg: '#E0F2FE20' },
+  { label: 'Abo', icon: Crown, route: '/(artisan)/subscription', color: colors.accent, bg: `${colors.accent}15` },
+  { label: 'Profil', icon: User, route: '/(artisan)/profile', color: colors.textMuted, bg: colors.bgMuted },
 ]
 
 function QuickActions() {
   return (
-    <Animated.View entering={FadeInUp.delay(340).springify()} style={styles.section}>
+    <Animated.View entering={FadeInUp.delay(200).duration(400)} style={styles.section}>
       <Text style={styles.sectionTitle}>Accès rapide</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.actionsScroll}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsScroll}>
         {QUICK_ACTIONS.map((a) => {
           const Icon = a.icon
           return (
-            <TouchableOpacity
-              key={a.route}
-              style={[styles.actionTile, { backgroundColor: a.bg }]}
-              onPress={() => router.push(a.route as any)}
-              activeOpacity={0.78}
-              accessibilityRole="button"
-              accessibilityLabel={a.label}
-            >
-              <Icon size={24} color={a.color} strokeWidth={1.8} />
-              <Text style={[styles.actionLabel, { color: a.color }]}>{a.label}</Text>
+            <TouchableOpacity key={a.route} style={styles.actionTile} onPress={() => router.push(a.route as any)} activeOpacity={0.8}>
+              <View style={[styles.actionIcon, { backgroundColor: a.bg }]}>
+                <Icon size={20} color={a.color} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.actionLabel}>{a.label}</Text>
             </TouchableOpacity>
           )
         })}
@@ -130,8 +85,6 @@ function QuickActions() {
     </Animated.View>
   )
 }
-
-// ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export default function ArtisanDashboard() {
   const { user } = useAuthStore()
@@ -153,99 +106,61 @@ export default function ArtisanDashboard() {
     refetchInterval: 10000,
   })
 
-  const activeOrders = orders?.filter((o) =>
-    !['livree', 'annulee'].includes(o.statut)
-  ).slice(0, 3) ?? []
-
+  const activeOrders = orders?.filter((o) => !['livree', 'annulee'].includes(o.statut)).slice(0, 3) ?? []
   const pendingOrders = orders?.filter((o) => o.statut === 'en_attente') ?? []
+  const prenom = user?.prenom ?? 'Artisan'
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      <StatusBar style="dark" />
 
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <View style={styles.hero}>
-        <Image source={{ uri: HERO_IMAGE }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
-        {/* Two-stop gradient: subtle top, heavy bottom */}
-        <LinearGradient
-          colors={['rgba(26,16,5,0.08)', 'rgba(26,16,5,0.78)']}
-          locations={[0.2, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.heroContent}>
-          <View style={styles.heroRow}>
-            <Image
-              source={{ uri: profile?.photoProfil ?? AVATAR_FALLBACK }}
-              style={styles.heroAvatar}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.heroGreeting}>Bonjour,</Text>
-              <Text style={styles.heroName} numberOfLines={1}>
-                {user?.prenom} {user?.nom}
-              </Text>
-              {/* Atelier as differentiation anchor — editorial subtitle */}
-              {profile?.atelier && (
-                <Text style={styles.heroAtelier} numberOfLines={1}>
-                  {profile.atelier}
-                </Text>
-              )}
-              {profile && (
-                <View style={styles.heroMeta}>
-                  <StarRating value={profile.noteMoyenne ?? 0} size={11} />
-                  <Text style={styles.heroMetaText}>{(profile.noteMoyenne ?? 0).toFixed(1)}</Text>
-                  {profile.localisation ? (
-                    <>
-                      <Text style={styles.heroDot}>·</Text>
-                      <Text style={styles.heroMetaText} numberOfLines={1}>{profile.localisation}</Text>
-                    </>
-                  ) : null}
-                </View>
-              )}
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.topBar}>
+            <View style={styles.avatarRow}>
+              <Image source={{ uri: profile?.photoProfil ?? AVATAR_FALLBACK }} style={styles.avatar} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.greeting}>Bonjour {prenom}</Text>
+                {profile?.atelier && <Text style={styles.atelier} numberOfLines={1}>{profile.atelier}</Text>}
+                {profile && (
+                  <View style={styles.metaRow}>
+                    <StarRating value={profile.noteMoyenne ?? 0} size={12} />
+                    <Text style={styles.metaText}>{(profile.noteMoyenne ?? 0).toFixed(1)}</Text>
+                  </View>
+                )}
+              </View>
             </View>
+            <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(artisan)/notifications')}>
+              <Bell size={22} color={colors.text} strokeWidth={1.5} />
+              {pendingOrders.length > 0 && <View style={styles.bellDot} />}
+            </TouchableOpacity>
           </View>
 
-          {/* Pending alert pill */}
+          {/* Alert */}
           {pendingOrders.length > 0 && (
-            <TouchableOpacity
-              style={styles.alertPill}
-              onPress={() => router.push('/(artisan)/orders')}
-              activeOpacity={0.82}
-              accessibilityRole="button"
-              accessibilityLabel={`${pendingOrders.length} commandes en attente`}
-            >
-              <AlertCircle size={14} color={colors.warning} strokeWidth={2.2} />
-              <Text style={styles.alertPillText}>
-                {pendingOrders.length} commande{pendingOrders.length > 1 ? 's' : ''} en attente
-              </Text>
-              <ChevronRight size={13} color="rgba(255,255,255,0.5)" strokeWidth={2.5} />
-            </TouchableOpacity>
+            <Animated.View entering={FadeInDown.delay(50).duration(300)}>
+              <TouchableOpacity style={styles.alertBanner} onPress={() => router.push('/(artisan)/orders')} activeOpacity={0.85}>
+                <AlertCircle size={16} color={colors.warning} strokeWidth={2} />
+                <Text style={styles.alertText}>{pendingOrders.length} commande{pendingOrders.length > 1 ? 's' : ''} en attente</Text>
+                <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+              </TouchableOpacity>
+            </Animated.View>
           )}
-        </Animated.View>
-      </View>
+        </View>
 
-      {/* ── Editorial KPI card ── floats over hero seam ─────────────────────── */}
-      <View style={styles.kpiWrapper}>
-        {stats ? (
-          <KpiCard stats={stats} />
-        ) : (
-          <View style={[styles.kpiCard, { height: 100 }]} />
-        )}
-      </View>
+        {/* KPI */}
+        {stats && <KpiCard stats={stats} />}
 
-      {/* ── Body ────────────────────────────────────────────────────────────── */}
-      <View style={styles.body}>
-
+        {/* Quick Actions */}
         <QuickActions />
 
-        {/* Active orders */}
+        {/* Active Orders */}
         {activeOrders.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(420).springify()} style={styles.section}>
+          <Animated.View entering={FadeInUp.delay(300).duration(400)} style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Commandes actives</Text>
-              <TouchableOpacity
-                onPress={() => router.push('/(artisan)/orders')}
-                accessibilityRole="link"
-              >
+              <TouchableOpacity onPress={() => router.push('/(artisan)/orders')}>
                 <Text style={styles.seeAll}>Voir tout</Text>
               </TouchableOpacity>
             </View>
@@ -256,141 +171,67 @@ export default function ArtisanDashboard() {
                   key={order.id}
                   style={styles.orderCard}
                   onPress={() => router.push(`/(artisan)/orders/${order.id}`)}
-                  activeOpacity={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Commande de ${order.client.prenom} ${order.client.nom}`}
+                  activeOpacity={0.9}
                 >
-                  <View style={styles.orderCardLeft}>
-                    <Text style={styles.orderClient} numberOfLines={1}>
-                      {order.client.prenom} {order.client.nom}
-                    </Text>
-                    {order.creation && (
-                      <Text style={styles.orderModel} numberOfLines={1}>{order.creation.titre}</Text>
-                    )}
+                  <View style={styles.orderLeft}>
+                    <Text style={styles.orderClient} numberOfLines={1}>{order.client.prenom} {order.client.nom}</Text>
+                    {order.creation && <Text style={styles.orderModel} numberOfLines={1}>{order.creation.titre}</Text>}
                     <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
                   </View>
-                  <View style={styles.orderCardRight}>
+                  <View style={styles.orderRight}>
                     <Badge label={ORDER_STATUS_LABELS[order.statut]} variant={STATUS_VARIANT[order.statut]} />
-                    {order.prixTotal != null && (
-                      <Text style={styles.orderPrice}>{formatPrice(order.prixTotal)}</Text>
-                    )}
+                    {order.prixTotal != null && <Text style={styles.orderPrice}>{formatPrice(order.prixTotal)}</Text>}
                   </View>
                 </TouchableOpacity>
               ))}
             </View>
           </Animated.View>
         )}
-
-        <View style={{ height: 80 }} />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flex: 1 },
 
-  // Hero
-  hero: { height: 260, justifyContent: 'flex-end', overflow: 'hidden' },
-  heroContent: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.md },
-  heroRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  heroAvatar: {
-    width: 50, height: 50, borderRadius: radius.full, marginTop: 2,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.32)',
-    backgroundColor: colors.bgMuted,
-  },
-  heroGreeting: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.2 },
-  heroName: { fontSize: fontSize.xl, fontWeight: '800', color: colors.white, letterSpacing: -0.4 },
-  heroAtelier: {
-    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.6)',
-    fontWeight: '500', letterSpacing: 0.3, marginTop: 1,
-  },
-  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 4 },
-  heroMetaText: { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.55)' },
-  heroDot: { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.28)' },
+  header: { paddingTop: 56, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, gap: spacing.md },
+  topBar: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
+  avatar: { width: 52, height: 52, borderRadius: radius.full, backgroundColor: colors.bgMuted, borderWidth: 2, borderColor: colors.border },
+  greeting: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif },
+  atelier: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 4 },
+  metaText: { fontSize: fontSize.xs, color: colors.textMuted },
+  bellBtn: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  bellDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error },
 
-  // Alert pill
-  alertPill: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.11)',
-    borderRadius: radius.full, alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md, paddingVertical: 7,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
-  },
-  alertPillText: { fontSize: fontSize.xs, color: colors.white, fontWeight: '600' },
+  alertBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.warningBg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning },
+  alertText: { flex: 1, fontSize: fontSize.sm, fontWeight: '500', color: colors.text },
 
-  // KPI card — editorial layout, floats over hero seam
-  kpiWrapper: {
-    paddingHorizontal: spacing.xl,
-    marginTop: -spacing.xl,
-    zIndex: 10,
-  },
-  kpiCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.xl,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    ...shadow.lg,
-    overflow: 'hidden',
-  },
-  // Primary KPI — takes ~58% of width
-  kpiPrimary: {
-    flex: 58, padding: spacing.lg, gap: 4,
-    borderRightWidth: 1, borderRightColor: colors.borderLight,
-  },
-  kpiIconDot: {
-    width: 28, height: 28, borderRadius: radius.md,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  kpiPrimaryLabel: { fontSize: 10, color: colors.textMuted, letterSpacing: 0.3, fontWeight: '500' },
-  kpiPrimaryValue: {
-    fontSize: fontSize.xl, fontWeight: '800', color: colors.text,
-    letterSpacing: -0.5, marginTop: 2,
-  },
-  kpiPrimarySub: { fontSize: 10, color: colors.textMuted },
+  kpiCard: { flexDirection: 'row', backgroundColor: colors.bgCard, marginHorizontal: spacing.xl, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, ...shadow.sm },
+  kpiItem: { flex: 1, alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.xs },
+  kpiIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
+  kpiValue: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
+  kpiLabel: { fontSize: fontSize.xs, color: colors.textMuted },
+  kpiDivider: { width: 1, backgroundColor: colors.borderLight, marginVertical: spacing.md },
 
-  // Vertical divider (handled by borderRight on primary)
-  kpiDividerV: { width: 0 },
+  section: { paddingHorizontal: spacing.xl, marginTop: spacing.xl, gap: spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif },
+  seeAll: { fontSize: fontSize.sm, color: colors.accent, fontWeight: '600' },
 
-  // Secondary stack — right column
-  kpiSecondaryStack: { flex: 42 },
-  kpiSecondaryItem: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-  },
-  kpiDividerH: { height: 1, backgroundColor: colors.borderLight, marginHorizontal: spacing.md },
-  kpiSecValue: { fontSize: fontSize.base, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  kpiSecLabel: { fontSize: 10, color: colors.textMuted, marginTop: 1 },
+  actionsScroll: { gap: spacing.md },
+  actionTile: { alignItems: 'center', gap: spacing.xs },
+  actionIcon: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontSize: fontSize.xs, fontWeight: '500', color: colors.textMuted },
 
-  // Body
-  body: { paddingTop: spacing.xl, gap: spacing.xl },
-  section: { gap: spacing.md, paddingHorizontal: spacing.xl },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  seeAll: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
-
-  // Quick actions — horizontal scroll, tall tiles
-  actionsScroll: { paddingLeft: spacing.xl, paddingRight: spacing.md, gap: spacing.sm },
-  actionTile: {
-    alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    width: 76, height: 80, borderRadius: radius.xl,
-  },
-  actionLabel: { fontSize: fontSize.xs, fontWeight: '700', textAlign: 'center' },
-
-  // Orders
-  orderCard: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: colors.bgCard, borderRadius: radius.lg,
-    padding: spacing.lg, ...shadow.sm,
-  },
-  orderCardLeft: { gap: 3, flex: 1, marginRight: spacing.md },
-  orderClient: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
-  orderModel: { fontSize: fontSize.sm, color: colors.textSub, fontStyle: 'italic' },
-  orderDate: { fontSize: fontSize.xs, color: colors.textMuted },
-  orderCardRight: { gap: spacing.xs, alignItems: 'flex-end' },
-  orderPrice: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
+  orderCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  orderLeft: { flex: 1, gap: 2, marginRight: spacing.md },
+  orderClient: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+  orderModel: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
+  orderDate: { fontSize: fontSize.xs, color: colors.textLight },
+  orderRight: { alignItems: 'flex-end', gap: spacing.xs },
+  orderPrice: { fontSize: fontSize.sm, fontWeight: '600', color: colors.accent },
 })

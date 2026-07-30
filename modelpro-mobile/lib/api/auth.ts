@@ -33,6 +33,9 @@ export const authApi = {
   register: (data: RegisterPayload) =>
     apiClient.post<AuthResponse>(ENDPOINTS.register, data),
 
+  registerClient: (data: Omit<RegisterPayload, 'role'>) =>
+    apiClient.post<AuthResponse>(ENDPOINTS.register, { ...data, role: 'client' }),
+
   login: (data: LoginPayload) =>
     apiClient.post<AuthResponse>(ENDPOINTS.login, data),
 

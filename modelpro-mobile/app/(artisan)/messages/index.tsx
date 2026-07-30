@@ -143,7 +143,6 @@ export default function ArtisanMessagesScreen() {
       <FlashList
         data={conversations ?? []}
         keyExtractor={(item) => String(item.orderId)}
-        estimatedItemSize={80}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={<ListHeader count={count} />}

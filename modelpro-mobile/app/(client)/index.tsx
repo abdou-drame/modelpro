@@ -2,14 +2,14 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator 
 import { useState } from 'react'
 import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
-import { LinearGradient } from 'expo-linear-gradient'
-import Animated, { FadeInUp } from 'react-native-reanimated'
-import { Search, Bell, ChevronLeft, ChevronRight, SlidersHorizontal, MapPin, X, Sparkles, Crown } from 'lucide-react-native'
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
+import { StatusBar } from 'expo-status-bar'
+import { Search, Bell, SlidersHorizontal, MapPin, X, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { router } from 'expo-router'
 import { modelsApi } from '@/lib/api/models'
 import { metiersApi } from '@/lib/api/metiers'
 import { ModelCard } from '@/components/shared/ModelCard'
-import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
+import { colors, spacing, fontSize, radius, shadow, fontFamily } from '@/constants/theme'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { Model } from '@/lib/api/models'
 
@@ -47,169 +47,113 @@ export default function CatalogueScreen() {
 
   const models = data?.models ?? []
   const totalPages = data?.totalPages ?? 1
-  const prenom = user?.prenom ?? 'Client'
+  const prenom = user?.prenom ?? 'vous'
   const metierChips = [{ id: null, nom: 'Tous' }, ...(metiersData?.filter((m) => m.actif) ?? [])]
-
-  const handleMetierChange = (id: number | null) => {
-    setSelectedMetier(id)
-    setPage(1)
-  }
-
-  const handleSearchChange = (v: string) => {
-    setSearch(v)
-    setPage(1)
-  }
 
   const hasActiveFilters = Boolean(minPrice || maxPrice || localisation || selectedMetier !== null)
 
-  const resetFilters = () => {
-    setMinPrice('')
-    setMaxPrice('')
-    setLocalisation('')
-    setSelectedMetier(null)
-    setPage(1)
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      <StatusBar style="dark" />
+
       <FlashList<Model>
         data={models}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
-        estimatedItemSize={280}
-        contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: 95 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
         ListHeaderComponent={
-          <View style={{ gap: spacing.sm }}>
-            {/* Header Top Bar */}
-            <View style={styles.heroHeader}>
-              <View style={styles.heroRow}>
-                <View>
-                  <View style={styles.welcomePill}>
-                    <Sparkles size={12} color={colors.primary} />
-                    <Text style={styles.welcomePillText}>Haute Couture Sénégal</Text>
-                  </View>
-                  <Text style={styles.greeting}>Bonjour, {prenom}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.bellBtn}
-                  onPress={() => router.push('/(client)/notifications')}
-                  activeOpacity={0.8}
-                >
-                  <Bell size={20} color={colors.text} strokeWidth={1.8} />
-                </TouchableOpacity>
+          <View style={styles.header}>
+            {/* Top Bar */}
+            <View style={styles.topBar}>
+              <View>
+                <Text style={styles.greeting}>Bonjour {prenom}</Text>
+                <Text style={styles.tagline}>Trouvez votre artisan</Text>
               </View>
+              <TouchableOpacity
+                style={styles.bellBtn}
+                onPress={() => router.push('/(client)/notifications')}
+              >
+                <Bell size={22} color={colors.text} strokeWidth={1.5} />
+              </TouchableOpacity>
             </View>
 
-            {/* ImmoClair / ModèlePro Terracotta Banner */}
-            <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginHorizontal: spacing.sm }}>
-              <LinearGradient
-                colors={['#9C431D', '#C05A2B', '#D87A4A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.bannerCard}
-              >
-                <View style={styles.bannerBadge}>
-                  <Crown size={12} color="#FFFFFF" />
-                  <Text style={styles.bannerBadgeText}>Artisans Certifiés & Modèles Exclusifs</Text>
-                </View>
-                <Text style={styles.bannerTitle}>L'Élégance Sur-Mesure</Text>
-                <Text style={styles.bannerSub}>
-                  Découvrez les créations des maîtres tailleurs du Sénégal et commandez avec vos propres mesures.
-                </Text>
-              </LinearGradient>
-            </Animated.View>
-
-            {/* Search Box */}
+            {/* Search */}
             <View style={styles.searchRow}>
               <View style={styles.searchBox}>
-                <Search size={18} color={colors.primary} strokeWidth={2} />
+                <Search size={18} color={colors.textMuted} strokeWidth={1.5} />
                 <TextInput
                   value={search}
-                  onChangeText={handleSearchChange}
-                  placeholder="Rechercher création, artisan, style..."
-                  placeholderTextColor={colors.textMuted}
+                  onChangeText={(v) => { setSearch(v); setPage(1) }}
+                  placeholder="Rechercher..."
+                  placeholderTextColor={colors.textLight}
                   style={styles.searchInput}
                 />
               </View>
               <TouchableOpacity
                 style={[styles.filterBtn, hasActiveFilters && styles.filterBtnActive]}
                 onPress={() => setShowFilters(!showFilters)}
-                activeOpacity={0.8}
               >
-                <SlidersHorizontal size={18} color={hasActiveFilters ? colors.white : colors.text} strokeWidth={2} />
+                <SlidersHorizontal size={18} color={hasActiveFilters ? colors.white : colors.text} strokeWidth={1.5} />
               </TouchableOpacity>
             </View>
 
-            {/* Advanced Filters */}
+            {/* Filters */}
             {showFilters && (
-              <View style={styles.filterPanel}>
-                <View style={styles.filterHeader}>
-                  <Text style={styles.filterTitle}>Filtres sur-mesure</Text>
-                  {hasActiveFilters && (
-                    <TouchableOpacity onPress={resetFilters}>
-                      <Text style={styles.resetText}>Réinitialiser</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Price range */}
+              <Animated.View entering={FadeInDown.duration(200)} style={styles.filterPanel}>
                 <Text style={styles.filterLabel}>Budget (FCFA)</Text>
                 <View style={styles.priceRow}>
                   <TextInput
                     value={minPrice}
                     onChangeText={(v) => { setMinPrice(v); setPage(1) }}
-                    placeholder="Prix min"
-                    placeholderTextColor={colors.textMuted}
+                    placeholder="Min"
+                    placeholderTextColor={colors.textLight}
                     keyboardType="numeric"
                     style={styles.priceInput}
                   />
-                  <Text style={styles.priceDash}>-</Text>
+                  <Text style={styles.priceDash}>—</Text>
                   <TextInput
                     value={maxPrice}
                     onChangeText={(v) => { setMaxPrice(v); setPage(1) }}
-                    placeholder="Prix max"
-                    placeholderTextColor={colors.textMuted}
+                    placeholder="Max"
+                    placeholderTextColor={colors.textLight}
                     keyboardType="numeric"
                     style={styles.priceInput}
                   />
                 </View>
 
-                {/* Location */}
-                <Text style={styles.filterLabel}>Localisation / Ville</Text>
-                <View style={styles.inputBoxWithIcon}>
-                  <MapPin size={16} color={colors.primary} strokeWidth={2} />
+                <Text style={styles.filterLabel}>Localisation</Text>
+                <View style={styles.locationRow}>
+                  <MapPin size={16} color={colors.textMuted} strokeWidth={1.5} />
                   <TextInput
                     value={localisation}
                     onChangeText={(v) => { setLocalisation(v); setPage(1) }}
-                    placeholder="Dakar, Thiès, Saint-Louis..."
-                    placeholderTextColor={colors.textMuted}
-                    style={styles.filterInput}
+                    placeholder="Dakar, Thiès..."
+                    placeholderTextColor={colors.textLight}
+                    style={styles.locationInput}
                   />
-                  {Boolean(localisation) && (
+                  {localisation ? (
                     <TouchableOpacity onPress={() => { setLocalisation(''); setPage(1) }}>
                       <X size={16} color={colors.textMuted} />
                     </TouchableOpacity>
-                  )}
+                  ) : null}
                 </View>
-              </View>
+              </Animated.View>
             )}
 
-            {/* Métier Chips */}
+            {/* Chips */}
             {metierChips.length > 1 && (
-              <View style={styles.chipsWrapper}>
+              <View style={styles.chipsRow}>
                 <FlashList
                   data={metierChips as any[]}
                   horizontal
                   keyExtractor={(item) => String(item.nom)}
                   showsHorizontalScrollIndicator={false}
-                  estimatedItemSize={90}
                   renderItem={({ item }) => {
                     const active = selectedMetier === item.id
                     return (
                       <TouchableOpacity
-                        onPress={() => handleMetierChange(item.id)}
+                        onPress={() => { setSelectedMetier(item.id); setPage(1) }}
                         style={[styles.chip, active && styles.chipActive]}
-                        activeOpacity={0.8}
                       >
                         <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.nom}</Text>
                       </TouchableOpacity>
@@ -219,23 +163,24 @@ export default function CatalogueScreen() {
               </View>
             )}
 
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Catalogue d'Artisans</Text>
-              {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
+            {/* Section title */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Catalogue</Text>
+              {isLoading && <ActivityIndicator size="small" color={colors.accent} />}
             </View>
           </View>
         }
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        renderItem={({ item }) => (
-          <View style={{ flex: 1, padding: spacing.xs }}>
-            <ModelCard model={item} />
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        renderItem={({ item, index }) => (
+          <View style={{ flex: 1, paddingHorizontal: spacing.xs }}>
+            <ModelCard model={item} index={index} />
           </View>
         )}
         ListEmptyComponent={
           isLoading ? null : (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Aucune création disponible</Text>
-              <Text style={styles.emptySub}>Essayez de modifier votre recherche</Text>
+              <Text style={styles.emptyTitle}>Aucun résultat</Text>
+              <Text style={styles.emptyText}>Modifiez vos filtres</Text>
             </View>
           )
         }
@@ -244,20 +189,18 @@ export default function CatalogueScreen() {
             <View style={styles.pagination}>
               <TouchableOpacity
                 style={[styles.pageBtn, page <= 1 && styles.pageBtnDisabled]}
-                onPress={() => setPage(p => Math.max(1, p - 1))}
+                onPress={() => setPage(Math.max(1, page - 1))}
                 disabled={page <= 1}
-                activeOpacity={0.7}
               >
-                <ChevronLeft size={18} color={page <= 1 ? colors.textMuted : colors.primary} strokeWidth={2} />
+                <ChevronLeft size={20} color={page <= 1 ? colors.textLight : colors.text} />
               </TouchableOpacity>
-              <Text style={styles.pageLabel}>{page} / {totalPages}</Text>
+              <Text style={styles.pageText}>{page} / {totalPages}</Text>
               <TouchableOpacity
                 style={[styles.pageBtn, page >= totalPages && styles.pageBtnDisabled]}
-                onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+                onPress={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
-                activeOpacity={0.7}
               >
-                <ChevronRight size={18} color={page >= totalPages ? colors.textMuted : colors.primary} strokeWidth={2} />
+                <ChevronRight size={20} color={page >= totalPages ? colors.textLight : colors.text} />
               </TouchableOpacity>
             </View>
           ) : null
@@ -268,201 +211,44 @@ export default function CatalogueScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  heroHeader: {
-    paddingHorizontal: spacing.md,
-    paddingTop: 54,
-    paddingBottom: spacing.sm,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  welcomePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: `${colors.primary}12`,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  welcomePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  greeting: {
-    fontSize: fontSize.xxl,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  bellBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    backgroundColor: colors.bgCard,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadow.sm,
-  },
-  bannerCard: {
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1.5,
-    borderColor: '#D4AF37',
-    gap: 6,
-    ...shadow.md,
-  },
-  bannerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#0D0D0D',
-    borderWidth: 1,
-    borderColor: '#D4AF37',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    alignSelf: 'flex-start',
-  },
-  bannerBadgeText: {
-    color: '#D4AF37',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  bannerTitle: {
-    color: colors.white,
-    fontSize: fontSize.xl,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  bannerSub: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: fontSize.xs,
-    lineHeight: 18,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.sm,
-    gap: spacing.xs,
-  },
-  searchBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.xl,
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-    height: 46,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadow.sm,
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+
+  header: { paddingTop: 56, marginBottom: spacing.md },
+
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: spacing.lg },
+  greeting: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif },
+  tagline: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  bellBtn: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+
+  searchRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.md },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: colors.bgCard, borderRadius: radius.md, paddingHorizontal: spacing.md, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, fontSize: fontSize.md, color: colors.text },
-  filterBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.xl,
-    backgroundColor: colors.bgCard,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadow.sm,
-  },
+  filterBtn: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   filterBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterPanel: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
-  filterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  filterTitle: { fontSize: fontSize.md, fontWeight: '700', color: colors.text },
-  resetText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
-  filterLabel: { fontSize: fontSize.xs, fontWeight: '600', color: colors.textSub, marginTop: spacing.xs, marginBottom: 4 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  priceInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: colors.bgMuted,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    fontSize: fontSize.sm,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  priceDash: { fontSize: fontSize.md, color: colors.textMuted },
-  inputBoxWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bgMuted,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    gap: spacing.xs,
-    height: 40,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterInput: { flex: 1, fontSize: fontSize.sm, color: colors.text },
-  chipsWrapper: { marginVertical: spacing.xs, paddingHorizontal: spacing.sm },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    marginRight: spacing.xs,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
-    ...shadow.sm,
-  },
-  chipActive: { backgroundColor: '#C05A2B', borderColor: '#C05A2B' },
-  chipText: { fontSize: fontSize.sm, fontWeight: '600', color: '#7A6A58' },
-  chipTextActive: { color: '#FFFFFF', fontWeight: '800' },
-  sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  empty: { alignItems: 'center', paddingTop: 60, gap: spacing.xs },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  emptySub: { fontSize: fontSize.sm, color: colors.textSub },
-  pagination: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  pageBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.bgCard,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pageBtnDisabled: { opacity: 0.35 },
-  pageLabel: { fontSize: fontSize.base, fontWeight: '700', color: colors.text, minWidth: 48, textAlign: 'center' },
+
+  filterPanel: { marginHorizontal: spacing.md, padding: spacing.md, backgroundColor: colors.bgCard, borderRadius: radius.md, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
+  filterLabel: { fontSize: fontSize.xs, fontWeight: '500', color: colors.textMuted, marginBottom: spacing.xs, marginTop: spacing.sm },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  priceInput: { flex: 1, height: 44, backgroundColor: colors.bgMuted, borderRadius: radius.sm, paddingHorizontal: spacing.md, fontSize: fontSize.sm, color: colors.text },
+  priceDash: { color: colors.textLight },
+  locationRow: { flexDirection: 'row', alignItems: 'center', height: 44, backgroundColor: colors.bgMuted, borderRadius: radius.sm, paddingHorizontal: spacing.md, gap: spacing.sm },
+  locationInput: { flex: 1, fontSize: fontSize.sm, color: colors.text },
+
+  chipsRow: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
+  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full, backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border, marginRight: spacing.sm },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: fontSize.sm, color: colors.textSecondary, fontWeight: '500' },
+  chipTextActive: { color: colors.white },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif },
+
+  empty: { alignItems: 'center', paddingVertical: spacing.xxxl },
+  emptyTitle: { fontSize: fontSize.lg, fontWeight: '600', color: colors.text },
+  emptyText: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.xs },
+
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.lg, paddingVertical: spacing.xl },
+  pageBtn: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  pageBtnDisabled: { opacity: 0.4 },
+  pageText: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
 })

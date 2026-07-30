@@ -1,36 +1,70 @@
+import { Platform } from 'react-native'
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ModèlePro Design System v3 — Luxury African Artisan Aesthetic
+// Editorial elegance. Warm ivory + deep espresso + caramel gold.
+// Inspired by high-end fashion magazines and luxury craft brands.
+// ══════════════════════════════════════════════════════════════════════════════
+
 export const colors = {
-  primary: '#C05A2B',       // Terracotta / Marron Chaud
-  primaryLight: '#D87A4A',  // Light Terracotta
-  primaryDark: '#9C431D',   // Deep Terracotta
-  accent: '#1A1005',        // Dark Charcoal Text
-  accentSoft: '#FAF8F5',    // Light Cream Background
-  gold: '#B8860B',          // Warm Gold Accent
-  goldLight: '#FEF3C7',     // Soft Gold Tint
-  bg: '#FAF8F5',            // Fond d'écran crème très clair (#FAF8F5)
-  bgCard: '#FFFFFF',        // Fond blanc pur pour les cartes (#FFFFFF)
-  bgMuted: '#F4EFEA',       // Subtile crème/gris clair pour conteneurs
-  bgWarm: '#EFE7DC',        // Fond chaud
-  text: '#1A1005',          // Texte principal Sombre (#1A1005)
-  textSub: '#7A6A58',       // Texte secondaire Marron/Gris (#7A6A58)
-  textMuted: '#A89684',     // Texte discret (#A89684)
-  success: '#2E7D32',       // Vert succès
-  successLight: '#E8F5E9',  // Vert clair
-  error: '#9E2A2B',         // Rouge bordeaux erreur (#9E2A2B)
-  errorLight: '#FFF1F1',    // Rouge clair
-  warning: '#C97A14',       // Ambre avertissement
-  warningLight: '#FEF9C3',  // Ambre clair
-  border: '#E8E2D9',        // Bordure subtile gris clair (#E8E2D9)
-  borderLight: '#F0EADF',   // Bordure très douce
-  white: '#FFFFFF',         // Blanc pur
-  overlay: 'rgba(26, 16, 5, 0.45)',
+  // ── Core Brand ──
+  primary: '#2D1810',           // Deep espresso brown — main brand
+  primaryLight: '#4A3228',      // Lighter espresso
+  primarySoft: '#F5E6D8',       // Soft primary bg (legacy compat)
+  accent: '#D4A574',            // Warm caramel gold — luxury accent
+  accentLight: '#E8C9A0',       // Light caramel
+  accentDark: '#B8956A',        // Deep caramel
+
+  // ── Backgrounds ──
+  bg: '#F8F5F0',                // Warm ivory — main background
+  bgCard: '#FFFFFF',            // Pure white cards
+  bgElevated: '#FFFDFB',        // Slightly warm white
+  bgMuted: '#F0EBE3',           // Muted warm gray
+  bgDark: '#1A110C',            // Rich dark for contrast sections
+
+  // ── Text ──
+  text: '#1A110C',              // Near black with warmth
+  textSecondary: '#5C4A42',     // Warm medium brown
+  textSub: '#5C4A42',           // Alias for textSecondary (legacy compat)
+  textMuted: '#8B7B73',         // Muted brown
+  textLight: '#B5A79F',         // Light placeholder
+  textInverse: '#F8F5F0',       // Light text on dark
+
+  // ── Semantic ──
+  success: '#2E6B4F',           // Deep forest green
+  successBg: '#E8F3ED',
+  successLight: '#A7D5B8',      // Light green (legacy compat)
+  error: '#9B2C2C',             // Deep burgundy red
+  errorBg: '#FDF2F2',
+  errorLight: '#E8B4B4',        // Light error (legacy compat)
+  warning: '#92610E',           // Deep amber
+  warningBg: '#FEF8E7',
+  warningLight: '#F5D98A',      // Light warning (legacy compat)
+
+  // ── Borders ──
+  border: '#E5DED6',            // Warm border
+  borderLight: '#F0EBE3',       // Subtle border
+  borderDark: '#D4CCC3',        // Emphasis border
+
+  // ── Utilities ──
+  white: '#FFFFFF',
+  black: '#000000',
+  overlay: 'rgba(26, 17, 12, 0.7)',
+  overlayLight: 'rgba(26, 17, 12, 0.4)',
+  shimmer: '#E8E2DA',
+  gold: '#D4A574',              // Alias for accent (legacy compat)
+  bgWarm: '#F5E6D8',            // Warm bg (legacy compat)
+  gradientDark: '#1A110C',      // Gradient dark end (legacy compat)
 } as const
 
 export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 16,
-  full: 999,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  full: 9999,
 } as const
 
 export const spacing = {
@@ -46,12 +80,19 @@ export const spacing = {
 export const fontSize = {
   xs: 11,
   sm: 13,
+  base: 14,   // legacy compat
   md: 15,
-  base: 16,
-  lg: 18,
-  xl: 22,
-  xxl: 28,
-  xxxl: 36,
+  lg: 17,
+  xl: 20,
+  xxl: 26,
+  xxxl: 34,
+  display: 42,
+} as const
+
+export const lineHeight = {
+  tight: 1.2,
+  normal: 1.5,
+  relaxed: 1.7,
 } as const
 
 export const fontWeight = {
@@ -62,26 +103,54 @@ export const fontWeight = {
   extrabold: '800' as const,
 }
 
+export const fontFamily = {
+  serif: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  sans: Platform.OS === 'ios' ? 'System' : 'Roboto',
+}
+
+// Warm-tinted shadows for luxury feel
 export const shadow = {
-  sm: {
-    shadowColor: '#1A1005',
-    shadowOffset: { width: 0, height: 2 },
+  xs: {
+    shadowColor: '#2D1810',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sm: {
+    shadowColor: '#2D1810',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
   md: {
-    shadowColor: '#1A1005',
+    shadowColor: '#2D1810',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   lg: {
-    shadowColor: '#1A1005',
+    shadowColor: '#2D1810',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.10,
-    shadowRadius: 18,
-    elevation: 6,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  xl: {
+    shadowColor: '#2D1810',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    elevation: 12,
+  },
+  // Accent glow for CTAs
+  glow: {
+    shadowColor: '#D4A574',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
 } as const

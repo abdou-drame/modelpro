@@ -9,19 +9,21 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
-import { Link, router } from 'expo-router'
+import { router } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import { Eye, EyeOff, AlertCircle, Crown, Check, ChevronDown, ChevronRight } from 'lucide-react-native'
+import { StatusBar } from 'expo-status-bar'
+import { Eye, EyeOff, ArrowLeft, Scissors } from 'lucide-react-native'
 import { authApi } from '@/lib/api/auth'
 import { useAuthStore } from '@/lib/store/authStore'
+import { colors, spacing, radius, fontSize, fontFamily, shadow } from '@/constants/theme'
 
 const schema = z.object({
-  telephone: z.string().min(1, 'Veuillez saisir votre numéro ou email'),
-  password: z.string().min(1, 'Veuillez saisir votre mot de passe'),
+  telephone: z.string().min(1, 'Numéro ou email requis'),
+  password: z.string().min(1, 'Mot de passe requis'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -30,8 +32,6 @@ export default function LoginScreen() {
   const { setAuth } = useAuthStore()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
-  const [showDemoAccounts, setShowDemoAccounts] = useState(false)
 
   const { control, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -43,503 +43,322 @@ export default function LoginScreen() {
     try {
       const res = await authApi.login(data)
       await setAuth(res.data.user as any, res.data.token)
-      if (res.data.user.role === 'artisan') {
-        router.replace('/(artisan)/dashboard')
-      } else {
-        router.replace('/(client)')
-      }
+      router.replace(res.data.user.role === 'artisan' ? '/(artisan)/dashboard' : '/(client)')
     } catch (e: any) {
-      if (!e.response) {
-        setError('Impossible de contacter le serveur. Vérifiez votre connexion.')
-      } else {
-        setError(e.response.data?.error || 'Email ou mot de passe incorrect.')
-      }
+      setError(e.response?.data?.error || 'Identifiants incorrects')
     }
   }
 
-  const fillDemo = (phone: string, pass: string) => {
-    setValue('telephone', phone)
-    setValue('password', pass)
-    setError('')
-  }
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.root}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.root}>
+      <StatusBar style="dark" />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        <Animated.View entering={FadeInUp.duration(500)} style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={24} color={colors.text} strokeWidth={1.5} />
+            </TouchableOpacity>
+          </View>
 
-          {/* ── En-tête Logo ── */}
-          <View style={styles.headerLogoRow}>
-            <View style={styles.logoBox}>
-              <Crown size={22} color="#C05A2B" strokeWidth={2} />
+          <Animated.View entering={FadeInUp.duration(500)} style={styles.content}>
+            {/* Logo */}
+            <View style={styles.logoSection}>
+              <View style={styles.logoMark}>
+                <Scissors size={24} color={colors.accent} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.title}>Bon retour</Text>
+              <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
             </View>
-            <Text style={styles.brandTitle}>ModèlePro</Text>
-          </View>
 
-          {/* ── Titre & Surtitre ── */}
-          <View style={styles.titleSection}>
-            <Text style={styles.surtitre}>ACCÈS MEMBRE</Text>
-            <Text style={styles.mainTitle}>Bon retour</Text>
-            <Text style={styles.subtitle}>Connectez-vous à votre espace ModèlePro</Text>
-          </View>
-
-          {/* ── Formulaire ── */}
-          <View style={styles.form}>
-
-            {/* Champ Téléphone / Email */}
-            <Controller
-              control={control}
-              name="telephone"
-              render={({ field: { onChange, value, onBlur } }) => {
-                const hasError = !!errors.telephone || !!error
-                return (
+            {/* Form */}
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="telephone"
+                render={({ field: { onChange, value, onBlur } }) => (
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Adresse email ou numéro</Text>
-                    <View style={[styles.inputWrapper, hasError && styles.inputWrapperError]}>
-                      <TextInput
-                        value={value}
-                        onChangeText={(v) => { onChange(v); setError('') }}
-                        onBlur={onBlur}
-                        placeholder="ex: client@modelepro.sn ou 0702000001"
-                        placeholderTextColor="#A89684"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        style={styles.input}
-                        accessibilityLabel="Adresse email ou numéro de téléphone"
-                      />
-                    </View>
-                    {errors.telephone ? (
-                      <View style={styles.errorRow}>
-                        <AlertCircle size={14} color="#9E2A2B" />
-                        <Text style={styles.errorText}>{errors.telephone.message}</Text>
-                      </View>
-                    ) : null}
+                    <Text style={styles.label}>Email ou téléphone</Text>
+                    <TextInput
+                      value={value}
+                      onChangeText={(v) => { onChange(v); setError('') }}
+                      onBlur={onBlur}
+                      placeholder="Entrez votre identifiant"
+                      placeholderTextColor={colors.textLight}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      style={[styles.input, errors.telephone && styles.inputError]}
+                    />
+                    {errors.telephone && <Text style={styles.errorText}>{errors.telephone.message}</Text>}
                   </View>
-                )
-              }}
-            />
+                )}
+              />
 
-            {/* Champ Mot de passe */}
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, value, onBlur } }) => {
-                const hasError = !!errors.password || !!error
-                return (
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value, onBlur } }) => (
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Mot de passe</Text>
-                    <View style={[styles.inputWrapper, hasError && styles.inputWrapperError]}>
+                    <Text style={styles.label}>Mot de passe</Text>
+                    <View style={styles.passwordWrapper}>
                       <TextInput
                         value={value}
                         onChangeText={(v) => { onChange(v); setError('') }}
                         onBlur={onBlur}
                         placeholder="••••••••"
-                        placeholderTextColor="#A89684"
+                        placeholderTextColor={colors.textLight}
                         secureTextEntry={!showPassword}
-                        style={[styles.input, { paddingRight: 44 }]}
-                        accessibilityLabel="Mot de passe"
+                        style={[styles.input, styles.passwordInput, errors.password && styles.inputError]}
                       />
                       <TouchableOpacity
                         style={styles.eyeBtn}
                         onPress={() => setShowPassword(!showPassword)}
-                        activeOpacity={0.7}
-                        accessibilityLabel="Afficher ou masquer le mot de passe"
                       >
                         {showPassword ? (
-                          <EyeOff size={18} color="#7A6A58" />
+                          <EyeOff size={20} color={colors.textMuted} strokeWidth={1.5} />
                         ) : (
-                          <Eye size={18} color="#7A6A58" />
+                          <Eye size={20} color={colors.textMuted} strokeWidth={1.5} />
                         )}
                       </TouchableOpacity>
                     </View>
-                    {errors.password ? (
-                      <View style={styles.errorRow}>
-                        <AlertCircle size={14} color="#9E2A2B" />
-                        <Text style={styles.errorText}>{errors.password.message}</Text>
-                      </View>
-                    ) : null}
+                    {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
                   </View>
-                )
-              }}
-            />
+                )}
+              />
 
-            {/* Message d'erreur global */}
-            {error ? (
-              <View style={styles.errorRowGlobal}>
-                <AlertCircle size={15} color="#9E2A2B" />
-                <Text style={styles.errorTextGlobal}>{error}</Text>
-              </View>
-            ) : null}
-
-            {/* Options Checkbox & Mot de passe oublié */}
-            <View style={styles.optionsRow}>
-              <TouchableOpacity
-                style={styles.rememberRow}
-                onPress={() => setRememberMe(!rememberMe)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorBoxText}>{error}</Text>
                 </View>
-                <Text style={styles.rememberText}>Rester connecté</Text>
-              </TouchableOpacity>
+              ) : null}
 
               <TouchableOpacity
-                onPress={() => setError('Contactez le support au 0702000000 pour réinitialiser.')}
-                activeOpacity={0.7}
+                style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+                onPress={handleSubmit(onSubmit)}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
               >
-                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.submitBtnText}>Se connecter</Text>
+                )}
               </TouchableOpacity>
             </View>
 
-            {/* Bouton Se Connecter */}
-            <TouchableOpacity
-              style={[styles.primaryBtn, isSubmitting && styles.btnDisabled]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={isSubmitting}
-              activeOpacity={0.88}
-              accessibilityRole="button"
-              accessibilityLabel={isSubmitting ? 'Connexion en cours' : 'Se connecter'}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.primaryBtnText}>Se connecter</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Liens secondaires */}
-            <View style={styles.linksBlock}>
-              <View style={styles.registerRow}>
-                <Text style={styles.registerText}>Pas encore de compte ? </Text>
-                <TouchableOpacity onPress={() => router.push('/(auth)/register-client')}>
-                  <Text style={styles.registerLinkBold}>Créer un compte</Text>
+            {/* Demo accounts */}
+            <View style={styles.demoSection}>
+              <Text style={styles.demoLabel}>Comptes démo</Text>
+              <View style={styles.demoRow}>
+                <TouchableOpacity
+                  style={styles.demoBtn}
+                  onPress={() => { setValue('telephone', '0702000001'); setValue('password', 'Client@2026') }}
+                >
+                  <Text style={styles.demoBtnText}>Client</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.demoBtn}
+                  onPress={() => { setValue('telephone', '0701000001'); setValue('password', 'Artisan@2026') }}
+                >
+                  <Text style={styles.demoBtnText}>Artisan</Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                style={styles.backHomeBtn}
-                onPress={() => router.replace('/(auth)')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.backHomeText}>Retour à l'accueil</Text>
-              </TouchableOpacity>
             </View>
 
-            {/* Démo acccordéon */}
-            <View style={styles.demoSection}>
-              <TouchableOpacity
-                style={styles.demoHeader}
-                onPress={() => setShowDemoAccounts(!showDemoAccounts)}
-                activeOpacity={0.7}
-              >
-                {showDemoAccounts ? (
-                  <ChevronDown size={16} color="#7A6A58" />
-                ) : (
-                  <ChevronRight size={16} color="#7A6A58" />
-                )}
-                <Text style={styles.demoHeaderText}>Comptes de démonstration</Text>
+            {/* Footer link */}
+            <View style={styles.footerLink}>
+              <Text style={styles.footerText}>Pas encore de compte ? </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/register-client')}>
+                <Text style={styles.footerLinkText}>Créer un compte</Text>
               </TouchableOpacity>
-
-              {showDemoAccounts && (
-                <View style={styles.demoContent}>
-                  <TouchableOpacity
-                    style={styles.demoPill}
-                    onPress={() => fillDemo('0702000001', 'Client@2026')}
-                  >
-                    <Text style={styles.demoPillTitle}>👤 Client Démo</Text>
-                    <Text style={styles.demoPillSub}>0702000001 / Client@2026</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.demoPill}
-                    onPress={() => fillDemo('0701000001', 'Artisan@2026')}
-                  >
-                    <Text style={styles.demoPillTitle}>✂️ Artisan Démo</Text>
-                    <Text style={styles.demoPillSub}>0701000001 / Artisan@2026</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
-
-          </View>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.bg,
   },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
+    paddingHorizontal: spacing.xl,
     paddingBottom: 40,
-    justifyContent: 'center',
   },
-  container: {
-    maxWidth: 440,
-    width: '100%',
-    alignSelf: 'center',
+  header: {
+    paddingTop: 56,
+    marginBottom: spacing.lg,
   },
-
-  // ── Header Logo ──
-  headerLogoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 32,
-  },
-  logoBox: {
+  backBtn: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
+    borderRadius: radius.md,
+    backgroundColor: colors.bgCard,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A1005',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1A1005',
-    letterSpacing: -0.5,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  content: {
+    flex: 1,
   },
-
-  // ── Titre Section ──
-  titleSection: {
-    marginBottom: 28,
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: spacing.xxxl,
   },
-  surtitre: {
-    fontSize: 12,
+  logoMark: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  title: {
+    fontSize: fontSize.xxl,
     fontWeight: '700',
-    color: '#C05A2B',
-    letterSpacing: 1.5,
-    marginBottom: 6,
-  },
-  mainTitle: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#1A1005',
-    letterSpacing: -0.8,
-    lineHeight: 40,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 6,
+    color: colors.text,
+    fontFamily: fontFamily.serif,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#7A6A58',
-    lineHeight: 22,
+    fontSize: fontSize.md,
+    color: colors.textMuted,
   },
 
-  // ── Formulaire ──
+  // Form
   form: {
-    gap: 20,
+    gap: spacing.lg,
+    marginBottom: spacing.xxl,
   },
   fieldGroup: {
-    gap: 6,
+    gap: spacing.xs,
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1005',
-  },
-  inputWrapper: {
-    position: 'relative',
-    height: 52,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E8E2D9',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  inputWrapperError: {
-    borderColor: '#9E2A2B',
-    backgroundColor: '#FFF9F9',
+  label: {
+    fontSize: fontSize.sm,
+    fontWeight: '500',
+    color: colors.text,
   },
   input: {
-    fontSize: 15,
-    color: '#1A1005',
-    width: '100%',
-    height: '100%',
+    height: 52,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    fontSize: fontSize.md,
+    color: colors.text,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  passwordWrapper: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 52,
   },
   eyeBtn: {
     position: 'absolute',
-    right: 14,
-    height: '100%',
+    right: 0,
+    top: 0,
+    width: 52,
+    height: 52,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
   },
   errorText: {
-    fontSize: 13,
-    color: '#9E2A2B',
-    fontWeight: '500',
+    fontSize: fontSize.xs,
+    color: colors.error,
   },
-  errorRowGlobal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFF1F1',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+  errorBox: {
+    backgroundColor: colors.errorBg,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#F87171',
+    borderColor: colors.error,
   },
-  errorTextGlobal: {
-    fontSize: 13,
-    color: '#9E2A2B',
-    fontWeight: '600',
-    flex: 1,
+  errorBoxText: {
+    fontSize: fontSize.sm,
+    color: colors.error,
+    textAlign: 'center',
   },
-
-  // ── Options ──
-  optionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#C05A2B',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#C05A2B',
-  },
-  rememberText: {
-    fontSize: 14,
-    color: '#55483B',
-  },
-  forgotText: {
-    fontSize: 14,
-    color: '#7A6A58',
-  },
-
-  // ── Bouton Principal ──
-  primaryBtn: {
+  submitBtn: {
     height: 52,
-    backgroundColor: '#C05A2B',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#C05A2B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
+    marginTop: spacing.sm,
+    ...shadow.sm,
   },
-  btnDisabled: {
-    opacity: 0.65,
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  submitBtnText: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: colors.white,
   },
 
-  // ── Liens bas ──
-  linksBlock: {
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 10,
-  },
-  registerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  registerText: {
-    fontSize: 14,
-    color: '#7A6A58',
-  },
-  registerLinkBold: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1A1005',
-  },
-  backHomeBtn: {
-    paddingVertical: 4,
-  },
-  backHomeText: {
-    fontSize: 14,
-    color: '#7A6A58',
-    textDecorationLine: 'underline',
-  },
-
-  // ── Accordéon Démo ──
+  // Demo
   demoSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E2D9',
-  },
-  demoHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginBottom: spacing.xxl,
   },
-  demoHeaderText: {
-    fontSize: 13,
-    color: '#7A6A58',
+  demoLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textLight,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  demoRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  demoBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.bgMuted,
+    borderRadius: radius.full,
+  },
+  demoBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
-  demoContent: {
-    gap: 8,
-    marginTop: 12,
+
+  // Footer
+  footerLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  demoPill: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E8E2D9',
+  footerText: {
+    fontSize: fontSize.md,
+    color: colors.textMuted,
   },
-  demoPillTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1A1005',
-  },
-  demoPillSub: {
-    fontSize: 12,
-    color: '#7A6A58',
-    marginTop: 2,
+  footerLinkText: {
+    fontSize: fontSize.md,
+    color: colors.accent,
+    fontWeight: '600',
   },
 })
