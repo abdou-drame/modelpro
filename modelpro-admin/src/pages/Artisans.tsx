@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Store, UserCheck, Search } from 'lucide-react'
+import { Store, UserCheck, Search, Crown } from 'lucide-react'
 import { AdminArtisan, artisansAdminApi } from '@/lib/api'
 import { cn, formatDate } from '@/lib/utils'
 import { Badge, statusVariant } from '@/components/shared/Badge'
@@ -24,13 +24,13 @@ const VALIDATION_LABELS: Record<string, string> = {
 const ABONNEMENT_LABELS: Record<string, string> = {
   actif: 'Actif',
   expire: 'Expiré',
-  aucun: 'Aucun',
+  inactif: 'Inactif',
 }
 
-function abonnementVariant(statut: string) {
-  if (statut === 'actif') return 'success' as const
-  if (statut === 'expire') return 'danger' as const
-  return 'neutral' as const
+function abonnementVariant(statut: string): 'success' | 'danger' | 'neutral' {
+  if (statut === 'actif') return 'success'
+  if (statut === 'expire') return 'danger'
+  return 'neutral'
 }
 
 function getInitials(nom: string, prenom: string): string {
@@ -90,7 +90,13 @@ export default function Artisans() {
   const invalidateBoth = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-artisans'] })
     queryClient.invalidateQueries({ queryKey: ['admin-pending-artisans'] })
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
   }
+
+  const subMutation = useMutation({
+    mutationFn: (id: number) => artisansAdminApi.updateSubscription(id, { statutAbonnement: 'actif', days: 30 }),
+    onSuccess: () => invalidateBoth(),
+  })
 
   const verifyMutation = useMutation({
     mutationFn: (id: number) => artisansAdminApi.verify(id),
@@ -186,6 +192,7 @@ export default function Artisans() {
                   setRejectTarget(a)
                   setRejectMotif('')
                 }}
+                onActivateSub={(a) => subMutation.mutate(a.id)}
               />
             </motion.div>
           ) : (
@@ -317,6 +324,7 @@ function ArtisansTable({
   emptyDescription,
   onVerify,
   onReject,
+  onActivateSub,
   paginationMeta,
   onPageChange,
 }: {
@@ -327,6 +335,7 @@ function ArtisansTable({
   emptyDescription: string
   onVerify?: (a: AdminArtisan) => void
   onReject?: (a: AdminArtisan) => void
+  onActivateSub?: (a: AdminArtisan) => void
   paginationMeta?: { page: number; totalPages: number; total: number; limit: number }
   onPageChange?: (page: number) => void
 }) {
@@ -387,6 +396,7 @@ function ArtisansTable({
                   mode={mode}
                   onVerify={onVerify}
                   onReject={onReject}
+                  onActivateSub={onActivateSub}
                 />
               ))
             )}
@@ -414,11 +424,13 @@ function ArtisanRow({
   artisan,
   onVerify,
   onReject,
+  onActivateSub,
 }: {
   artisan: AdminArtisan
   mode?: 'all' | 'pending'
   onVerify?: (a: AdminArtisan) => void
   onReject?: (a: AdminArtisan) => void
+  onActivateSub?: (a: AdminArtisan) => void
 }) {
   const user = artisan.user || { nom: 'Artisan', prenom: '', photoUrl: null, createdAt: new Date().toISOString() }
   const initials = getInitials(user.nom || 'A', user.prenom || '')
@@ -487,15 +499,32 @@ function ArtisanRow({
 
       {/* Abonnement */}
       <td className="px-4 py-3">
-        <div className="flex flex-col gap-0.5">
-          <Badge
-            label={ABONNEMENT_LABELS[artisan.statutAbonnement] ?? artisan.statutAbonnement}
-            variant={abonnementVariant(artisan.statutAbonnement)}
-          />
-          {artisan.dateFinAbonnement && (
-            <span className="text-xs text-ink-muted">
-              exp. {formatDate(artisan.dateFinAbonnement)}
-            </span>
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-0.5">
+            <Badge
+              label={ABONNEMENT_LABELS[artisan.statutAbonnement] ?? artisan.statutAbonnement}
+              variant={abonnementVariant(artisan.statutAbonnement)}
+            />
+            {artisan.dateFinAbonnement && (
+              <span className="text-xs text-ink-muted">
+                exp. {formatDate(artisan.dateFinAbonnement)}
+              </span>
+            )}
+          </div>
+          {onActivateSub && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onActivateSub(artisan);
+              }}
+              title="Activer ou prolonger l'abonnement de 30 jours"
+              className="px-2 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-xs flex items-center gap-1 shrink-0"
+            >
+              <Crown size={12} />
+              Activer (+30j)
+            </button>
           )}
         </div>
       </td>

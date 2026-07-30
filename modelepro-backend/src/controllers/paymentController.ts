@@ -62,7 +62,8 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
             : now;
 
           const newEnd = new Date(currentEnd);
-          newEnd.setDate(newEnd.getDate() + 30); // 30 jours d'abonnement
+          const daysToAdd = Number(montant) >= 40000 ? 365 : 30;
+          newEnd.setDate(newEnd.getDate() + daysToAdd);
 
           artisan.statutAbonnement = 'actif';
           artisan.dateFinAbonnement = newEnd;

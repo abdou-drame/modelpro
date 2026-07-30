@@ -51,3 +51,30 @@ export const getOrderStatusColor = (status: OrderStatus): string => {
   }
   return colors[status]
 }
+
+export const getMontantPaye = (order?: {
+  statutPaiement?: PaymentStatus | string | null
+  paymentStatus?: PaymentStatus | string | null
+  prixTotal?: number | null
+  totalPrice?: number | null
+  prix?: number | null
+  acompte?: number | null
+  depositAmount?: number | null
+} | null): number => {
+  if (!order) return 0
+  const status = order.statutPaiement || order.paymentStatus || 'unpaid'
+  const total = order.prixTotal ?? order.totalPrice ?? order.prix ?? 0
+  const deposit = order.acompte ?? order.depositAmount ?? (total > 0 ? Math.round(total * 0.5) : 0)
+
+  if (status === 'fully_paid') {
+    return total
+  }
+  if (status === 'deposit_paid') {
+    return deposit
+  }
+  if (order.acompte && order.acompte > 0) {
+    return order.acompte
+  }
+  return 0
+}
+

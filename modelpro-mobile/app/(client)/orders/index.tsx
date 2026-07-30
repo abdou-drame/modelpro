@@ -8,7 +8,7 @@ import { ordersApi } from '@/lib/api/orders'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonCard'
-import { formatDate, formatPrice, ORDER_STATUS_LABELS } from '@/lib/utils/format'
+import { formatDate, formatPrice, getMontantPaye, ORDER_STATUS_LABELS } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { Order } from '@/lib/api/orders'
 import type { OrderStatus } from '@/constants/enums'
@@ -24,6 +24,8 @@ const STATUS_VARIANT: Record<OrderStatus, 'neutral' | 'primary' | 'success' | 'e
 }
 
 function OrderItem({ order, index }: { order: Order; index: number }) {
+  const montantPaye = getMontantPaye(order)
+
   return (
     <Animated.View entering={FadeInUp.delay(index * 50).springify()}>
       <TouchableOpacity
@@ -48,7 +50,12 @@ function OrderItem({ order, index }: { order: Order; index: number }) {
         <View style={styles.cardFooter}>
           <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
           {order.prixTotal != null && (
-            <Text style={styles.price}>{formatPrice(order.prixTotal)}</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.price}>{formatPrice(order.prixTotal)}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.success }}>
+                Payé: {formatPrice(montantPaye)}
+              </Text>
+            </View>
           )}
           <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
         </View>

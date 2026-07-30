@@ -10,7 +10,7 @@ import { ArrowLeft, MessageCircle, XCircle, CreditCard, Star, ShieldAlert, Clock
 import { ordersApi } from '@/lib/api/orders'
 import { OrderTimeline } from '@/components/shared/OrderTimeline'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, formatPrice, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/utils/format'
+import { formatDate, formatPrice, getMontantPaye, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { OrderStatus } from '@/constants/enums'
 
@@ -57,6 +57,7 @@ export default function OrderDetailScreen() {
   if (!order) return <View style={{ flex: 1, backgroundColor: colors.bg }} />
 
   const canCancel = !['livree', 'annulee'].includes(order.statut)
+  const montantPaye = getMontantPaye(order)
 
   return (
     <View style={styles.container}>
@@ -158,12 +159,19 @@ export default function OrderDetailScreen() {
                 </View>
               </>
             )}
-            {order.acompte != null && (
+            <View style={styles.paymentDivider} />
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Montant payé</Text>
+              <Text style={styles.paymentValue}>{formatPrice(montantPaye)}</Text>
+            </View>
+            {order.prixTotal != null && (
               <>
                 <View style={styles.paymentDivider} />
                 <View style={styles.paymentRow}>
-                  <Text style={styles.paymentLabel}>Acompte versé</Text>
-                  <Text style={styles.paymentValue}>{formatPrice(order.acompte)}</Text>
+                  <Text style={styles.paymentLabel}>Solde restant</Text>
+                  <Text style={styles.paymentValue}>
+                    {formatPrice(Math.max(0, (order.prixTotal ?? 0) - montantPaye))}
+                  </Text>
                 </View>
               </>
             )}

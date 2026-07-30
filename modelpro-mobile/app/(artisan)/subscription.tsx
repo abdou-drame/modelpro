@@ -1,16 +1,18 @@
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native'
+import { showAlert } from '@/lib/utils/alert'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { BlurView } from 'expo-blur'
 import { useState } from 'react'
 import { router } from 'expo-router'
-import { ArrowLeft, CheckCircle2, Zap, Crown, Calendar, Smartphone, Banknote } from 'lucide-react-native'
+import { ArrowLeft, CheckCircle2, Zap, Crown, Calendar } from 'lucide-react-native'
 import { paymentsApi } from '@/lib/api/payments'
 import { formatDate, formatPrice } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { PaymentMethod } from '@/constants/enums'
+import { PaymentMethodLogo } from '@/components/shared/PaymentMethodLogo'
 
 const PLANS = [
   {
@@ -31,11 +33,11 @@ const PLANS = [
   },
 ]
 
-const METHODS: { key: PaymentMethod; label: string; icon: any }[] = [
-  { key: 'wave', label: 'Wave', icon: Smartphone },
-  { key: 'orange_money', label: 'Orange Money', icon: Smartphone },
-  { key: 'free_money', label: 'Free Money', icon: Smartphone },
-  { key: 'especes', label: 'Espèces', icon: Banknote },
+const METHODS: { key: PaymentMethod; label: string }[] = [
+  { key: 'wave', label: 'Wave' },
+  { key: 'orange_money', label: 'Orange Money' },
+  { key: 'free_money', label: 'Free Money' },
+  { key: 'especes', label: 'Espèces' },
 ]
 
 export default function ArtisanSubscriptionScreen() {
@@ -59,15 +61,20 @@ export default function ArtisanSubscriptionScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-subscription'] })
-      Alert.alert('Abonnement activé', 'Votre abonnement ModèlePro a bien été enregistré.')
+      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-dashboard'] })
+      showAlert('Abonnement activé !', 'Votre abonnement ModèlePro a été activé avec succès.')
+    },
+    onError: (err: any) => {
+      showAlert('Erreur', err.response?.data?.error ?? "Impossible d'activer l'abonnement.")
     },
   })
 
   const handleSubscribe = () => {
     const plan = PLANS.find((p) => p.key === selectedPlan)!
-    Alert.alert(
+    showAlert(
       `Souscrire — ${plan.label}`,
-      `${formatPrice(plan.price)} via ${METHODS.find((m) => m.key === selectedMethod)?.label}`,
+      `Confirmer le paiement de ${formatPrice(plan.price)} via ${METHODS.find((m) => m.key === selectedMethod)?.label} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Confirmer', onPress: () => subscribeMutation.mutate() },
@@ -76,6 +83,7 @@ export default function ArtisanSubscriptionScreen() {
   }
 
   const isActive = subData?.statutAbonnement === 'actif'
+  const dateFin = subData?.dateFinAbonnement || subData?.subscriptions?.[0]?.dateFin
 
   const PERKS = [
     'Profil visible dans les recherches',
@@ -98,7 +106,7 @@ export default function ArtisanSubscriptionScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Statut actuel */}
-        {isActive && subData?.subscriptions?.length > 0 && (
+        {isActive && (
           <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.activeCard}>
             <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
             <View style={styles.activeBorder} />
@@ -106,9 +114,7 @@ export default function ArtisanSubscriptionScreen() {
             <View>
               <Text style={styles.activeTitle}>Abonnement actif</Text>
               <Text style={styles.activeSub}>
-                {subData.subscriptions[0].dateFin
-                  ? `Expire le ${formatDate(subData.subscriptions[0].dateFin)}`
-                  : 'En cours'}
+                {dateFin ? `Expire le ${formatDate(dateFin)}` : 'Abonnement en cours'}
               </Text>
             </View>
           </Animated.View>
@@ -165,14 +171,13 @@ export default function ArtisanSubscriptionScreen() {
           <View style={styles.methodList}>
             {METHODS.map((m) => {
               const active = selectedMethod === m.key
-              const Icon = m.icon
               return (
                 <TouchableOpacity
                   key={m.key}
                   style={[styles.methodItem, active && styles.methodItemActive]}
                   onPress={() => setSelectedMethod(m.key)}
                 >
-                  <Icon size={18} color={active ? colors.white : colors.textMuted} strokeWidth={1.8} />
+                  <PaymentMethodLogo method={m.key} size={36} />
                   <Text style={[styles.methodLabel, active && styles.methodLabelActive]}>{m.label}</Text>
                 </TouchableOpacity>
               )

@@ -26,6 +26,7 @@ import {
   deleteArtisanAdmin,
   suspendArtisan,
   reactivateArtisan,
+  updateArtisanSubscriptionAdmin,
 } from '../controllers/adminController';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 
@@ -49,6 +50,7 @@ router.patch('/artisans/:id/verify', verifyArtisan);
 router.patch('/artisans/:id/reject', rejectArtisan);
 router.patch('/artisans/:id/suspend', suspendArtisan);
 router.patch('/artisans/:id/reactivate', reactivateArtisan);
+router.patch('/artisans/:id/subscription', updateArtisanSubscriptionAdmin);
 router.delete('/artisans/:id', deleteArtisanAdmin);
 
 // Suppression & consultation d'avis

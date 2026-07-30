@@ -286,7 +286,7 @@ export default function NewAppointmentScreen() {
 
   const onSubmit = (data: FormValues) => {
     if (!artisanReady) {
-      Alert.alert('Artisan requis', 'Veuillez sélectionner un artisan.')
+      showAlert('Artisan requis', 'Veuillez sélectionner un artisan.')
       return
     }
     mutation.mutate(data)

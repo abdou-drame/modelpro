@@ -190,8 +190,17 @@ export default function Orders() {
                     <td className="px-4 py-3 text-ink-sub">
                       {order.creation?.titre ?? <span className="text-ink-muted">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-ink font-semibold whitespace-nowrap">
-                      {formatPrice(order.prix)}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="font-semibold text-ink">{formatPrice(order.prix)}</div>
+                      <div className="text-xs text-emerald-600 font-medium">
+                        Payé: {formatPrice(
+                          (order as any).paymentStatus === 'fully_paid'
+                            ? (order.totalPrice || order.prix || 0)
+                            : ((order as any).paymentStatus === 'deposit_paid'
+                              ? (order.depositAmount || Math.round((order.totalPrice || order.prix || 0) * 0.5))
+                              : 0)
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <Badge

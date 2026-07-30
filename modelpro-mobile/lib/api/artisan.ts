@@ -129,9 +129,11 @@ export const artisanApi = {
   // Orders
   orders: () =>
     apiClient.get<ArtisanOrder[]>(ENDPOINTS.artisanOrders).then((r) => {
-      r.data.forEach((o) => {
+      r.data.forEach((o: any) => {
+        o.prixTotal = o.totalPrice ?? o.prix ?? o.prixTotal ?? null
+        o.acompte = o.depositAmount ?? o.acompte ?? (o.prixTotal ? Math.round(o.prixTotal * 0.5) : null)
         if (typeof o.mesures === 'string') {
-          try { (o as any).mesures = JSON.parse(o.mesures) } catch { (o as any).mesures = null }
+          try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
         }
       })
       return r
@@ -139,8 +141,12 @@ export const artisanApi = {
   orderById: (id: number) =>
     apiClient.get<ArtisanOrder>(ENDPOINTS.artisanOrderById(id)).then((r) => {
       const o = r.data as any
-      if (typeof o.mesures === 'string') {
-        try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
+      if (o) {
+        o.prixTotal = o.totalPrice ?? o.prix ?? o.prixTotal ?? null
+        o.acompte = o.depositAmount ?? o.acompte ?? (o.prixTotal ? Math.round(o.prixTotal * 0.5) : null)
+        if (typeof o.mesures === 'string') {
+          try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
+        }
       }
       return r
     }),
@@ -148,7 +154,7 @@ export const artisanApi = {
     apiClient.patch(ENDPOINTS.artisanOrderStatus(id), { statut, dateLivraisonEstimee }),
   updateDeliveryDate: (id: number, date: string) =>
     apiClient.patch(ENDPOINTS.artisanOrderDelivery(id), { dateLivraisonEstimee: date }),
-  updatePayment: (id: number, data: { montant: number; type: string; methode: string }) =>
+  updatePayment: (id: number, data: { paymentStatus?: string; depositAmount?: number; totalPrice?: number; montant?: number; type?: string; methode?: string }) =>
     apiClient.patch(ENDPOINTS.artisanOrderPayment(id), data),
 
   // Appointments
