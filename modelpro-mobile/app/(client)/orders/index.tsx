@@ -1,15 +1,16 @@
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
+import { StatusBar } from 'expo-status-bar'
 import { router } from 'expo-router'
-import { ArrowLeft, ChevronRight, ShoppingBag } from 'lucide-react-native'
+import { ChevronRight, ShoppingBag } from 'lucide-react-native'
 import { ordersApi } from '@/lib/api/orders'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { formatDate, formatPrice, ORDER_STATUS_LABELS } from '@/lib/utils/format'
-import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
+import { colors, spacing, fontSize, radius, shadow, fontFamily } from '@/constants/theme'
 import type { Order } from '@/lib/api/orders'
 import type { OrderStatus } from '@/constants/enums'
 
@@ -25,32 +26,30 @@ const STATUS_VARIANT: Record<OrderStatus, 'neutral' | 'primary' | 'success' | 'e
 
 function OrderItem({ order, index }: { order: Order; index: number }) {
   return (
-    <Animated.View entering={FadeInUp.delay(index * 50).springify()}>
+    <Animated.View entering={FadeInUp.delay(Math.min(index * 40, 200)).duration(400)}>
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push(`/(client)/orders/${order.id}`)}
         activeOpacity={0.9}
       >
-        <View style={styles.cardHeader}>
-          <View>
-            <Text style={styles.artisanName}>{order.artisan.atelier}</Text>
+        <View style={styles.cardTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.atelier} numberOfLines={1}>{order.artisan.atelier}</Text>
             <Text style={styles.metier}>{order.artisan.métier}</Text>
           </View>
           <Badge label={ORDER_STATUS_LABELS[order.statut]} variant={STATUS_VARIANT[order.statut]} />
         </View>
 
         {order.creation && (
-          <Text style={styles.modelName} numberOfLines={1}>
-            {order.creation.titre}
-          </Text>
+          <Text style={styles.model} numberOfLines={1}>{order.creation.titre}</Text>
         )}
 
-        <View style={styles.cardFooter}>
+        <View style={styles.cardBottom}>
           <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
           {order.prixTotal != null && (
             <Text style={styles.price}>{formatPrice(order.prixTotal)}</Text>
           )}
-          <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
+          <ChevronRight size={16} color={colors.textLight} strokeWidth={2} />
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -65,31 +64,25 @@ export default function ClientOrdersScreen() {
   })
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      <StatusBar style="dark" />
+
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backRow}
-          onPress={() => router.replace('/(client)')}
-          accessibilityRole="button"
-          accessibilityLabel="Retour au catalogue"
-        >
-          <ArrowLeft size={20} color={colors.text} strokeWidth={2} />
-          <Text style={styles.backText}>Catalogue</Text>
-        </TouchableOpacity>
         <Text style={styles.title}>Mes commandes</Text>
+        <Text style={styles.subtitle}>{orders?.length ?? 0} commande{(orders?.length ?? 0) > 1 ? 's' : ''}</Text>
       </View>
 
       <FlashList
         data={orders ?? []}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item, index }) => <OrderItem order={item} index={index} />}
         ListHeaderComponent={isLoading ? <SkeletonList count={3} type="order" /> : null}
         ListEmptyComponent={
           isLoading ? null : (
             <EmptyState
-              icon={<ShoppingBag size={36} color={colors.textMuted} strokeWidth={1.5} />}
+              icon={<ShoppingBag size={40} color={colors.textLight} strokeWidth={1.5} />}
               title="Aucune commande"
               subtitle="Parcourez le catalogue pour passer votre première commande"
               action={{ label: 'Voir le catalogue', onPress: () => router.replace('/(client)') }}
@@ -102,28 +95,18 @@ export default function ClientOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF8F5' },
-  header: {
-    paddingHorizontal: spacing.xl, paddingTop: 52, paddingBottom: spacing.lg,
-    borderBottomWidth: 1, borderBottomColor: '#E8E2D9', gap: spacing.xs,
-  },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
-  backText: { fontSize: fontSize.sm, fontWeight: '600', color: '#1A1005' },
-  title: {
-    fontSize: fontSize.xxl, fontWeight: '800', color: '#1A1005',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    letterSpacing: -0.5,
-  },
-  card: {
-    backgroundColor: '#FFFFFF', borderRadius: 14,
-    borderWidth: 1, borderColor: '#E8E2D9',
-    padding: spacing.lg, gap: spacing.sm, ...shadow.sm,
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  artisanName: { fontSize: fontSize.base, fontWeight: '700', color: '#1A1005' },
-  metier: { fontSize: fontSize.xs, color: '#7A6A58', marginTop: 2 },
-  modelName: { fontSize: fontSize.sm, color: '#7A6A58', fontStyle: 'italic' },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
-  date: { fontSize: fontSize.xs, color: '#7A6A58', flex: 1 },
-  price: { fontSize: fontSize.sm, fontWeight: '800', color: '#C05A2B' },
+  root: { flex: 1, backgroundColor: colors.bg },
+
+  header: { paddingTop: 56, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
+  title: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif },
+  subtitle: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+
+  card: { backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border, ...shadow.sm },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md },
+  atelier: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+  metier: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  model: { fontSize: fontSize.sm, color: colors.textSecondary, fontStyle: 'italic' },
+  cardBottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  date: { fontSize: fontSize.xs, color: colors.textMuted, flex: 1 },
+  price: { fontSize: fontSize.md, fontWeight: '700', color: colors.accent },
 })

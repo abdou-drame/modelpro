@@ -8,11 +8,11 @@ interface Props {
 }
 
 const variants = {
-  primary: { bg: '#F5E6D8', text: colors.primary },
-  success: { bg: colors.successLight, text: colors.success },
-  error: { bg: colors.errorLight, text: colors.error },
-  warning: { bg: colors.warningLight, text: colors.warning },
-  neutral: { bg: colors.bgMuted, text: colors.textSub },
+  primary: { bg: `${colors.accent}20`, text: colors.primary },
+  success: { bg: colors.successBg, text: colors.success },
+  error: { bg: colors.errorBg, text: colors.error },
+  warning: { bg: colors.warningBg, text: colors.warning },
+  neutral: { bg: colors.bgMuted, text: colors.textSecondary },
 }
 
 export function Badge({ label, variant = 'neutral', size = 'sm' }: Props) {
@@ -25,8 +25,8 @@ export function Badge({ label, variant = 'neutral', size = 'sm' }: Props) {
       style={{
         backgroundColor: v.bg,
         borderRadius: radius.full,
-        paddingHorizontal: size === 'sm' ? 8 : 12,
-        paddingVertical: size === 'sm' ? 3 : 5,
+        paddingHorizontal: size === 'sm' ? 10 : 14,
+        paddingVertical: size === 'sm' ? 4 : 6,
         alignSelf: 'flex-start',
       }}
     >
@@ -35,7 +35,6 @@ export function Badge({ label, variant = 'neutral', size = 'sm' }: Props) {
           fontSize: size === 'sm' ? fontSize.xs : fontSize.sm,
           fontWeight: '600',
           color: v.text,
-          letterSpacing: 0.2,
         }}
       >
         {label}

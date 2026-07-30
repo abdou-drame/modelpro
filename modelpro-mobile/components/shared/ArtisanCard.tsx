@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -21,99 +21,56 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
   const reviewCount = artisan.nombreAvis ?? 0
 
   return (
-    <Animated.View
-      entering={FadeInUp.delay(Math.min(index * 70, 450)).springify().damping(14).mass(0.8)}
-    >
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push(`/(client)/artisan/${artisan.id}`)}
-        activeOpacity={0.95}
-        accessibilityRole="button"
-        accessibilityLabel={`Voir le profil de ${artisan.atelier}, ${artisan.métier}, note ${rating.toFixed(1)} sur 5`}
-      >
-        {/* Cover Image */}
-        <View style={styles.coverWrapper}>
+    <Animated.View entering={FadeInUp.delay(Math.min(index * 50, 300)).duration(400)}>
+      <TouchableOpacity style={styles.card} onPress={() => router.push(`/(client)/artisan/${artisan.id}`)} activeOpacity={0.9}>
+        {/* Cover */}
+        <View style={styles.coverWrap}>
           <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
+          <LinearGradient colors={['transparent', 'rgba(26,17,12,0.7)']} style={styles.coverGradient} />
 
-          {/* Gradient overlay */}
-          <LinearGradient
-            colors={['transparent', 'rgba(28,21,16,0.7)']}
-            style={styles.coverGradient}
-          />
+          <View style={styles.metierBadge}>
+            <Text style={styles.metierText}>{artisan.métier}</Text>
+          </View>
 
-          {/* Métier badge - top right */}
-          <LinearGradient
-            colors={[colors.gradientDark, colors.primary]}
-            style={styles.metierBadge}
-          >
-            <Text style={styles.metierText} numberOfLines={1}>{artisan.métier}</Text>
-          </LinearGradient>
-
-          {/* Validation badge - top left */}
           {artisan.statutValidation === 'valide' && (
             <View style={styles.validBadge}>
-              <ShieldCheck size={12} color={colors.success} strokeWidth={2.5} />
+              <ShieldCheck size={12} color={colors.success} strokeWidth={2} />
               <Text style={styles.validText}>Vérifié</Text>
             </View>
           )}
 
-          {/* Rating overlay - bottom */}
-          <View style={styles.ratingOverlay}>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <Star
-                  key={n}
-                  size={14}
-                  color={n <= Math.round(rating) ? colors.gold : 'rgba(255,255,255,0.3)'}
-                  fill={n <= Math.round(rating) ? colors.gold : 'transparent'}
-                  strokeWidth={1.5}
-                />
-              ))}
-            </View>
+          <View style={styles.ratingRow}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star key={n} size={14} color={n <= Math.round(rating) ? colors.accent : 'rgba(255,255,255,0.3)'} fill={n <= Math.round(rating) ? colors.accent : 'transparent'} strokeWidth={1.5} />
+            ))}
             <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
             <Text style={styles.reviewCount}>({reviewCount})</Text>
           </View>
         </View>
 
-        {/* Info section */}
+        {/* Info */}
         <View style={styles.info}>
-          {/* Avatar + name row */}
           <View style={styles.nameRow}>
-            <View style={styles.avatarWrapper}>
-              <Image
-                source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
-                style={styles.avatar}
-                resizeMode="cover"
-              />
-              <View style={styles.avatarRing} />
-            </View>
-            <View style={styles.nameBlock}>
-              <Text style={styles.atelierName} numberOfLines={1}>{artisan.atelier}</Text>
+            <Image source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }} style={styles.avatar} resizeMode="cover" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.atelier} numberOfLines={1}>{artisan.atelier}</Text>
               {artisan.localisation && (
-                <View style={styles.locationRow}>
-                  <MapPin size={12} color={colors.primary} strokeWidth={2} />
-                  <Text style={styles.locationText} numberOfLines={1}>{artisan.localisation}</Text>
+                <View style={styles.locRow}>
+                  <MapPin size={12} color={colors.accent} strokeWidth={1.5} />
+                  <Text style={styles.locText} numberOfLines={1}>{artisan.localisation}</Text>
                 </View>
               )}
             </View>
-            <ChevronRight size={20} color={colors.textMuted} />
+            <ChevronRight size={18} color={colors.textLight} strokeWidth={1.5} />
           </View>
 
-          {/* Gallery preview */}
           {previewPhotos.length > 0 && (
-            <View style={styles.galleryStrip}>
-              {previewPhotos.map((photoUrl, idx) => (
-                <Image
-                  key={idx}
-                  source={{ uri: photoUrl }}
-                  style={styles.galleryThumb}
-                  resizeMode="cover"
-                />
+            <View style={styles.gallery}>
+              {previewPhotos.map((uri, i) => (
+                <Image key={i} source={{ uri }} style={styles.thumb} resizeMode="cover" />
               ))}
               {previewPhotos.length >= 3 && (
-                <View style={styles.morePhotos}>
-                  <Text style={styles.morePhotosText}>+</Text>
-                </View>
+                <View style={styles.moreThumb}><Text style={styles.moreText}>+</Text></View>
               )}
             </View>
           )}
@@ -124,168 +81,31 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.lg,
-  },
-  coverWrapper: {
-    position: 'relative',
-    width: '100%',
-    aspectRatio: 1.4,
-    backgroundColor: colors.bgMuted,
-  },
-  cover: {
-    width: '100%',
-    height: '100%',
-  },
-  coverGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-  },
+  card: { backgroundColor: colors.bgCard, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...shadow.sm },
 
-  // Métier badge
-  metierBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-  },
-  metierText: {
-    color: colors.white,
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
+  coverWrap: { position: 'relative', width: '100%', aspectRatio: 1.4, backgroundColor: colors.bgMuted },
+  cover: { width: '100%', height: '100%' },
+  coverGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
 
-  // Valid badge
-  validBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: colors.bgCard,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-    ...shadow.sm,
-  },
-  validText: {
-    color: colors.success,
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  metierBadge: { position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: colors.primary, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.full },
+  metierText: { color: colors.white, fontSize: fontSize.xs, fontWeight: '600' },
 
-  // Rating overlay
-  ratingOverlay: {
-    position: 'absolute',
-    bottom: spacing.sm,
-    left: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  ratingValue: {
-    fontSize: fontSize.sm,
-    fontWeight: '800',
-    color: colors.white,
-  },
-  reviewCount: {
-    fontSize: fontSize.xs,
-    color: 'rgba(255,255,255,0.6)',
-  },
+  validBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm, backgroundColor: colors.bgCard, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.full },
+  validText: { color: colors.success, fontSize: 10, fontWeight: '600' },
 
-  // Info section
-  info: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.lg,
-    borderWidth: 2,
-    borderColor: colors.bgCard,
-  },
-  avatarRing: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: radius.lg + 2,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  nameBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  atelierName: {
-    fontSize: fontSize.md,
-    fontWeight: '800',
-    color: colors.text,
-    fontFamily: fontFamily.serif,
-    letterSpacing: -0.3,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationText: {
-    fontSize: fontSize.xs,
-    color: colors.textSub,
-    fontWeight: '500',
-  },
+  ratingRow: { position: 'absolute', bottom: spacing.sm, left: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  ratingValue: { fontSize: fontSize.sm, fontWeight: '700', color: colors.white, marginLeft: spacing.xs },
+  reviewCount: { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.6)' },
 
-  // Gallery
-  galleryStrip: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  galleryThumb: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  morePhotos: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.bgMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  morePhotosText: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
+  info: { padding: spacing.md, gap: spacing.sm },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  avatar: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 2, borderColor: colors.border },
+  atelier: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, fontFamily: fontFamily.serif },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  locText: { fontSize: fontSize.xs, color: colors.textMuted },
+
+  gallery: { flexDirection: 'row', gap: spacing.xs },
+  thumb: { width: 48, height: 48, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderLight },
+  moreThumb: { width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.bgMuted, alignItems: 'center', justifyContent: 'center' },
+  moreText: { fontSize: fontSize.lg, fontWeight: '500', color: colors.textMuted },
 })
