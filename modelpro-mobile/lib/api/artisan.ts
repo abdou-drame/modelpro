@@ -97,6 +97,25 @@ export interface CreateModelPayload {
   options?: string[]
 }
 
+async function buildFileFormData(fieldName: string, uris: string[]): Promise<FormData> {
+  const form = new FormData()
+  for (let i = 0; i < uris.length; i++) {
+    const uri = uris[i]
+    if (typeof window !== 'undefined' && (uri.startsWith('blob:') || uri.startsWith('data:'))) {
+      const response = await fetch(uri)
+      const blob = await response.blob()
+      form.append(fieldName, blob, `photo_${i}.jpg`)
+    } else {
+      form.append(fieldName, {
+        uri,
+        name: `photo_${i}.jpg`,
+        type: 'image/jpeg',
+      } as any)
+    }
+  }
+  return form
+}
+
 // ── API calls ──────────────────────────────────────────────────────────────
 
 export const artisanApi = {
@@ -108,20 +127,28 @@ export const artisanApi = {
   getProfile: () =>
     apiClient.get<ArtisanProfile>(ENDPOINTS.artisanProfile).then((r) => {
       const p = r.data as any
-      if (typeof p.photosAtelier === 'string') {
-        try { p.photosAtelier = JSON.parse(p.photosAtelier) } catch { p.photosAtelier = [] }
+      if (p) {
+        p.photoProfil = p.user?.photoUrl || p.photoProfil || null
+        if (typeof p.photosAtelier === 'string') {
+          try { p.photosAtelier = JSON.parse(p.photosAtelier) } catch { p.photosAtelier = [] }
+        }
+        if (!Array.isArray(p.photosAtelier)) p.photosAtelier = []
       }
-      if (!Array.isArray(p.photosAtelier)) p.photosAtelier = []
       return r
     }),
   updateProfile: (data: UpdateProfilePayload) =>
     apiClient.put<ArtisanProfile>(ENDPOINTS.artisanProfile, data),
-  uploadPhotos: (uris: string[]) => {
-    const form = new FormData()
-    uris.forEach((uri, i) => {
-      form.append('photos', { uri, name: `photo_${i}.jpg`, type: 'image/jpeg' } as any)
-    })
+  uploadPhotos: async (uris: string[]) => {
+    const form = await buildFileFormData('photos', uris)
     return apiClient.post(ENDPOINTS.artisanPhotos, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deletePhoto: (photoUrl: string) =>
+    apiClient.delete(ENDPOINTS.artisanPhotos, { data: { photoUrl } }),
+  uploadAvatar: async (uri: string) => {
+    const form = await buildFileFormData('avatar', [uri])
+    return apiClient.post('/artisans/avatar', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
@@ -131,7 +158,8 @@ export const artisanApi = {
     apiClient.get<ArtisanOrder[]>(ENDPOINTS.artisanOrders).then((r) => {
       r.data.forEach((o: any) => {
         o.prixTotal = o.totalPrice ?? o.prix ?? o.prixTotal ?? null
-        o.acompte = o.depositAmount ?? o.acompte ?? (o.prixTotal ? Math.round(o.prixTotal * 0.5) : null)
+        const isUnpaid = !o.paymentStatus || o.paymentStatus === 'unpaid'
+        o.acompte = isUnpaid ? (o.depositAmount ?? o.acompte ?? 0) : (o.depositAmount ?? o.acompte ?? (o.prixTotal ? Math.round(o.prixTotal * 0.5) : null))
         if (typeof o.mesures === 'string') {
           try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
         }
@@ -143,7 +171,8 @@ export const artisanApi = {
       const o = r.data as any
       if (o) {
         o.prixTotal = o.totalPrice ?? o.prix ?? o.prixTotal ?? null
-        o.acompte = o.depositAmount ?? o.acompte ?? (o.prixTotal ? Math.round(o.prixTotal * 0.5) : null)
+        const isUnpaid = !o.paymentStatus || o.paymentStatus === 'unpaid'
+        o.acompte = isUnpaid ? (o.depositAmount ?? o.acompte ?? 0) : (o.depositAmount ?? o.acompte ?? (o.prixTotal ? Math.round(o.prixTotal * 0.5) : null))
         if (typeof o.mesures === 'string') {
           try { o.mesures = JSON.parse(o.mesures) } catch { o.mesures = null }
         }

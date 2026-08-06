@@ -4,9 +4,10 @@ import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MapPin, ShieldCheck, Star, ChevronRight } from 'lucide-react-native'
 import { colors, radius, shadow, fontSize, spacing, fontFamily } from '@/constants/theme'
+import { getImageUrl } from '@/lib/utils/format'
 import type { ArtisanPublic } from '@/lib/api/artisans'
 
-const PLACEHOLDER_COVER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80'
+// Pas de placeholder cover : la photo d'atelier n'est affichée que si réelle.
 const PLACEHOLDER_PROFILE = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80'
 
 interface Props {
@@ -15,8 +16,8 @@ interface Props {
 }
 
 export function ArtisanCard({ artisan, index = 0 }: Props) {
-  const coverUri = artisan.photosAtelier?.[0] ?? PLACEHOLDER_COVER
-  const previewPhotos = artisan.photosAtelier?.slice(1, 4) ?? []
+  const coverUri = getImageUrl(artisan.photosAtelier?.[0]) ?? null
+  const previewPhotos = (artisan.photosAtelier?.slice(1, 4) ?? []).map((p) => getImageUrl(p) ?? p)
   const rating = artisan.noteMoyenne ?? 0
   const reviewCount = artisan.nombreAvis ?? 0
 
@@ -33,7 +34,9 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
       >
         {/* Cover Image */}
         <View style={styles.coverWrapper}>
-          <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
+          {coverUri ? (
+            <Image source={{ uri: coverUri }} style={styles.cover} resizeMode="cover" />
+          ) : null}
 
           {/* Gradient overlay */}
           <LinearGradient
@@ -80,11 +83,19 @@ export function ArtisanCard({ artisan, index = 0 }: Props) {
           {/* Avatar + name row */}
           <View style={styles.nameRow}>
             <View style={styles.avatarWrapper}>
-              <Image
-                source={{ uri: artisan.photoProfil ?? PLACEHOLDER_PROFILE }}
-                style={styles.avatar}
-                resizeMode="cover"
-              />
+              {artisan.photoProfil ? (
+                <Image
+                  source={{ uri: getImageUrl(artisan.photoProfil) }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ color: colors.white, fontWeight: '700', fontSize: fontSize.md }}>
+                    {(artisan.user?.prenom?.[0] ?? '') + (artisan.user?.nom?.[0] ?? '') || artisan.atelier?.[0] || 'A'}
+                  </Text>
+                </View>
+              )}
               <View style={styles.avatarRing} />
             </View>
             <View style={styles.nameBlock}>

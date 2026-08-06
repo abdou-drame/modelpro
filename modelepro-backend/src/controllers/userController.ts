@@ -125,7 +125,15 @@ export const getPublicArtisanProfile = async (req: AuthenticatedRequest, res: Re
     const noteMoyenne = reviewStats ? Number((reviewStats as any).noteMoyenne) || 0 : 0;
     const nombreAvis = reviewStats ? Number((reviewStats as any).nombreAvis) || 0 : 0;
 
-    return res.status(200).json({ ...artisan.toJSON(), noteMoyenne, nombreAvis });
+    const json = artisan.toJSON();
+    let photosAtelier = json.photosAtelier;
+    if (typeof photosAtelier === 'string') {
+      try { photosAtelier = JSON.parse(photosAtelier); } catch { photosAtelier = []; }
+    }
+    if (!Array.isArray(photosAtelier)) photosAtelier = [];
+    const photoProfil = json.user?.photoUrl || null;
+
+    return res.status(200).json({ ...json, photosAtelier, photoProfil, noteMoyenne, nombreAvis });
   } catch (error) {
     console.error('Erreur getPublicArtisanProfile :', error);
     return res.status(500).json({ error: 'Une erreur est survenue.' });

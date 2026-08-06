@@ -10,7 +10,7 @@ import { Badge, statusVariant } from '@/components/shared/Badge'
 import { Skeleton } from '@/components/shared/Skeleton'
 import { Modal } from '@/components/shared/Modal'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
-import { formatDate, formatPrice } from '@/lib/utils'
+import { formatDate, formatPrice, getImgUrl, parsePhotosAtelier } from '@/lib/utils'
 import { useState } from 'react'
 
 // ── Sub-note bar ───────────────────────────────────────────────────────────────
@@ -191,9 +191,7 @@ export default function ArtisanProfile() {
   )
 
   const { user, catalogue = [], reviews = [] } = artisan
-  const photosAtelier: string[] = artisan.photosAtelier
-    ? JSON.parse(artisan.photosAtelier).filter(Boolean)
-    : []
+  const photosAtelier = parsePhotosAtelier(artisan.photosAtelier)
 
   const avgNote = artisan.noteMoyenne && artisan.noteMoyenne > 0
     ? artisan.noteMoyenne.toFixed(1)
@@ -220,8 +218,8 @@ export default function ArtisanProfile() {
         <div className="flex flex-col sm:flex-row gap-5">
           {/* Avatar */}
           <div className="w-20 h-20 rounded-2xl bg-brand-100 flex items-center justify-center shrink-0 overflow-hidden border border-surface-border">
-            {user.photoUrl
-              ? <img src={user.photoUrl} alt={artisan.atelier} className="w-full h-full object-cover" />
+            {getImgUrl(user.photoUrl)
+              ? <img src={getImgUrl(user.photoUrl)} alt={artisan.atelier} className="w-full h-full object-cover" />
               : <span className="text-2xl font-black text-brand-700">
                   {`${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase()}
                 </span>
@@ -365,7 +363,7 @@ export default function ArtisanProfile() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {photosAtelier.map((url, i) => (
               <div key={i} className="aspect-[4/3] rounded-xl overflow-hidden bg-surface-muted border border-surface-border">
-                <img src={url} alt={`Atelier ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                <img src={getImgUrl(url)} alt={`Atelier ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
               </div>
             ))}
           </div>
@@ -400,8 +398,8 @@ export default function ArtisanProfile() {
               {catalogue.map((model, i) => (
                 <div key={model.id} className="bg-white rounded-xl shadow-card border border-surface-border overflow-hidden">
                   <div className="aspect-[4/3] overflow-hidden">
-                    {model.photoUrl
-                      ? <img src={model.photoUrl} alt={model.titre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                    {getImgUrl(model.photoUrl)
+                      ? <img src={getImgUrl(model.photoUrl)} alt={model.titre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                       : <div className="w-full h-full" style={{ background: FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length] }} />
                     }
                   </div>

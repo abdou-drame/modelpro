@@ -40,3 +40,25 @@ export const CLAIM_STATUS_LABELS: Record<string, string> = {
 export const USER_STATUS_LABELS: Record<string, string> = {
   actif: 'Actif', suspendu: 'Suspendu', inactif: 'Inactif',
 }
+
+// Résout les URLs relatives /uploads/... en URL absolues vers le serveur backend.
+// Passe les URLs déjà absolues (http/https) telles quelles.
+const ADMIN_API_SERVER = import.meta.env.VITE_API_URL
+  ? new URL(import.meta.env.VITE_API_URL).origin
+  : 'http://localhost:5000'
+
+export function getImgUrl(path?: string | null): string | undefined {
+  if (!path) return undefined
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
+    return path
+  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  return `${ADMIN_API_SERVER}${cleanPath}`
+}
+
+// Parse photosAtelier depuis string JSON ou tableau, filtre les valeurs vides.
+export function parsePhotosAtelier(raw: string | string[] | null | undefined): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(Boolean)
+  try { return (JSON.parse(raw) as string[]).filter(Boolean) } catch { return [] }
+}

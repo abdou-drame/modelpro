@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform }
 import { router } from 'expo-router'
 import { Phone, MapPin, LogOut, ChevronRight, ShoppingBag, Calendar, MessageCircle, Star, User, ShieldAlert } from 'lucide-react-native'
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/store/authStore'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 
@@ -23,10 +24,12 @@ const MENU_SECTIONS = [
 
 export default function ClientProfileScreen() {
   const { user, clearAuth } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
       if (!window.confirm('Voulez-vous vous déconnecter ?')) return
+      queryClient.clear()
       await clearAuth()
       router.replace('/(auth)/login')
       return
@@ -40,6 +43,7 @@ export default function ClientProfileScreen() {
           text: 'Déconnecter',
           style: 'destructive',
           onPress: async () => {
+            queryClient.clear()
             await clearAuth()
             router.replace('/(auth)/login')
           },

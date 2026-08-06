@@ -49,7 +49,8 @@ interface OrderRaw {
 
 function normalizeOrder(raw: OrderRaw): Order {
   const prixTotal = raw.totalPrice ?? raw.prix ?? null
-  const acompte = raw.depositAmount ?? raw.acompte ?? (prixTotal ? Math.round(prixTotal * 0.5) : null)
+  const isUnpaid = !raw.paymentStatus || raw.paymentStatus === 'unpaid'
+  const acompte = isUnpaid ? (raw.depositAmount ?? raw.acompte ?? 0) : (raw.depositAmount ?? raw.acompte ?? (prixTotal ? Math.round(prixTotal * 0.5) : null))
 
   return {
     id: raw.id,

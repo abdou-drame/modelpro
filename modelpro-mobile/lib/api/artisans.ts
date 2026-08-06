@@ -43,7 +43,17 @@ export const artisansApi = {
     apiClient.get<ArtisanPublic[]>(
       ENDPOINTS.artisansSearch,
       { params }
-    ),
+    ).then((r) => {
+      if (Array.isArray(r.data)) {
+        r.data.forEach((p: any) => {
+          if (typeof p.photosAtelier === 'string') {
+            try { p.photosAtelier = JSON.parse(p.photosAtelier) } catch { p.photosAtelier = [] }
+          }
+          if (!Array.isArray(p.photosAtelier)) p.photosAtelier = []
+        })
+      }
+      return r
+    }),
 
   getById: (id: number) =>
     apiClient.get<ArtisanPublic>(ENDPOINTS.artisanById(id)).then((r) => {

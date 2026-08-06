@@ -1,11 +1,12 @@
 import axios from 'axios'
+import { useAuthStore } from '@/store/authStore'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1'
 
 export const api = axios.create({ baseURL: BASE_URL })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token')
+  const token = useAuthStore.getState().token || localStorage.getItem('admin_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
@@ -14,8 +15,7 @@ api.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('admin_token')
-      window.location.href = '/login'
+      useAuthStore.getState().logout()
     }
     return Promise.reject(err)
   }

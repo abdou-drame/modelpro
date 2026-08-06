@@ -64,17 +64,31 @@ export const getMontantPaye = (order?: {
   if (!order) return 0
   const status = order.statutPaiement || order.paymentStatus || 'unpaid'
   const total = order.prixTotal ?? order.totalPrice ?? order.prix ?? 0
-  const deposit = order.acompte ?? order.depositAmount ?? (total > 0 ? Math.round(total * 0.5) : 0)
+  const deposit = order.acompte ?? order.depositAmount ?? 0
 
+  if (status === 'unpaid') {
+    return 0
+  }
   if (status === 'fully_paid') {
     return total
   }
   if (status === 'deposit_paid') {
-    return deposit
+    return deposit || Math.round(total * 0.5)
   }
   if (order.acompte && order.acompte > 0) {
     return order.acompte
   }
   return 0
+}
+
+export const API_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://localhost:5000'
+
+export const getImageUrl = (path?: string | null): string | undefined => {
+  if (!path) return undefined
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
+    return path
+  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  return `${API_SERVER_URL}${cleanPath}`
 }
 

@@ -2,7 +2,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
-import { formatPrice } from '@/lib/utils/format'
+import { formatPrice, getImageUrl } from '@/lib/utils/format'
 import { colors, radius, shadow, fontSize, spacing, fontFamily } from '@/constants/theme'
 import type { Model } from '@/lib/api/models'
 
@@ -27,7 +27,7 @@ export function ModelCard({ model, index = 0 }: Props) {
         {/* Image */}
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: model.photoUrl ?? PLACEHOLDER }}
+            source={{ uri: getImageUrl(model.photoUrl) ?? PLACEHOLDER }}
             style={styles.image}
             resizeMode="cover"
           />

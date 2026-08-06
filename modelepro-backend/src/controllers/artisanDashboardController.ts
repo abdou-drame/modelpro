@@ -32,7 +32,7 @@ export const getAppointments = async (req: AuthenticatedRequest, res: Response):
 
     const appointments = await Appointment.findAll({
       where: {
-        [Op.or]: [{ artisanId: artisan.id }, { artisanId: userId }]
+        artisanId: artisan.id
       },
       include: [{ model: User, as: 'client', attributes: ['id', 'nom', 'prenom', 'telephone', 'email', 'photoUrl'] }],
       order: [['createdAt', 'DESC']],
@@ -187,7 +187,7 @@ export const getOrders = async (req: AuthenticatedRequest, res: Response): Promi
 
     const orders = await Order.findAll({
       where: {
-        [Op.or]: [{ artisanId: artisan.id }, { artisanId: userId }]
+        artisanId: artisan.id
       },
       include: [{ model: User, as: 'client', attributes: ['nom', 'prenom', 'telephone'] }],
       order: [['createdAt', 'DESC']],
@@ -229,7 +229,7 @@ export const getOrderDetails = async (req: AuthenticatedRequest, res: Response):
       return;
     }
 
-    if (order.artisanId !== artisan.id && order.artisanId !== userId) {
+    if (order.artisanId !== artisan.id) {
       res.status(403).json({ error: 'Vous ne pouvez pas accéder à une commande qui ne vous appartient pas.' });
       return;
     }
@@ -269,7 +269,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    if (order.artisanId !== artisan.id && order.artisanId !== userId) {
+    if (order.artisanId !== artisan.id) {
       res.status(403).json({ error: 'Vous ne pouvez pas modifier une commande qui ne vous appartient pas.' });
       return;
     }

@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react'
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
 import { StatusBar } from 'expo-status-bar'
 import { router } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
 import {
   TrendingUp, ShoppingBag, Star, ChevronRight, AlertCircle,
   BookOpen, CalendarDays, MessageCircle, Crown, User, Bell,
@@ -11,15 +13,45 @@ import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
 import { StarRating } from '@/components/ui/StarRating'
 import { Badge } from '@/components/ui/Badge'
-import { formatPrice, formatDate, ORDER_STATUS_LABELS } from '@/lib/utils/format'
+import { formatPrice, formatDate, ORDER_STATUS_LABELS, getImageUrl } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow, fontFamily } from '@/constants/theme'
 import type { OrderStatus } from '@/constants/enums'
-
-const AVATAR_FALLBACK = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80'
 
 const STATUS_VARIANT: Record<OrderStatus, 'neutral' | 'primary' | 'success' | 'error' | 'warning'> = {
   en_attente: 'neutral', acceptee: 'primary', en_cours: 'primary',
   en_finition: 'warning', prete: 'success', livree: 'success', annulee: 'error',
+}
+
+function AtelierBackgroundCarousel({ photos }: { photos?: string[] }) {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (!photos || photos.length <= 1) return
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % photos.length)
+    }, 4500)
+    return () => clearInterval(interval)
+  }, [photos])
+
+  if (!photos || photos.length === 0) return null
+
+  const currentPhoto = getImageUrl(photos[index])
+  if (!currentPhoto) return null
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <Animated.Image
+        key={currentPhoto}
+        source={{ uri: currentPhoto }}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
+      <LinearGradient
+        colors={['rgba(20,12,6,0.52)', 'rgba(20,12,6,0.88)']}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  )
 }
 
 function KpiCard({ stats }: { stats: { chiffreAffaires: number; commandesEnCours: number; noteGlobale: number } }) {
@@ -109,30 +141,50 @@ export default function ArtisanDashboard() {
   const activeOrders = orders?.filter((o) => !['livree', 'annulee'].includes(o.statut)).slice(0, 3) ?? []
   const pendingOrders = orders?.filter((o) => o.statut === 'en_attente') ?? []
   const prenom = user?.prenom ?? 'Artisan'
+  const photosAtelier = profile?.photosAtelier
+  const hasPhotos = !!(photosAtelier && photosAtelier.length > 0)
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={hasPhotos ? "light" : "dark"} />
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Header avec carrousel de photos d'atelier en arrière-plan */}
+        <View style={[styles.header, hasPhotos && styles.headerWithBg]}>
+          <AtelierBackgroundCarousel photos={photosAtelier} />
+
           <View style={styles.topBar}>
             <View style={styles.avatarRow}>
-              <Image source={{ uri: profile?.photoProfil ?? AVATAR_FALLBACK }} style={styles.avatar} />
+              <TouchableOpacity onPress={() => router.push('/(artisan)/profile')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Voir mon profil">
+                {profile?.photoProfil || profile?.user?.photoUrl || user?.photoUrl ? (
+                  <Image
+                    source={{ uri: getImageUrl(profile?.photoProfil || profile?.user?.photoUrl || user?.photoUrl) }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Text style={styles.avatarInitials}>
+                      {(user?.prenom?.[0] ?? '') + (user?.nom?.[0] ?? '') || 'A'}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <Text style={styles.greeting}>Bonjour {prenom}</Text>
-                {profile?.atelier && <Text style={styles.atelier} numberOfLines={1}>{profile.atelier}</Text>}
+                <Text style={[styles.greeting, hasPhotos && styles.textLight]} numberOfLines={1}>Bonjour {prenom}</Text>
+                {profile?.atelier && <Text style={[styles.atelier, hasPhotos && styles.subtextLight]} numberOfLines={1}>{profile.atelier}</Text>}
                 {profile && (
                   <View style={styles.metaRow}>
                     <StarRating value={profile.noteMoyenne ?? 0} size={12} />
-                    <Text style={styles.metaText}>{(profile.noteMoyenne ?? 0).toFixed(1)}</Text>
+                    <Text style={[styles.metaText, hasPhotos && styles.subtextLight]}>{(profile.noteMoyenne ?? 0).toFixed(1)}</Text>
                   </View>
                 )}
               </View>
             </View>
-            <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(artisan)/notifications')}>
-              <Bell size={22} color={colors.text} strokeWidth={1.5} />
+            <TouchableOpacity
+              style={[styles.bellBtn, hasPhotos && styles.bellBtnLight]}
+              onPress={() => router.push('/(artisan)/notifications')}
+            >
+              <Bell size={22} color={hasPhotos ? colors.white : colors.text} strokeWidth={1.5} />
               {pendingOrders.length > 0 && <View style={styles.bellDot} />}
             </TouchableOpacity>
           </View>
@@ -196,15 +248,34 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
 
-  header: { paddingTop: 56, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, gap: spacing.md },
+  header: { paddingTop: 56, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, gap: spacing.md, position: 'relative' },
+  headerWithBg: {
+    borderRadius: radius.xl,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    paddingTop: 44,
+    paddingBottom: spacing.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    ...shadow.md,
+  },
+  textLight: { color: colors.white },
+  subtextLight: { color: 'rgba(255,255,255,0.85)' },
   topBar: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
   avatar: { width: 52, height: 52, borderRadius: radius.full, backgroundColor: colors.bgMuted, borderWidth: 2, borderColor: colors.border },
+  avatarPlaceholder: { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { color: colors.white, fontSize: fontSize.lg, fontWeight: '700' },
   greeting: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.text, fontFamily: fontFamily.serif },
   atelier: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 4 },
   metaText: { fontSize: fontSize.xs, color: colors.textMuted },
   bellBtn: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  bellBtnLight: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
   bellDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error },
 
   alertBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.warningBg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning },

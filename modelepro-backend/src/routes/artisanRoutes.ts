@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getMyProfile, searchArtisans, updateArtisanProfile, uploadAtelierPhotos, uploadValidationDocument } from '../controllers/artisanController';
+import { getMyProfile, searchArtisans, updateArtisanProfile, uploadAtelierPhotos, uploadValidationDocument, uploadAvatarPhoto, deleteAtelierPhoto } from '../controllers/artisanController';
 import { getAppointments, updateAppointmentStatus, getOrders, getOrderDetails, updateOrderStatus, getArtisanStats, updateOrderDeliveryDate, updateOrderPayment, rescheduleAppointment, getMyReviews } from '../controllers/artisanDashboardController';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 
@@ -17,6 +17,8 @@ router.get('/search', searchArtisans);
 router.get('/profile', protect, restrictTo('artisan'), getMyProfile);
 router.put('/profile', protect, restrictTo('artisan'), updateArtisanProfile);
 router.post('/photos', protect, restrictTo('artisan'), upload.array('photos', 5), uploadAtelierPhotos);
+router.delete('/photos', protect, restrictTo('artisan'), deleteAtelierPhoto);
+router.post('/avatar', protect, restrictTo('artisan'), upload.single('avatar'), uploadAvatarPhoto);
 router.post('/document', protect, restrictTo('artisan'), upload.single('document'), uploadValidationDocument);
 
 router.get('/appointments', protect, restrictTo('artisan'), getAppointments);
