@@ -43,11 +43,12 @@ interface AuthState {
   isAuthenticated: boolean
   isInitialized: boolean
   setAuth: (user: User, token: string) => Promise<void>
+  updateUser: (partialUser: Partial<User>) => Promise<void>
   clearAuth: () => Promise<void>
   loadFromStorage: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
@@ -61,6 +62,18 @@ export const useAuthStore = create<AuthState>()((set) => ({
       console.warn('[AuthStore] Error saving to storage:', e)
     }
     set({ user, token, isAuthenticated: true, isInitialized: true })
+  },
+
+  updateUser: async (partialUser) => {
+    const currentUser = get().user
+    if (!currentUser) return
+    const updated = { ...currentUser, ...partialUser }
+    try {
+      await storage.set('user', JSON.stringify(updated))
+    } catch (e) {
+      console.warn('[AuthStore] Error updating storage:', e)
+    }
+    set({ user: updated })
   },
 
   clearAuth: async () => {

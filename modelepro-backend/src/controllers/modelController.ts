@@ -32,7 +32,9 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
       ];
     }
 
-    const artisanCondition: any = {};
+    const artisanCondition: any = {
+      statutValidation: { [Op.ne]: 'rejete' },
+    };
 
     // Filtre métier
     const rawMetier = metier || metierId;
@@ -53,7 +55,6 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
       artisanCondition.localisation = { [likeOp]: `%${String(localisation).trim()}%` };
     }
 
-    const hasArtisanFilter = Object.keys(artisanCondition).length > 0 || Boolean(search);
     const offset = (Number(page) - 1) * Number(limit);
 
     const { count, rows } = await Creation.findAndCountAll({
@@ -62,15 +63,23 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
         {
           model: Artisan,
           as: 'artisan',
-          required: hasArtisanFilter,
-          where: Object.keys(artisanCondition).length > 0 ? artisanCondition : undefined,
-          include: [{ model: User, as: 'user', required: false, attributes: ['nom', 'prenom', 'photoUrl'] }],
-        }
+          required: true,
+          where: artisanCondition,
+          include: [
+            {
+              model: User,
+              as: 'user',
+              required: true,
+              where: { statut: 'actif' },
+              attributes: ['nom', 'prenom', 'photoUrl'],
+            },
+          ],
+        },
       ],
       subQuery: false,
       distinct: true,
       limit: Number(limit),
-      offset
+      offset,
     });
 
     res.status(200).json({
@@ -89,9 +98,27 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
 export const getModelById = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id);
-    const creation = await Creation.findByPk(id, { include: [{ model: Artisan, as: 'artisan' }] });
-    if (!creation) {
-      res.status(404).json({ error: 'Modèle introuvable.' });
+    const creation = await Creation.findByPk(id, {
+      include: [
+        {
+          model: Artisan,
+          as: 'artisan',
+          required: true,
+          where: { statutValidation: { [Op.ne]: 'rejete' } },
+          include: [
+            {
+              model: User,
+              as: 'user',
+              required: true,
+              where: { statut: 'actif' },
+              attributes: ['nom', 'prenom', 'photoUrl'],
+            },
+          ],
+        },
+      ],
+    });
+    if (!creation || !(creation as any).artisan) {
+      res.status(404).json({ error: 'Modèle introuvable ou indisponible.' });
       return;
     }
     res.status(200).json(creation);

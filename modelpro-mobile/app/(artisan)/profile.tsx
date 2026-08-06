@@ -13,15 +13,17 @@ import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import {
-  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut, Star, X,
+  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut, Star, X, Trash2,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
 import { StarRating } from '@/components/ui/StarRating'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
+import { getImageUrl } from '@/lib/utils/format'
+import { showAlert } from '@/lib/utils/alert'
 
-const PLACEHOLDER_COVER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80'
-const PLACEHOLDER_AVATAR = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80'
+// Pas de placeholder cover : l'image de couverture n'est affichée
+// que si l'artisan a réellement ajouté une photo d'atelier.
 
 const schema = z.object({
   nomAtelier: z.string().min(2, 'Au moins 2 caractères'),
@@ -49,11 +51,13 @@ const fieldStyles = StyleSheet.create({
 })
 
 export default function ArtisanProfileScreen() {
-  const { user, clearAuth } = useAuthStore()
+  const { user, clearAuth, updateUser } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
       if (!window.confirm('Voulez-vous vous déconnecter ?')) return
+      queryClient.clear()
       await clearAuth()
       router.replace('/(auth)/login')
       return
@@ -62,11 +66,10 @@ export default function ArtisanProfileScreen() {
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Déconnecter', style: 'destructive',
-        onPress: async () => { await clearAuth(); router.replace('/(auth)/login') },
+        onPress: async () => { queryClient.clear(); await clearAuth(); router.replace('/(auth)/login') },
       },
     ])
   }
-  const queryClient = useQueryClient()
   const [showReviewsModal, setShowReviewsModal] = useState(false)
 
   const { data: profile } = useQuery({
@@ -104,6 +107,61 @@ export default function ArtisanProfileScreen() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['artisan-profile'] }),
   })
 
+  const deletePhotoMutation = useMutation({
+    mutationFn: (photoUrl: string) => artisanApi.deletePhoto(photoUrl),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan'] })
+      queryClient.invalidateQueries({ queryKey: ['artisans'] })
+      showAlert('Photo supprimée', 'La photo a été retirée de votre atelier.')
+    },
+  })
+
+  const handleDeletePhoto = (photoUrl: string) => {
+    showAlert(
+      'Supprimer la photo',
+      'Voulez-vous vraiment supprimer cette photo de votre atelier ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => deletePhotoMutation.mutate(photoUrl),
+        },
+      ]
+    )
+  }
+
+  const avatarMutation = useMutation({
+    mutationFn: (uri: string) => artisanApi.uploadAvatar(uri),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
+      const newUrl = res?.data?.photoUrl
+      if (newUrl) {
+        updateUser({ photoUrl: newUrl })
+      }
+      Alert.alert('Photo de profil', 'Votre photo de profil a été mise à jour avec succès.')
+    },
+  })
+
+  const handlePickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour modifier votre photo de profil.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets[0]?.uri) {
+      avatarMutation.mutate(result.assets[0].uri)
+    }
+  }
+
   const handlePickPhotos = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
@@ -133,22 +191,36 @@ export default function ArtisanProfileScreen() {
 
         {/* Cover header */}
         <View style={styles.cover}>
-          <Image
-            source={{ uri: profile?.photosAtelier?.[0] ?? PLACEHOLDER_COVER }}
-            style={StyleSheet.absoluteFill as any}
-            resizeMode="cover"
-          />
+          {/* Image de fond uniquement si l'artisan a une vraie photo d'atelier */}
+          {getImageUrl(profile?.photosAtelier?.[0]) ? (
+            <Image
+              source={{ uri: getImageUrl(profile!.photosAtelier![0]) }}
+              style={StyleSheet.absoluteFill as any}
+              resizeMode="cover"
+            />
+          ) : null}
           <LinearGradient
             colors={['rgba(26,16,5,0.10)', 'rgba(26,16,5,0.82)']}
             style={StyleSheet.absoluteFill}
           />
           <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.coverContent}>
-            <View style={styles.avatarWrap}>
-              <Image
-                source={{ uri: profile?.photoProfil ?? PLACEHOLDER_AVATAR }}
-                style={styles.avatar}
-              />
-            </View>
+            <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarWrap} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Changer la photo de profil">
+              {profile?.photoProfil ? (
+                <Image
+                  source={{ uri: getImageUrl(profile.photoProfil) }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarInitials}>
+                    {(user?.prenom?.[0] ?? '') + (user?.nom?.[0] ?? '') || 'A'}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.avatarBadge}>
+                <Camera size={12} color={colors.white} strokeWidth={2} />
+              </View>
+            </TouchableOpacity>
             <View style={styles.coverMeta}>
               <Text style={styles.coverName}>{user?.prenom} {user?.nom}</Text>
               {profile?.metier ? (
@@ -318,7 +390,18 @@ export default function ArtisanProfileScreen() {
             {profile?.photosAtelier && profile.photosAtelier.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
                 {profile.photosAtelier.map((url, i) => (
-                  <Image key={i} source={{ uri: url }} style={styles.atelierPhoto} resizeMode="cover" />
+                  <View key={i} style={styles.atelierPhotoWrap}>
+                    <Image source={{ uri: getImageUrl(url) }} style={styles.atelierPhoto} resizeMode="cover" />
+                    <TouchableOpacity
+                      style={styles.deletePhotoBadge}
+                      onPress={() => handleDeletePhoto(url)}
+                      disabled={deletePhotoMutation.isPending}
+                      accessibilityRole="button"
+                      accessibilityLabel="Supprimer cette photo d'atelier"
+                    >
+                      <Trash2 size={12} color={colors.white} strokeWidth={2.5} />
+                    </TouchableOpacity>
+                  </View>
                 ))}
                 <TouchableOpacity
                   style={styles.addPhotoTile}
@@ -449,10 +532,34 @@ const styles = StyleSheet.create({
   avatarWrap: {
     ...shadow.lg,
     borderRadius: radius.full,
+    position: 'relative',
   },
   avatar: {
     width: 76, height: 76, borderRadius: 38,
     borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.55)',
+  },
+  avatarPlaceholder: {
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    color: colors.white,
+    fontSize: fontSize.xl,
+    fontWeight: '800',
+  },
+  avatarBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.white,
   },
   coverMeta: { flex: 1, gap: 5 },
   coverName: {
@@ -515,8 +622,26 @@ const styles = StyleSheet.create({
   },
   addPhotoBtnText: { fontSize: fontSize.sm, color: colors.white, fontWeight: '600' },
   photosScroll: { marginTop: spacing.xs },
+  atelierPhotoWrap: {
+    position: 'relative',
+    marginRight: spacing.sm,
+  },
   atelierPhoto: {
-    width: 120, height: 90, borderRadius: radius.lg, marginRight: spacing.sm,
+    width: 120, height: 90, borderRadius: radius.lg,
+  },
+  deletePhotoBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(193, 18, 31, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.white,
+    ...shadow.sm,
   },
   addPhotoTile: {
     width: 120, height: 90, borderRadius: radius.lg, marginRight: spacing.sm,

@@ -1,10 +1,12 @@
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Sidebar } from './Sidebar'
 import { useAuthStore } from '@/store/authStore'
 
 export function AppLayout() {
   const { token } = useAuthStore()
+  const location = useLocation()
+
   if (!token) return <Navigate to="/login" replace />
 
   return (

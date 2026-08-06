@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import {
-  View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform,
+  View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Modal,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
-import { ArrowLeft, MapPin, ShieldCheck, Calendar } from 'lucide-react-native'
+import { ArrowLeft, MapPin, ShieldCheck, Calendar, X } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
 import { artisansApi } from '@/lib/api/artisans'
@@ -13,7 +14,7 @@ import { StarRating } from '@/components/ui/StarRating'
 import { Badge } from '@/components/ui/Badge'
 import { ModelCard } from '@/components/shared/ModelCard'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
-import { formatRelative } from '@/lib/utils/format'
+import { formatRelative, getImageUrl } from '@/lib/utils/format'
 
 const { width } = Dimensions.get('window')
 const HERO_HEIGHT = Math.round(width * 0.95)
@@ -21,6 +22,7 @@ const HERO_HEIGHT = Math.round(width * 0.95)
 export default function ArtisanProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const artisanId = Number(id)
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
 
   const { data: artisan, isLoading } = useQuery({
     queryKey: ['artisan', artisanId],
@@ -41,7 +43,7 @@ export default function ArtisanProfileScreen() {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />
   }
 
-  const atelierPhotos = artisan.photosAtelier?.slice(0, 5) ?? []
+  const atelierPhotos = artisan.photosAtelier ?? []
 
   return (
     <View style={styles.container}>
@@ -49,11 +51,14 @@ export default function ArtisanProfileScreen() {
 
         {/* ── Hero block ── */}
         <View style={[styles.hero, { height: HERO_HEIGHT }]}>
-          <Image
-            source={{ uri: artisan.photosAtelier?.[0] ?? 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&q=80' }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
+          {/* Image de fond uniquement si l'artisan a une vraie photo d'atelier */}
+          {getImageUrl(artisan.photosAtelier?.[0]) ? (
+            <Image
+              source={{ uri: getImageUrl(artisan.photosAtelier![0]) }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : null}
           {/* Top vignette for back-button legibility */}
           <LinearGradient
             colors={['rgba(26,16,5,0.60)', 'transparent']}
@@ -69,10 +74,18 @@ export default function ArtisanProfileScreen() {
           {/* Identity overlay */}
           <View style={styles.heroIdentity}>
             <View style={styles.avatarRing}>
-              <Image
-                source={{ uri: artisan.photoProfil ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80' }}
-                style={styles.avatar}
-              />
+              {artisan.photoProfil ? (
+                <Image
+                  source={{ uri: getImageUrl(artisan.photoProfil) }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ color: colors.white, fontWeight: '700', fontSize: fontSize.lg }}>
+                    {(artisan.user?.prenom?.[0] ?? '') + (artisan.user?.nom?.[0] ?? '') || artisan.atelier?.[0] || 'A'}
+                  </Text>
+                </View>
+              )}
             </View>
             <View style={styles.heroText}>
               <View style={styles.nameRow}>
@@ -144,22 +157,33 @@ export default function ArtisanProfileScreen() {
           </Animated.View>
 
           {/* Atelier photo strip */}
-          {atelierPhotos.length > 1 && (
+          {atelierPhotos.length > 0 && (
             <Animated.View entering={FadeInUp.delay(180).springify()} style={styles.section}>
-              <Text style={styles.sectionTitle}>Atelier</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Photos de l'atelier</Text>
+                <Text style={styles.sectionCount}>{atelierPhotos.length} photo{atelierPhotos.length > 1 ? 's' : ''}</Text>
+              </View>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: spacing.sm }}
               >
-                {atelierPhotos.map((uri, i) => (
-                  <Image
-                    key={i}
-                    source={{ uri }}
-                    style={styles.atelierPhoto}
-                    resizeMode="cover"
-                  />
-                ))}
+                {atelierPhotos.map((uri, i) => {
+                  const photoUrl = getImageUrl(uri) ?? uri
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      activeOpacity={0.85}
+                      onPress={() => setSelectedPhoto(photoUrl)}
+                    >
+                      <Image
+                        source={{ uri: photoUrl }}
+                        style={styles.atelierPhoto}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  )
+                })}
               </ScrollView>
             </Animated.View>
           )}
@@ -255,6 +279,32 @@ export default function ArtisanProfileScreen() {
         <View style={styles.floatBtnBorder} />
         <ArrowLeft size={20} color={colors.white} strokeWidth={2} />
       </TouchableOpacity>
+
+      {/* Fullscreen Photo Modal */}
+      {selectedPhoto && (
+        <Modal
+          visible={!!selectedPhoto}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPhoto(null)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity
+              style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }}
+              onPress={() => setSelectedPhoto(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Fermer la photo"
+            >
+              <X size={28} color="#FFF" />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: selectedPhoto }}
+              style={{ width: '90%', height: '70%', borderRadius: 16 }}
+              resizeMode="contain"
+            />
+          </View>
+        </Modal>
+      )}
     </View>
   )
 }

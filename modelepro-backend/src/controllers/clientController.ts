@@ -151,22 +151,29 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
     if (!clientId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
 
     const { artisanId, modeleId, creationId, meubleId, mesures, photoTissu, consignes, description, prix, couleur, taille, matiere, customizationText, customizationPhoto } = req.body;
-    if (!artisanId) return res.status(400).json({ error: 'artisanId requis.' });
+    const targetModeleId = modeleId || creationId || meubleId;
 
-    const artisan = await Artisan.findOne({
-      where: {
-        [Op.or]: [{ id: Number(artisanId) }, { userId: Number(artisanId) }]
+    let creation: any = null;
+    let effectiveArtisanId = artisanId;
+
+    if (targetModeleId) {
+      creation = await Creation.findByPk(Number(targetModeleId));
+      if (creation && creation.artisanId) {
+        effectiveArtisanId = creation.artisanId;
       }
-    });
+    }
+
+    if (!effectiveArtisanId) return res.status(400).json({ error: 'artisanId requis.' });
+
+    let artisan = await Artisan.findByPk(Number(effectiveArtisanId));
+    if (!artisan) {
+      artisan = await Artisan.findOne({ where: { userId: Number(effectiveArtisanId) } });
+    }
     if (!artisan) return res.status(404).json({ error: 'Artisan introuvable.' });
 
-    const targetModeleId = modeleId || creationId || meubleId;
     let computedPrix = prix ? Number(prix) : 0;
-    if (!computedPrix && targetModeleId) {
-      const creation = await Creation.findByPk(Number(targetModeleId));
-      if (creation && creation.prixEstimatif) {
-        computedPrix = creation.prixEstimatif;
-      }
+    if (!computedPrix && creation && creation.prixEstimatif) {
+      computedPrix = creation.prixEstimatif;
     }
 
     const order = await Order.create({
