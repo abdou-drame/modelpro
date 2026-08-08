@@ -22,7 +22,17 @@ Aujourd'hui, l'abonnement artisan dans ModèlePro est un simulacre : un simple f
 
 Toutes les phases livrées le 2026-08-07. Vérifications : 105/105 tests backend, `tsc --noEmit` propre sur les 3 apps, build de production admin réussi, bundling web mobile sans erreur.
 
-**Reste hors périmètre (non demandé pour l'instant)** : configuration assistée ATAABA (10 000 FCFA), PayTrack.
+5. ✅ **Paiement réel PayTech** (2026-08-08) — les paiements d'abonnement en wave/orange_money/free_money passent désormais par l'API PayTech (`src/services/paytechService.ts`) au lieu d'être confirmés directement : `createPayment` initie le paiement et renvoie une `redirectUrl` PayTech, le paiement reste `en_attente` jusqu'à ce que le webhook IPN (`POST /payments/paytech/ipn`, signature vérifiée) confirme (`sale_complete`) ou annule (`sale_canceled`). Côté mobile, l'écran d'abonnement ouvre cette `redirectUrl` puis détecte le retour via un deep link (`scheme: "modelpro"` dans `app.json`) et repolle le statut le temps que l'IPN arrive. Seul le paiement en espèces reste confirmé immédiatement (déclaratif). 114/114 tests backend (9 nouveaux sur PayTech), `tsc --noEmit` propre backend + mobile.
+
+**Reste hors périmètre (non demandé pour l'instant)** : configuration assistée ATAABA (10 000 FCFA).
+
+6. ✅ **Même correctif PayTech pour les paiements client** (2026-08-08) — la faille était plus grave côté commande : un client pouvait déclarer un paiement wave/orange_money/free_money `confirme` sans transaction réelle (le `statut` venait du corps de la requête). `createPayment` applique désormais la même règle que l'abonnement pour `acompte`/`solde`/`integral`/`frais_service` : passage obligatoire par PayTech pour tout moyen ≠ espèces, paiement créé `en_attente`, confirmation uniquement via l'IPN signé. `updatePaymentStatus` et l'IPN partagent maintenant une même fonction `applyConfirmedOrderPaymentEffect` (au lieu de deux logiques dupliquées) — ce qui corrige au passage un bug latent : l'IPN ne notifiait ni l'artisan ni le client. Côté mobile, `app/(client)/payment.tsx` reprend le pattern de `subscription.tsx` (ouverture de `redirectUrl`, retour deep link, polling). 116/116 tests backend.
+
+## Déploiement — checklist PayTech
+
+- `PAYTECH_IPN_URL` dans `.env` doit pointer vers une URL **publique et stable** joignable par PayTech : en local via `npm run tunnel` (localtunnel, sous-domaine fixe — voir ce script dans `package.json`), en prod vers l'URL Render du backend (`https://.../api/v1/payments/paytech/ipn`). Elle doit être mise à jour à chaque changement d'environnement.
+- `PAYTECH_ENV=prod` doit être positionné en production (par défaut `test`/sandbox sinon).
+- Le deep link de retour (`success_url`/`cancel_url`) utilise le scheme `modelpro://` — codé en dur côté backend (`MOBILE_APP_SCHEME` en env pour le surcharger si besoin). Ne fonctionne qu'avec un build natif (dev client / standalone) où le scheme est enregistré ; sur Expo Go le retour deep link n'est pas garanti.
 
 ---
 

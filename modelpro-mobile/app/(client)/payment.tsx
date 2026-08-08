@@ -1,12 +1,12 @@
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Linking,
 } from 'react-native'
 import { showAlert } from '@/lib/utils/alert'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { BlurView } from 'expo-blur'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Banknote, Smartphone, CreditCard } from 'lucide-react-native'
 import { paymentsApi } from '@/lib/api/payments'
 import { formatPrice, formatDateTime } from '@/lib/utils/format'
@@ -28,22 +28,56 @@ const TYPES: { key: PaymentType; label: string; desc: string }[] = [
 ]
 
 export default function PaymentScreen() {
-  const { orderId } = useLocalSearchParams<{ orderId: string }>()
+  const { orderId, payment: paymentReturnParam } = useLocalSearchParams<{ orderId: string; payment?: string }>()
   const id = Number(orderId)
   const queryClient = useQueryClient()
 
   const [selectedType, setSelectedType] = useState<PaymentType>('acompte')
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('wave')
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
+  const pendingPaymentIdRef = useRef<number | null>(null)
+  const handledReturnRef = useRef<string | null>(null)
 
   const { data: summary } = useQuery({
     queryKey: ['payment-summary', id],
     queryFn: () => paymentsApi.summary(id).then((r) => r.data),
+    refetchInterval: awaitingConfirmation ? 3000 : false,
   })
 
   const { data: payments } = useQuery({
     queryKey: ['order-payments', id],
     queryFn: () => paymentsApi.orderPayments(id).then((r) => r.data),
+    refetchInterval: awaitingConfirmation ? 3000 : false,
   })
+
+  // Retour depuis la page de paiement PayTech (deep link modelpro://(client)/payment?orderId=..&payment=success|cancel).
+  useEffect(() => {
+    if (!paymentReturnParam || handledReturnRef.current === paymentReturnParam) return
+    handledReturnRef.current = paymentReturnParam
+
+    if (paymentReturnParam === 'success') {
+      setAwaitingConfirmation(true)
+      queryClient.invalidateQueries({ queryKey: ['order-payments', id] })
+      queryClient.invalidateQueries({ queryKey: ['payment-summary', id] })
+      showAlert('Paiement en cours de confirmation', 'Nous attendons la confirmation de PayTech, ça ne prend que quelques secondes.')
+      setTimeout(() => setAwaitingConfirmation(false), 30000)
+    } else if (paymentReturnParam === 'cancel') {
+      showAlert('Paiement annulé', "Vous n'avez pas terminé le paiement sur PayTech.")
+    }
+    router.setParams({ payment: undefined })
+  }, [paymentReturnParam])
+
+  useEffect(() => {
+    if (!awaitingConfirmation || !pendingPaymentIdRef.current) return
+    const pending = payments?.find((p) => p.id === pendingPaymentIdRef.current)
+    if (pending?.statut === 'confirme') {
+      setAwaitingConfirmation(false)
+      pendingPaymentIdRef.current = null
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-orders'] })
+      showAlert('Paiement confirmé !', 'Votre paiement a bien été confirmé.')
+    }
+  }, [awaitingConfirmation, payments])
 
   const totalPrice = summary?.totalPrice ?? 0
   const acompteAmount = (summary?.depositAmount && summary.depositAmount > 0)
@@ -64,9 +98,21 @@ export default function PaymentScreen() {
     mutationFn: () => {
       return paymentsApi.create({ orderId: id, montant: currentMontant, type: selectedType, moyen: selectedMethod })
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['order-payments', id] })
       queryClient.invalidateQueries({ queryKey: ['payment-summary', id] })
+
+      const redirectUrl = res.data.redirectUrl
+      if (redirectUrl) {
+        // Paiement mobile money : le paiement reste 'en_attente' tant que PayTech n'a pas
+        // confirmé via IPN. On ouvre la page de paiement et on attend le retour deep-link.
+        pendingPaymentIdRef.current = res.data.id
+        setAwaitingConfirmation(true)
+        Linking.openURL(redirectUrl)
+        return
+      }
+
+      // Espèces : confirmé immédiatement côté serveur, pas de redirection.
       queryClient.invalidateQueries({ queryKey: ['my-orders'] })
       queryClient.invalidateQueries({ queryKey: ['artisan-orders'] })
       showAlert('Paiement enregistré', 'Votre paiement a bien été confirmé.')

@@ -4,6 +4,7 @@ import { Stack, router, useSegments } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/store/authStore'
 import { registerFcmToken } from '@/lib/utils/fcm'
+import { ConfirmModal } from '@/components/shared/ConfirmModal'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +121,7 @@ export default function RootLayout() {
           <Stack.Screen name="(client)" options={{ animation: 'none' }} />
           <Stack.Screen name="(artisan)" options={{ animation: 'none' }} />
         </Stack>
+        <ConfirmModal />
       </QueryClientProvider>
     </RootErrorBoundary>
   )

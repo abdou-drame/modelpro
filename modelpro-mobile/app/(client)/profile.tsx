@@ -1,10 +1,11 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { Phone, MapPin, LogOut, ChevronRight, ShoppingBag, Calendar, MessageCircle, Star, User, ShieldAlert } from 'lucide-react-native'
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/store/authStore'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
+import { showAlert } from '@/lib/utils/alert'
 
 const MENU_SECTIONS = [
   {
@@ -26,30 +27,19 @@ export default function ClientProfileScreen() {
   const { user, clearAuth } = useAuthStore()
   const queryClient = useQueryClient()
 
-  const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      if (!window.confirm('Voulez-vous vous déconnecter ?')) return
-      queryClient.clear()
-      await clearAuth()
-      router.replace('/(auth)/login')
-      return
-    }
-    Alert.alert(
-      'Déconnexion',
-      'Voulez-vous vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Déconnecter',
-          style: 'destructive',
-          onPress: async () => {
-            queryClient.clear()
-            await clearAuth()
-            router.replace('/(auth)/login')
-          },
+  const handleLogout = () => {
+    showAlert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Déconnecter',
+        style: 'destructive',
+        onPress: async () => {
+          queryClient.clear()
+          await clearAuth()
+          router.replace('/(auth)/login')
         },
-      ]
-    )
+      },
+    ])
   }
 
   const initials = user ? `${user.prenom[0]}${user.nom[0]}`.toUpperCase() : '?'

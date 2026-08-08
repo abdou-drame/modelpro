@@ -3,6 +3,7 @@
     "name": "modelpro-mobile",
     "slug": "modelpro-mobile",
     "version": "1.0.0",
+    "scheme": "modelpro",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

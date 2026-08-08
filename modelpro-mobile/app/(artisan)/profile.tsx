@@ -56,15 +56,8 @@ export default function ArtisanProfileScreen() {
   const { user, clearAuth, updateUser } = useAuthStore()
   const queryClient = useQueryClient()
 
-  const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      if (!window.confirm('Voulez-vous vous déconnecter ?')) return
-      queryClient.clear()
-      await clearAuth()
-      router.replace('/(auth)/login')
-      return
-    }
-    Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
+  const handleLogout = () => {
+    showAlert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Déconnecter', style: 'destructive',

@@ -12,6 +12,9 @@ export interface Payment {
   statut: 'en_attente' | 'confirme' | 'echoue' | 'rembourse'
   referenceTransaction: string | null
   createdAt: string
+  // Présent uniquement pour un abonnement payé par mobile money : URL PayTech à ouvrir
+  // pour finaliser le paiement (le statut ne passe à 'confirme' qu'après l'IPN).
+  redirectUrl?: string
 }
 
 export interface PaymentSummary {

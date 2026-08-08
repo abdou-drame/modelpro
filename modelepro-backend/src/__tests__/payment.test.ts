@@ -6,12 +6,26 @@ import { Artisan } from '../models/Artisan';
 import { Order } from '../models/Order';
 import { Pack } from '../models/Pack';
 import { generateToken } from '../utils/auth';
+import { initiatePayment, verifyIpnSignature } from '../services/paytechService';
+
+// La confirmation d'un abonnement payé en mobile money passe par le vrai réseau PayTech
+// (initiatePayment) et par un webhook signé (verifyIpnSignature) : on mocke les deux pour
+// tester le flux côté modelepro-backend sans dépendre d'un service externe.
+jest.mock('../services/paytechService', () => ({
+  initiatePayment: jest.fn(),
+  verifyIpnSignature: jest.fn(),
+  buildAppRedirectUrl: jest.fn((deepLink: string) => `https://tunnel.example/api/v1/payments/redirect?to=${encodeURIComponent(deepLink)}`),
+}));
+const mockInitiatePayment = initiatePayment as jest.Mock;
+const mockVerifyIpnSignature = verifyIpnSignature as jest.Mock;
 
 let clientToken: string;
 let artisanToken: string;
 let orderId: number;
 let paymentId: number;
 let packEssentielId: number;
+let abonnementPaymentId: number;
+let fraisServicePaymentId: number;
 
 beforeAll(async () => {
   await sequelize.sync({ force: true });
@@ -85,7 +99,13 @@ describe('Module de Paiement (7.10)', () => {
     expect(res.status).toBe(401);
   });
 
-  it('2. Crée un paiement d’acompte (Wave) et met à jour le statut de paiement de la commande', async () => {
+  it('2. Un acompte payé en Wave passe par PayTech et reste en_attente jusqu’à l’IPN', async () => {
+    mockInitiatePayment.mockResolvedValueOnce({
+      success: 1,
+      token: 'PAYTECH-TOKEN-ORDER-1',
+      redirect_url: 'https://paytech.sn/payment/PAYTECH-TOKEN-ORDER-1',
+    });
+
     const res = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${clientToken}`)
@@ -94,8 +114,6 @@ describe('Module de Paiement (7.10)', () => {
         montant: 20000,
         type: 'acompte',
         moyen: 'wave',
-        referenceTransaction: 'WAVE-TX-12345',
-        statut: 'confirme',
       });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
@@ -103,9 +121,29 @@ describe('Module de Paiement (7.10)', () => {
     expect(res.body.montant).toBe(20000);
     expect(res.body.type).toBe('acompte');
     expect(res.body.moyen).toBe('wave');
-    expect(res.body.referenceTransaction).toBe('WAVE-TX-12345');
+    expect(res.body.statut).toBe('en_attente');
+    expect(res.body.referenceTransaction).toBe('PAYTECH-TOKEN-ORDER-1');
+    expect(res.body.redirectUrl).toBe('https://paytech.sn/payment/PAYTECH-TOKEN-ORDER-1');
 
-    // Vérifier mise à jour statut commande
+    // Rien n'est mis à jour côté commande tant que PayTech n'a pas confirmé.
+    const orderRes = await request(app)
+      .get(`/api/v1/artisans/orders/${orderId}`)
+      .set('Authorization', `Bearer ${artisanToken}`);
+    expect(orderRes.status).toBe(200);
+    expect(orderRes.body.paymentStatus).toBe('unpaid');
+  });
+
+  it('2b. Active l’acompte quand l’IPN PayTech confirme le paiement (sale_complete)', async () => {
+    mockVerifyIpnSignature.mockReturnValueOnce(true);
+
+    const res = await request(app)
+      .post('/api/v1/payments/paytech/ipn')
+      .send({
+        type_event: 'sale_complete',
+        custom_field: JSON.stringify({ paymentId, type: 'commande' }),
+      });
+    expect(res.status).toBe(200);
+
     const orderRes = await request(app)
       .get(`/api/v1/artisans/orders/${orderId}`)
       .set('Authorization', `Bearer ${artisanToken}`);
@@ -113,7 +151,13 @@ describe('Module de Paiement (7.10)', () => {
     expect(orderRes.body.paymentStatus).toBe('deposit_paid');
   });
 
-  it('3. Crée un paiement de frais de service (Free Money)', async () => {
+  it('3. Crée un paiement de frais de service (Free Money) via PayTech', async () => {
+    mockInitiatePayment.mockResolvedValueOnce({
+      success: 1,
+      token: 'PAYTECH-TOKEN-ORDER-2',
+      redirect_url: 'https://paytech.sn/payment/PAYTECH-TOKEN-ORDER-2',
+    });
+
     const res = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${clientToken}`)
@@ -122,11 +166,25 @@ describe('Module de Paiement (7.10)', () => {
         montant: 1000,
         type: 'frais_service',
         moyen: 'free_money',
-        statut: 'confirme',
       });
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('frais_service');
     expect(res.body.moyen).toBe('free_money');
+    expect(res.body.statut).toBe('en_attente');
+    expect(res.body.redirectUrl).toBe('https://paytech.sn/payment/PAYTECH-TOKEN-ORDER-2');
+    fraisServicePaymentId = res.body.id;
+  });
+
+  it('3b. Confirme le paiement de frais de service via l’IPN PayTech', async () => {
+    mockVerifyIpnSignature.mockReturnValueOnce(true);
+
+    const res = await request(app)
+      .post('/api/v1/payments/paytech/ipn')
+      .send({
+        type_event: 'sale_complete',
+        custom_field: JSON.stringify({ paymentId: fraisServicePaymentId, type: 'commande' }),
+      });
+    expect(res.status).toBe(200);
   });
 
   it('4. Crée un paiement du solde (Espèces) et marque la commande fully_paid', async () => {
@@ -165,7 +223,13 @@ describe('Module de Paiement (7.10)', () => {
     expect(res.body.paymentStatus).toBe('fully_paid');
   });
 
-  it('6. Enregistre un paiement d’abonnement artisan (Orange Money)', async () => {
+  it('6. Un abonnement payé en mobile money passe par PayTech et reste en_attente jusqu’à l’IPN', async () => {
+    mockInitiatePayment.mockResolvedValueOnce({
+      success: 1,
+      token: 'PAYTECH-TOKEN-TEST',
+      redirect_url: 'https://paytech.sn/payment/PAYTECH-TOKEN-TEST',
+    });
+
     const res = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${artisanToken}`)
@@ -174,15 +238,47 @@ describe('Module de Paiement (7.10)', () => {
         cycle: 'mensuel',
         type: 'abonnement',
         moyen: 'orange_money',
-        referenceTransaction: 'OM-SUB-999',
-        statut: 'confirme',
       });
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('abonnement');
     expect(res.body.moyen).toBe('orange_money');
     expect(res.body.montant).toBe(3000);
+    expect(res.body.statut).toBe('en_attente');
+    expect(res.body.referenceTransaction).toBe('PAYTECH-TOKEN-TEST');
+    expect(res.body.redirectUrl).toBe('https://paytech.sn/payment/PAYTECH-TOKEN-TEST');
+    abonnementPaymentId = res.body.id;
 
-    // Vérifier abonnement artisan
+    // Rien n'est activé tant que PayTech n'a pas confirmé.
+    const subRes = await request(app)
+      .get('/api/v1/payments/subscriptions/my')
+      .set('Authorization', `Bearer ${artisanToken}`);
+    expect(subRes.status).toBe(200);
+    expect(subRes.body.statutAbonnement).not.toBe('actif');
+  });
+
+  it('6b. Rejette l’IPN PayTech si la signature est invalide', async () => {
+    mockVerifyIpnSignature.mockReturnValueOnce(false);
+
+    const res = await request(app)
+      .post('/api/v1/payments/paytech/ipn')
+      .send({
+        type_event: 'sale_complete',
+        custom_field: JSON.stringify({ paymentId: abonnementPaymentId, type: 'abonnement' }),
+      });
+    expect(res.status).toBe(403);
+  });
+
+  it('6c. Active l’abonnement quand l’IPN PayTech confirme le paiement (sale_complete)', async () => {
+    mockVerifyIpnSignature.mockReturnValueOnce(true);
+
+    const res = await request(app)
+      .post('/api/v1/payments/paytech/ipn')
+      .send({
+        type_event: 'sale_complete',
+        custom_field: JSON.stringify({ paymentId: abonnementPaymentId, type: 'abonnement' }),
+      });
+    expect(res.status).toBe(200);
+
     const subRes = await request(app)
       .get('/api/v1/payments/subscriptions/my')
       .set('Authorization', `Bearer ${artisanToken}`);
@@ -190,6 +286,21 @@ describe('Module de Paiement (7.10)', () => {
     expect(subRes.body.statutAbonnement).toBe('actif');
     expect(subRes.body.dateFinAbonnement).not.toBeNull();
     expect(subRes.body.subscriptions.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('6d. Marque le paiement échoué si l’initiation PayTech échoue', async () => {
+    mockInitiatePayment.mockRejectedValueOnce(new Error('PayTech indisponible'));
+
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${artisanToken}`)
+      .send({
+        packId: packEssentielId,
+        cycle: 'mensuel',
+        type: 'abonnement',
+        moyen: 'wave',
+      });
+    expect(res.status).toBe(502);
   });
 
   it('7. Met à jour le statut d’un paiement', async () => {

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 export function AppLayout() {
   const { token } = useAuthStore()
   const location = useLocation()
+  
 
   if (!token) return <Navigate to="/login" replace />
 

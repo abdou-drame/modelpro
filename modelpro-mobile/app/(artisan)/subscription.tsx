@@ -1,12 +1,12 @@
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Linking,
 } from 'react-native'
 import { showAlert } from '@/lib/utils/alert'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { BlurView } from 'expo-blur'
-import { useEffect, useState } from 'react'
-import { router } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
+import { router, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, CheckCircle2, Hourglass, Crown, Calendar, AlertTriangle, Repeat } from 'lucide-react-native'
 import { paymentsApi, packsApi } from '@/lib/api/payments'
 import { artisanApi } from '@/lib/api/artisan'
@@ -36,14 +36,45 @@ const STATUT_INFO: Record<string, { label: string; color: keyof typeof colors }>
 
 export default function ArtisanSubscriptionScreen() {
   const queryClient = useQueryClient()
+  const { payment: paymentReturnParam } = useLocalSearchParams<{ payment?: string }>()
   const [selectedPackId, setSelectedPackId] = useState<number | null>(null)
   const [selectedCycle, setSelectedCycle] = useState<'mensuel' | 'annuel'>('mensuel')
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('wave')
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
+  const handledReturnRef = useRef<string | null>(null)
 
   const { data: subData } = useQuery({
     queryKey: ['my-subscription'],
     queryFn: () => paymentsApi.mySubscription().then((r) => r.data),
+    // Après un retour PayTech, on repolle en attendant que l'IPN (asynchrone) confirme le paiement.
+    refetchInterval: awaitingConfirmation ? 3000 : false,
   })
+
+  // Retour depuis la page de paiement PayTech (deep link modelpro://(artisan)/subscription?payment=success|cancel).
+  useEffect(() => {
+    if (!paymentReturnParam || handledReturnRef.current === paymentReturnParam) return
+    handledReturnRef.current = paymentReturnParam
+
+    if (paymentReturnParam === 'success') {
+      setAwaitingConfirmation(true)
+      queryClient.invalidateQueries({ queryKey: ['my-subscription'] })
+      showAlert('Paiement en cours de confirmation', 'Nous attendons la confirmation de PayTech, ça ne prend que quelques secondes.')
+      setTimeout(() => setAwaitingConfirmation(false), 30000)
+    } else if (paymentReturnParam === 'cancel') {
+      showAlert('Paiement annulé', "Vous n'avez pas terminé le paiement sur PayTech.")
+    }
+    router.setParams({ payment: undefined })
+  }, [paymentReturnParam])
+
+  const latestSubscriptionStatut = subData?.subscriptions?.[0]?.statut
+  useEffect(() => {
+    if (awaitingConfirmation && latestSubscriptionStatut === 'confirme') {
+      setAwaitingConfirmation(false)
+      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
+      showAlert('Abonnement activé !', 'Votre paiement a été confirmé et votre abonnement ModèlePro est actif.')
+    }
+  }, [awaitingConfirmation, latestSubscriptionStatut])
 
   const { data: packs = [] } = useQuery({
     queryKey: ['packs'],
@@ -66,8 +97,19 @@ export default function ArtisanSubscriptionScreen() {
         moyen: selectedMethod,
       })
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['my-subscription'] })
+
+      const redirectUrl = res.data.redirectUrl
+      if (redirectUrl) {
+        // Paiement mobile money : le paiement reste 'en_attente' tant que PayTech n'a pas
+        // confirmé via IPN. On ouvre la page de paiement et on attend le retour deep-link.
+        setAwaitingConfirmation(true)
+        Linking.openURL(redirectUrl)
+        return
+      }
+
+      // Espèces : confirmé immédiatement côté serveur, pas de redirection.
       queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
       queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
       showAlert('Abonnement activé !', 'Votre abonnement ModèlePro a été activé avec succès.')
