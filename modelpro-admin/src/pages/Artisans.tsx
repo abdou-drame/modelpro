@@ -23,12 +23,14 @@ const VALIDATION_LABELS: Record<string, string> = {
 
 const ABONNEMENT_LABELS: Record<string, string> = {
   actif: 'Actif',
+  essai: 'Essai',
   expire: 'Expiré',
   inactif: 'Inactif',
 }
 
-function abonnementVariant(statut: string): 'success' | 'danger' | 'neutral' {
+function abonnementVariant(statut: string): 'success' | 'warning' | 'danger' | 'neutral' {
   if (statut === 'actif') return 'success'
+  if (statut === 'essai') return 'warning'
   if (statut === 'expire') return 'danger'
   return 'neutral'
 }

@@ -4,6 +4,7 @@ import { Artisan } from '../models/Artisan';
 import { Creation } from '../models/Creation';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
+import { Pack } from '../models/Pack';
 import sequelize from '../config/database';
 
 import { Op } from 'sequelize';
@@ -34,6 +35,7 @@ export const getAllModels = async (req: AuthenticatedRequest, res: Response): Pr
 
     const artisanCondition: any = {
       statutValidation: { [Op.ne]: 'rejete' },
+      statutAbonnement: { [Op.ne]: 'expire' },
     };
 
     // Filtre métier
@@ -104,7 +106,7 @@ export const getModelById = async (req: AuthenticatedRequest, res: Response): Pr
           model: Artisan,
           as: 'artisan',
           required: true,
-          where: { statutValidation: { [Op.ne]: 'rejete' } },
+          where: { statutValidation: { [Op.ne]: 'rejete' }, statutAbonnement: { [Op.ne]: 'expire' } },
           include: [
             {
               model: User,
@@ -146,6 +148,24 @@ export const createModel = async (req: AuthenticatedRequest, res: Response): Pro
     if (!titre) {
       res.status(400).json({ error: 'Le titre du modèle est requis.' });
       return;
+    }
+
+    if (artisan.statutAbonnement === 'expire') {
+      res.status(403).json({ error: 'Votre abonnement a expiré. Renouvelez-le pour ajouter de nouveaux modèles.' });
+      return;
+    }
+
+    if (artisan.packId) {
+      const pack = await Pack.findByPk(artisan.packId);
+      if (pack && pack.limiteModelesActifs !== null) {
+        const nombreModeles = await Creation.count({ where: { artisanId: artisan.id } });
+        if (nombreModeles >= pack.limiteModelesActifs) {
+          res.status(403).json({
+            error: `Limite de modèles atteinte pour le pack ${pack.nom} (${pack.limiteModelesActifs} maximum). Passez à un pack supérieur pour en ajouter davantage.`,
+          });
+          return;
+        }
+      }
     }
 
     const creation = await Creation.create({

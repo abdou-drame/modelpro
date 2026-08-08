@@ -5,6 +5,7 @@ import { Op, fn, col } from 'sequelize';
 import sequelize from '../config/database';
 import { Artisan } from '../models/Artisan';
 import { User } from '../models/User';
+import { Pack } from '../models/Pack';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 
 const uploadDir = path.join(__dirname, '..', '..', 'uploads');
@@ -18,6 +19,7 @@ export const searchArtisans = async (req: AuthenticatedRequest, res: Response): 
     const { metier, atelier, localisation, zone } = req.query;
     const artisanConditions: any = {
       statutValidation: 'valide',
+      statutAbonnement: { [Op.ne]: 'expire' },
     };
 
     const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
@@ -91,7 +93,7 @@ export const updateArtisanProfile = async (req: AuthenticatedRequest, res: Respo
       return;
     }
 
-    const { nom, prenom, telephone, métier, atelier, description, localisation, horaires, zone } = req.body;
+    const { nom, prenom, telephone, métier, atelier, description, localisation, horaires, zone, waveNumber, orangeMoneyNumber } = req.body;
 
     // Mise à jour sélective de la table commune 'users'
     const userUpdateData: any = {};
@@ -111,6 +113,8 @@ export const updateArtisanProfile = async (req: AuthenticatedRequest, res: Respo
     if (localisation !== undefined) artisanUpdateData.localisation = localisation;
     if (horaires !== undefined) artisanUpdateData.horaires = horaires;
     if (zone !== undefined) artisanUpdateData.zone = zone;
+    if (waveNumber !== undefined) artisanUpdateData.waveNumber = waveNumber;
+    if (orangeMoneyNumber !== undefined) artisanUpdateData.orangeMoneyNumber = orangeMoneyNumber;
 
     if (Object.keys(artisanUpdateData).length > 0) {
       await Artisan.update(artisanUpdateData, { where: { userId } });
@@ -314,5 +318,65 @@ export const deleteAtelierPhoto = async (req: AuthenticatedRequest, res: Respons
   } catch (error) {
     console.error('Erreur deleteAtelierPhoto :', error);
     res.status(500).json({ error: 'Erreur serveur lors de la suppression de la photo.' });
+  }
+};
+
+// 8. Upload du logo de la boutique/atelier (distinct de l'avatar personnel)
+export const uploadLogo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Utilisateur non authentifié.' }); return; }
+
+    const artisan = await Artisan.findOne({ where: { userId } });
+    if (!artisan) { res.status(404).json({ error: 'Profil artisan introuvable.' }); return; }
+
+    const file = req.file as Express.Multer.File | undefined;
+    if (!file?.buffer) {
+      res.status(400).json({ error: 'Le logo est requis.' });
+      return;
+    }
+
+    const safeName = (file.originalname || 'logo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `logo-${Date.now()}-${safeName}`;
+    const destPath = path.join(uploadDir, fileName);
+    fs.writeFileSync(destPath, file.buffer);
+
+    artisan.logoUrl = `/uploads/${fileName}`;
+    await artisan.save();
+
+    res.status(200).json({ message: 'Logo mis à jour avec succès.', logoUrl: artisan.logoUrl });
+  } catch (error) {
+    console.error('Erreur uploadLogo :', error);
+    res.status(500).json({ error: 'Erreur serveur lors du téléversement du logo.' });
+  }
+};
+
+// 9. Changement de pack d'abonnement (upgrade/downgrade) par l'artisan lui-même.
+// Simplification volontaire (MVP) : le changement s'applique immédiatement, sans proration ;
+// la date de fin d'abonnement en cours n'est pas modifiée. Le nouveau tarif ne s'appliquera
+// qu'au prochain paiement (createPayment calcule alors le montant sur le nouveau pack).
+export const changePack = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Utilisateur non authentifié.' }); return; }
+
+    const artisan = await Artisan.findOne({ where: { userId } });
+    if (!artisan) { res.status(404).json({ error: 'Profil artisan introuvable.' }); return; }
+
+    const { packId } = req.body;
+    if (!packId) { res.status(400).json({ error: 'packId requis.' }); return; }
+
+    const pack = await Pack.findByPk(packId);
+    if (!pack || !pack.actif) { res.status(404).json({ error: 'Pack introuvable ou inactif.' }); return; }
+
+    // En cas de downgrade, on n'efface pas les modèles déjà publiés au-dessus de la nouvelle
+    // limite : createModel bloquera simplement tout nouvel ajout tant que l'artisan est au-dessus.
+    artisan.packId = pack.id;
+    await artisan.save();
+
+    res.status(200).json({ message: `Pack changé pour ${pack.nom} avec succès.`, pack });
+  } catch (error) {
+    console.error('Erreur changePack :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors du changement de pack.' });
   }
 };

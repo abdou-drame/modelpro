@@ -13,7 +13,7 @@ import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import {
-  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut, Star, X, Trash2,
+  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut, Star, X, Trash2, Image as ImageIcon, Smartphone,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -30,6 +30,8 @@ const schema = z.object({
   description: z.string().optional(),
   localisation: z.string().optional(),
   zone: z.string().optional(),
+  waveNumber: z.string().optional(),
+  orangeMoneyNumber: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -90,6 +92,8 @@ export default function ArtisanProfileScreen() {
           description: profile.description ?? '',
           localisation: profile.localisation ?? '',
           zone: profile.zone ?? '',
+          waveNumber: profile.waveNumber ?? '',
+          orangeMoneyNumber: profile.orangeMoneyNumber ?? '',
         }
       : undefined,
   })
@@ -162,6 +166,31 @@ export default function ArtisanProfileScreen() {
     }
   }
 
+  const logoMutation = useMutation({
+    mutationFn: (uri: string) => artisanApi.uploadLogo(uri),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
+      Alert.alert('Logo', 'Le logo de votre boutique a été mis à jour avec succès.')
+    },
+  })
+
+  const handlePickLogo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour modifier votre logo.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets[0]?.uri) {
+      logoMutation.mutate(result.assets[0].uri)
+    }
+  }
+
   const handlePickPhotos = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
@@ -180,7 +209,14 @@ export default function ArtisanProfileScreen() {
     }
   }
 
-  const onSubmit = (values: FormValues) => updateMutation.mutate({ nomAtelier: values.nomAtelier, description: values.description, localisation: values.localisation, zone: values.zone })
+  const onSubmit = (values: FormValues) => updateMutation.mutate({
+    nomAtelier: values.nomAtelier,
+    description: values.description,
+    localisation: values.localisation,
+    zone: values.zone,
+    waveNumber: values.waveNumber,
+    orangeMoneyNumber: values.orangeMoneyNumber,
+  })
 
   return (
     <KeyboardAvoidingView
@@ -267,6 +303,28 @@ export default function ArtisanProfileScreen() {
           <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.card}>
             <Text style={styles.cardTitle}>Informations de l'atelier</Text>
 
+            {/* Logo de la boutique */}
+            <View style={styles.logoRow}>
+              <TouchableOpacity onPress={handlePickLogo} style={styles.logoWrap} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Changer le logo de la boutique">
+                {profile?.logoUrl ? (
+                  <Image source={{ uri: getImageUrl(profile.logoUrl) }} style={styles.logoImg} />
+                ) : (
+                  <View style={[styles.logoImg, styles.logoPlaceholder]}>
+                    <ImageIcon size={20} color={colors.textMuted} strokeWidth={1.8} />
+                  </View>
+                )}
+                <View style={styles.avatarBadge}>
+                  <Camera size={11} color={colors.white} strokeWidth={2} />
+                </View>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.logoTitle}>Logo de la boutique</Text>
+                <Text style={styles.logoSub}>
+                  {logoMutation.isPending ? 'Envoi en cours...' : 'Affiché sur votre profil public'}
+                </Text>
+              </View>
+            </View>
+
             <FormField label="Nom de l'atelier *" error={errors.nomAtelier?.message}>
               <Controller
                 control={control}
@@ -348,6 +406,50 @@ export default function ArtisanProfileScreen() {
                       placeholder="Ex: Dakar, Thiès, Pikine"
                       placeholderTextColor={colors.textMuted}
                       accessibilityLabel="Zone de service"
+                    />
+                  </View>
+                )}
+              />
+            </FormField>
+
+            <FormField label="Numéro Wave">
+              <Controller
+                control={control}
+                name="waveNumber"
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <View style={styles.inputRow}>
+                    <Smartphone size={15} color={colors.textMuted} strokeWidth={2} />
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ex: 77 123 45 67"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="phone-pad"
+                      accessibilityLabel="Numéro Wave"
+                    />
+                  </View>
+                )}
+              />
+            </FormField>
+
+            <FormField label="Numéro Orange Money">
+              <Controller
+                control={control}
+                name="orangeMoneyNumber"
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <View style={styles.inputRow}>
+                    <Smartphone size={15} color={colors.textMuted} strokeWidth={2} />
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ex: 77 123 45 67"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="phone-pad"
+                      accessibilityLabel="Numéro Orange Money"
                     />
                   </View>
                 )}
@@ -597,6 +699,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg, gap: spacing.lg, ...shadow.sm,
   },
   cardTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  logoWrap: { position: 'relative' },
+  logoImg: {
+    width: 52, height: 52, borderRadius: radius.md,
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  logoPlaceholder: { backgroundColor: colors.bgMuted, alignItems: 'center', justifyContent: 'center' },
+  logoTitle: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+  logoSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
 
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,

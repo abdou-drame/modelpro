@@ -5,33 +5,15 @@ import { showAlert } from '@/lib/utils/alert'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import { BlurView } from 'expo-blur'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { router } from 'expo-router'
-import { ArrowLeft, CheckCircle2, Zap, Crown, Calendar } from 'lucide-react-native'
-import { paymentsApi } from '@/lib/api/payments'
+import { ArrowLeft, CheckCircle2, Hourglass, Crown, Calendar, AlertTriangle, Repeat } from 'lucide-react-native'
+import { paymentsApi, packsApi } from '@/lib/api/payments'
+import { artisanApi } from '@/lib/api/artisan'
 import { formatDate, formatPrice } from '@/lib/utils/format'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import type { PaymentMethod } from '@/constants/enums'
 import { PaymentMethodLogo } from '@/components/shared/PaymentMethodLogo'
-
-const PLANS = [
-  {
-    key: 'monthly',
-    label: 'Mensuel',
-    price: 5000,
-    desc: 'Accès complet pendant 30 jours',
-    icon: Zap,
-    highlight: false,
-  },
-  {
-    key: 'yearly',
-    label: 'Annuel',
-    price: 45000,
-    desc: 'Économisez 2 mois — meilleur tarif',
-    icon: Crown,
-    highlight: true,
-  },
-]
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'wave', label: 'Wave' },
@@ -40,9 +22,22 @@ const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'especes', label: 'Espèces' },
 ]
 
+const CYCLES: { key: 'mensuel' | 'annuel'; label: string }[] = [
+  { key: 'mensuel', label: 'Mensuel' },
+  { key: 'annuel', label: 'Annuel' },
+]
+
+const STATUT_INFO: Record<string, { label: string; color: keyof typeof colors }> = {
+  essai: { label: 'Essai gratuit', color: 'primary' },
+  actif: { label: 'Abonnement actif', color: 'success' },
+  expire: { label: 'Abonnement expiré', color: 'error' },
+  inactif: { label: 'Pas encore abonné', color: 'textMuted' },
+}
+
 export default function ArtisanSubscriptionScreen() {
   const queryClient = useQueryClient()
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
+  const [selectedPackId, setSelectedPackId] = useState<number | null>(null)
+  const [selectedCycle, setSelectedCycle] = useState<'mensuel' | 'annuel'>('mensuel')
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('wave')
 
   const { data: subData } = useQuery({
@@ -50,11 +45,23 @@ export default function ArtisanSubscriptionScreen() {
     queryFn: () => paymentsApi.mySubscription().then((r) => r.data),
   })
 
+  const { data: packs = [] } = useQuery({
+    queryKey: ['packs'],
+    queryFn: () => packsApi.list().then((r) => r.data),
+  })
+
+  useEffect(() => {
+    if (selectedPackId === null && packs.length > 0) {
+      setSelectedPackId(subData?.pack?.id ?? packs[0].id)
+    }
+  }, [packs, subData])
+
   const subscribeMutation = useMutation({
     mutationFn: () => {
-      const plan = PLANS.find((p) => p.key === selectedPlan)!
+      if (!selectedPackId) throw new Error('Aucun pack sélectionné.')
       return paymentsApi.create({
-        montant: plan.price,
+        packId: selectedPackId,
+        cycle: selectedCycle,
         type: 'abonnement',
         moyen: selectedMethod,
       })
@@ -62,7 +69,7 @@ export default function ArtisanSubscriptionScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-subscription'] })
       queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
       showAlert('Abonnement activé !', 'Votre abonnement ModèlePro a été activé avec succès.')
     },
     onError: (err: any) => {
@@ -70,11 +77,30 @@ export default function ArtisanSubscriptionScreen() {
     },
   })
 
+  const changePackMutation = useMutation({
+    mutationFn: (packId: number) => artisanApi.changePack(packId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-subscription'] })
+      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
+      showAlert('Pack changé', "Votre pack a été mis à jour. La date d'expiration en cours n'est pas affectée.")
+    },
+    onError: (err: any) => {
+      showAlert('Erreur', err.response?.data?.error ?? 'Impossible de changer de pack.')
+    },
+  })
+
+  const selectedPack = packs.find((p) => p.id === selectedPackId) ?? null
+  const currentPack = subData?.pack ?? null
+  const statutAbonnement = subData?.statutAbonnement ?? 'inactif'
+  const statutInfo = STATUT_INFO[statutAbonnement] ?? STATUT_INFO.inactif
+  const isPackChange = currentPack && selectedPack && currentPack.id !== selectedPack.id
+
   const handleSubscribe = () => {
-    const plan = PLANS.find((p) => p.key === selectedPlan)!
+    if (!selectedPack) return
+    const prix = selectedCycle === 'annuel' ? selectedPack.prixAnnuel : selectedPack.prixMensuel
     showAlert(
-      `Souscrire — ${plan.label}`,
-      `Confirmer le paiement de ${formatPrice(plan.price)} via ${METHODS.find((m) => m.key === selectedMethod)?.label} ?`,
+      `Souscrire — ${selectedPack.nom}`,
+      `Confirmer le paiement de ${formatPrice(prix)} via ${METHODS.find((m) => m.key === selectedMethod)?.label} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Confirmer', onPress: () => subscribeMutation.mutate() },
@@ -82,17 +108,17 @@ export default function ArtisanSubscriptionScreen() {
     )
   }
 
-  const isActive = subData?.statutAbonnement === 'actif'
-  const dateFin = subData?.dateFinAbonnement || subData?.subscriptions?.[0]?.dateFin
-
-  const PERKS = [
-    'Profil visible dans les recherches',
-    'Réception illimitée de commandes',
-    'Messagerie avec les clients',
-    'Notifications push en temps réel',
-    'Statistiques de performance',
-    'Badge artisan vérifié',
-  ]
+  const handleChangePackOnly = () => {
+    if (!selectedPack) return
+    showAlert(
+      `Changer pour ${selectedPack.nom}`,
+      "Le changement est immédiat mais n'affecte pas votre date d'expiration en cours. Le nouveau tarif s'appliquera à votre prochain paiement.",
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Changer', onPress: () => changePackMutation.mutate(selectedPack.id) },
+      ]
+    )
+  }
 
   return (
     <View style={styles.container}>
@@ -106,59 +132,74 @@ export default function ArtisanSubscriptionScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Statut actuel */}
-        {isActive && (
-          <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.activeCard}>
-            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
-            <View style={styles.activeBorder} />
-            <CheckCircle2 size={24} color={colors.success} strokeWidth={2} />
-            <View>
-              <Text style={styles.activeTitle}>Abonnement actif</Text>
-              <Text style={styles.activeSub}>
-                {dateFin ? `Expire le ${formatDate(dateFin)}` : 'Abonnement en cours'}
-              </Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Avantages */}
-        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.perksCard}>
-          <Text style={styles.perksTitle}>Ce que comprend votre abonnement</Text>
-          <View style={styles.perksList}>
-            {PERKS.map((p) => (
-              <View key={p} style={styles.perkItem}>
-                <CheckCircle2 size={16} color={colors.success} strokeWidth={2} />
-                <Text style={styles.perkText}>{p}</Text>
-              </View>
-            ))}
+        <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.statusCard}>
+          <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+          <View style={[styles.statusBorder, { borderColor: `${colors[statutInfo.color] ?? colors.textMuted}40` }]} />
+          {statutAbonnement === 'expire' ? (
+            <AlertTriangle size={24} color={colors.error} strokeWidth={2} />
+          ) : statutAbonnement === 'essai' ? (
+            <Hourglass size={24} color={colors.primary} strokeWidth={2} />
+          ) : (
+            <CheckCircle2 size={24} color={statutAbonnement === 'actif' ? colors.success : colors.textMuted} strokeWidth={2} />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statusTitle}>
+              {statutInfo.label}{currentPack ? ` — ${currentPack.nom}` : ''}
+            </Text>
+            <Text style={styles.statusSub}>
+              {subData?.dateFinAbonnement
+                ? `${statutAbonnement === 'expire' ? 'Expiré le' : "Jusqu'au"} ${formatDate(subData.dateFinAbonnement)}`
+                : 'Choisissez un pack pour démarrer'}
+            </Text>
           </View>
         </Animated.View>
 
-        {/* Plans */}
-        <Animated.View entering={FadeInUp.delay(160).springify()} style={styles.section}>
-          <Text style={styles.sectionTitle}>Choisir un plan</Text>
+        {/* Choix du pack */}
+        <Animated.View entering={FadeInUp.delay(120).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Choisir un pack</Text>
           <View style={styles.planRow}>
-            {PLANS.map((plan) => {
-              const active = selectedPlan === plan.key
-              const Icon = plan.icon
+            {packs.map((pack) => {
+              const active = selectedPackId === pack.id
+              const isCurrent = currentPack?.id === pack.id
+              const prix = selectedCycle === 'annuel' ? pack.prixAnnuel : pack.prixMensuel
               return (
                 <TouchableOpacity
-                  key={plan.key}
-                  style={[styles.planCard, active && styles.planCardActive, plan.highlight && styles.planCardHighlight]}
-                  onPress={() => setSelectedPlan(plan.key as any)}
+                  key={pack.id}
+                  style={[styles.planCard, active && styles.planCardActive, pack.code === 'pro' && styles.planCardHighlight]}
+                  onPress={() => setSelectedPackId(pack.id)}
                 >
-                  {plan.highlight && (
+                  {pack.code === 'pro' && (
                     <View style={styles.planBadge}>
                       <Text style={styles.planBadgeText}>Recommandé</Text>
                     </View>
                   )}
-                  <Icon size={22} color={active ? colors.white : plan.highlight ? colors.primary : colors.textMuted} strokeWidth={1.8} />
-                  <Text style={[styles.planLabel, active && styles.planLabelActive, plan.highlight && !active && styles.planLabelHighlight]}>
-                    {plan.label}
+                  {isCurrent && (
+                    <View style={[styles.planBadge, { left: 8, right: undefined, backgroundColor: colors.success }]}>
+                      <Text style={styles.planBadgeText}>Actuel</Text>
+                    </View>
+                  )}
+                  <Crown size={20} color={active ? colors.white : pack.code === 'pro' ? colors.primary : colors.textMuted} strokeWidth={1.8} />
+                  <Text style={[styles.planLabel, active && styles.planLabelActive]}>{pack.nom}</Text>
+                  <Text style={[styles.planPrice, active && styles.planPriceActive]}>{formatPrice(prix)}</Text>
+                  <Text style={[styles.planDesc, active && styles.planDescActive]}>
+                    {pack.limiteModelesActifs === null ? 'Modèles illimités' : `${pack.limiteModelesActifs} modèles actifs`}
                   </Text>
-                  <Text style={[styles.planPrice, active && styles.planPriceActive]}>
-                    {formatPrice(plan.price)}
-                  </Text>
-                  <Text style={[styles.planDesc, active && styles.planDescActive]}>{plan.desc}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {/* Cycle */}
+          <View style={styles.cycleRow}>
+            {CYCLES.map((c) => {
+              const active = selectedCycle === c.key
+              return (
+                <TouchableOpacity
+                  key={c.key}
+                  style={[styles.cycleBtn, active && styles.cycleBtnActive]}
+                  onPress={() => setSelectedCycle(c.key)}
+                >
+                  <Text style={[styles.cycleLabel, active && styles.cycleLabelActive]}>{c.label}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -209,17 +250,30 @@ export default function ArtisanSubscriptionScreen() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInUp.delay(320).springify()}>
+        <Animated.View entering={FadeInUp.delay(320).springify()} style={{ gap: spacing.sm }}>
           <TouchableOpacity
             style={styles.subscribeBtn}
             onPress={handleSubscribe}
-            disabled={subscribeMutation.isPending}
+            disabled={subscribeMutation.isPending || !selectedPack}
           >
             <Crown size={18} color={colors.white} strokeWidth={2} />
             <Text style={styles.subscribeBtnText}>
-              {subscribeMutation.isPending ? 'Traitement...' : isActive ? 'Renouveler' : 'Activer mon abonnement'}
+              {subscribeMutation.isPending ? 'Traitement...' : statutAbonnement === 'actif' ? 'Renouveler' : 'Payer et activer'}
             </Text>
           </TouchableOpacity>
+
+          {isPackChange && (
+            <TouchableOpacity
+              style={styles.changePackBtn}
+              onPress={handleChangePackOnly}
+              disabled={changePackMutation.isPending}
+            >
+              <Repeat size={16} color={colors.primary} strokeWidth={2} />
+              <Text style={styles.changePackBtnText}>
+                {changePackMutation.isPending ? 'Changement...' : `Changer pour ${selectedPack?.nom} sans payer maintenant`}
+              </Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
 
         <View style={{ height: 40 }} />
@@ -238,47 +292,43 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
   navTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
   scroll: { padding: spacing.xl, gap: spacing.xl, paddingBottom: 60 },
-  activeCard: {
+  statusCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     borderRadius: radius.xl, overflow: 'hidden', padding: spacing.lg, ...shadow.sm,
   },
-  activeBorder: {
+  statusBorder: {
     ...StyleSheet.absoluteFillObject, borderRadius: radius.xl,
-    borderWidth: 1.5, borderColor: `${colors.success}40`,
+    borderWidth: 1.5,
   },
-  activeTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
-  activeSub: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  perksCard: {
-    backgroundColor: colors.bgCard, borderRadius: radius.xl,
-    padding: spacing.lg, gap: spacing.md, ...shadow.sm,
-  },
-  perksTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
-  perksList: { gap: spacing.sm },
-  perkItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  perkText: { fontSize: fontSize.sm, color: colors.textSub, flex: 1 },
+  statusTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+  statusSub: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   section: { gap: spacing.md },
   sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
-  planRow: { flexDirection: 'row', gap: spacing.md },
+  planRow: { flexDirection: 'row', gap: spacing.sm },
   planCard: {
-    flex: 1, borderRadius: radius.xl, padding: spacing.lg, gap: spacing.sm,
+    flex: 1, borderRadius: radius.xl, padding: spacing.md, gap: 4,
     backgroundColor: colors.bgCard, borderWidth: 1.5, borderColor: colors.border,
     alignItems: 'center', overflow: 'hidden', ...shadow.sm,
   },
   planCardActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   planCardHighlight: { borderColor: colors.primary },
   planBadge: {
-    position: 'absolute', top: 8,
+    position: 'absolute', top: 8, right: 8,
     backgroundColor: colors.primary, borderRadius: radius.full,
-    paddingHorizontal: 8, paddingVertical: 2,
+    paddingHorizontal: 6, paddingVertical: 2,
   },
-  planBadgeText: { fontSize: 10, fontWeight: '700', color: colors.white },
-  planLabel: { fontSize: fontSize.base, fontWeight: '700', color: colors.text },
+  planBadgeText: { fontSize: 9, fontWeight: '700', color: colors.white },
+  planLabel: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text, marginTop: spacing.sm },
   planLabelActive: { color: colors.white },
-  planLabelHighlight: { color: colors.primary },
-  planPrice: { fontSize: fontSize.xl, fontWeight: '800', color: colors.primary, letterSpacing: -0.5 },
+  planPrice: { fontSize: fontSize.base, fontWeight: '800', color: colors.primary, letterSpacing: -0.3 },
   planPriceActive: { color: 'rgba(255,255,255,0.9)' },
-  planDesc: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center', lineHeight: 16 },
+  planDesc: { fontSize: 10, color: colors.textMuted, textAlign: 'center', lineHeight: 14 },
   planDescActive: { color: 'rgba(255,255,255,0.6)' },
+  cycleRow: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'center', backgroundColor: colors.bgMuted, borderRadius: radius.full, padding: 4 },
+  cycleBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, borderRadius: radius.full },
+  cycleBtnActive: { backgroundColor: colors.primary },
+  cycleLabel: { fontSize: fontSize.sm, fontWeight: '600', color: colors.textSub },
+  cycleLabelActive: { color: colors.white },
   methodList: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   methodItem: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
@@ -302,4 +352,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, ...shadow.md,
   },
   subscribeBtnText: { fontSize: fontSize.base, fontWeight: '700', color: colors.white },
+  changePackBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: colors.bgCard, borderRadius: radius.xl, padding: spacing.md,
+    borderWidth: 1.5, borderColor: colors.primary,
+  },
+  changePackBtnText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
 })

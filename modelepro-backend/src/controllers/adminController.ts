@@ -20,6 +20,7 @@ import { Payment } from '../models/Payment';
 import { Review } from '../models/Review';
 import { User } from '../models/User';
 import { Metier } from '../models/Metier';
+import { Pack } from '../models/Pack';
 import { Appointment } from '../models/Appointment';
 import { createNotification } from '../services/notificationService';
 
@@ -211,6 +212,47 @@ export const getAllArtisansAdmin = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
+// 4a. Liste des abonnements artisans (artisan + pack + statut), filtrable par statut/pack
+export const getAbonnementsAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { search, statutAbonnement, packId } = req.query;
+    const { page, limit, offset } = parsePagination(req.query);
+
+    const whereClause: any = {};
+    if (statutAbonnement) whereClause.statutAbonnement = statutAbonnement;
+    if (packId) whereClause.packId = Number(packId);
+
+    if (search) {
+      const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+      const searchTerm = `%${search}%`;
+      whereClause[Op.or] = [
+        { atelier: { [likeOp]: searchTerm } },
+        { '$user.nom$': { [likeOp]: searchTerm } },
+        { '$user.prenom$': { [likeOp]: searchTerm } },
+        { '$user.telephone$': { [likeOp]: searchTerm } },
+      ];
+    }
+
+    const { count, rows } = await Artisan.findAndCountAll({
+      where: whereClause,
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'nom', 'prenom', 'telephone', 'email'] },
+        { model: Pack, as: 'pack', attributes: ['id', 'code', 'nom', 'prixMensuel', 'prixAnnuel'] },
+      ],
+      order: [['dateFinAbonnement', 'ASC']],
+      limit,
+      offset,
+      subQuery: false,
+    });
+    // Forme explicite (et non via l'aide paginated()) : Object.assign sur un tableau
+    // perd ses propriétés additionnelles au passage dans JSON.stringify côté HTTP.
+    res.status(200).json({ data: rows, total: count, page, totalPages: Math.ceil(count / limit), limit });
+  } catch (error) {
+    console.error('Erreur getAbonnementsAdmin :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des abonnements.' });
+  }
+};
+
 // 4b. Profil détaillé d'un artisan (admin)
 export const getArtisanProfileAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -264,14 +306,27 @@ export const verifyArtisan = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
-    await artisanProfile.update({ statutValidation: 'valide' });
+    const updateData: any = { statutValidation: 'valide' };
+
+    // Démarre l'essai gratuit de 14 jours uniquement si l'artisan n'a encore jamais eu
+    // d'abonnement (évite de réinitialiser le compteur d'un artisan déjà actif/en essai).
+    if (artisanProfile.statutAbonnement === 'inactif') {
+      const finEssai = new Date();
+      finEssai.setDate(finEssai.getDate() + 14);
+      updateData.statutAbonnement = 'essai';
+      updateData.dateFinAbonnement = finEssai;
+    }
+
+    await artisanProfile.update(updateData);
 
     // Notification à l'artisan
     await createNotification(
       artisanProfile.userId,
       'rdv_statut',
       'Profil artisan validé !',
-      'Votre profil artisan a été validé par l\'administration. Vous pouvez maintenant recevoir des commandes.',
+      updateData.statutAbonnement === 'essai'
+        ? 'Votre profil artisan a été validé. Votre essai gratuit de 14 jours a démarré, vous pouvez recevoir des commandes.'
+        : 'Votre profil artisan a été validé par l\'administration. Vous pouvez maintenant recevoir des commandes.',
       artisanProfile.id
     );
 
@@ -526,6 +581,7 @@ export const getAllPaymentsAdmin = async (req: AuthenticatedRequest, res: Respon
       include: [
         { model: Order, as: 'order', required: false },
         { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom'] }], required: false },
+        { model: Pack, as: 'pack', attributes: ['id', 'code', 'nom'], required: false },
       ],
       order: [['createdAt', 'DESC']],
     });
@@ -631,6 +687,8 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
       chiffreAffairesTotal,
       commandesEnRetardCount,
       totalAbonnementsActifs,
+      totalArtisansEnEssai,
+      totalArtisansSuspendus,
     ] = await Promise.all([
       User.count(),
       Artisan.count({ where: { statutValidation: 'valide' } }),
@@ -646,7 +704,20 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
         },
       }),
       Artisan.count({ where: { statutAbonnement: 'actif' } }),
+      Artisan.count({ where: { statutAbonnement: 'essai' } }),
+      Artisan.count({ where: { statutAbonnement: 'expire' } }),
     ]);
+
+    // Répartition des artisans par pack d'abonnement
+    const packs = await Pack.findAll({ order: [['prixMensuel', 'ASC']] });
+    const repartitionParPack = await Promise.all(
+      packs.map(async (pack) => ({
+        packId: pack.id,
+        code: pack.code,
+        nom: pack.nom,
+        nombreArtisans: await Artisan.count({ where: { packId: pack.id } }),
+      }))
+    );
 
     const commandesParStatut = await Order.findAll({
       attributes: ['statut', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
@@ -683,6 +754,9 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
       chiffreAffairesTotal: caTotal,
       commandesEnRetardCount,
       totalAbonnementsActifs,
+      totalArtisansEnEssai,
+      totalArtisansSuspendus,
+      repartitionParPack,
       tableauDeBord: {
         totalUsers,
         totalArtisansActifs,
@@ -693,6 +767,9 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
         chiffreAffairesTotal: caTotal,
         commandesEnRetardCount,
         totalAbonnementsActifs,
+        totalArtisansEnEssai,
+        totalArtisansSuspendus,
+        repartitionParPack,
       },
       statistiquesAvancees: {
         metiersPlusDemandes,
@@ -873,6 +950,44 @@ export const updateArtisanSubscriptionAdmin = async (req: AuthenticatedRequest, 
   } catch (error) {
     console.error('Erreur updateArtisanSubscriptionAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour de l’abonnement.' });
+  }
+};
+
+// Gestion des packs d'abonnement (Essentiel / Pro / Business) — prix et limites modifiables sans déploiement
+export const getPacksAdmin = async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const packs = await Pack.findAll({ order: [['prixMensuel', 'ASC']] });
+    res.status(200).json(packs);
+  } catch (error) {
+    console.error('Erreur getPacksAdmin :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des packs.' });
+  }
+};
+
+export const updatePackAdmin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const { nom, prixMensuel, prixAnnuel, limiteModelesActifs, actif } = req.body;
+
+    const pack = await Pack.findByPk(id);
+    if (!pack) {
+      res.status(404).json({ error: 'Pack introuvable.' });
+      return;
+    }
+
+    if (nom !== undefined) pack.nom = nom;
+    if (prixMensuel !== undefined) pack.prixMensuel = Number(prixMensuel);
+    if (prixAnnuel !== undefined) pack.prixAnnuel = Number(prixAnnuel);
+    if (limiteModelesActifs !== undefined) {
+      pack.limiteModelesActifs = limiteModelesActifs === null ? null : Number(limiteModelesActifs);
+    }
+    if (actif !== undefined) pack.actif = actif;
+
+    await pack.save();
+    res.status(200).json(pack);
+  } catch (error) {
+    console.error('Erreur updatePackAdmin :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la mise à jour du pack.' });
   }
 };
 

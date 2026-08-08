@@ -1,7 +1,84 @@
+import { Op } from 'sequelize';
 import app from './app';
 import sequelize from './config/database';
+import { Pack } from './models/Pack';
+import { Artisan } from './models/Artisan';
+import { createNotification } from './services/notificationService';
 
 const PORT = process.env.PORT || 5000;
+const JOUR_MS = 24 * 60 * 60 * 1000;
+
+const DEFAULT_PACKS: Array<{
+  code: 'essentiel' | 'pro' | 'business';
+  nom: string;
+  prixMensuel: number;
+  prixAnnuel: number;
+  limiteModelesActifs: number | null;
+}> = [
+  { code: 'essentiel', nom: 'Essentiel', prixMensuel: 3000, prixAnnuel: 30000, limiteModelesActifs: 5 },
+  { code: 'pro', nom: 'Pro', prixMensuel: 7500, prixAnnuel: 75000, limiteModelesActifs: 30 },
+  { code: 'business', nom: 'Business', prixMensuel: 13000, prixAnnuel: 130000, limiteModelesActifs: null },
+];
+
+// Crée les 3 packs s'ils n'existent pas encore (n'écrase jamais un pack déjà modifié depuis l'admin),
+// puis rattache au pack "essentiel" les artisans déjà en base qui n'ont encore aucun pack.
+async function bootstrapAbonnements() {
+  for (const pack of DEFAULT_PACKS) {
+    await Pack.findOrCreate({ where: { code: pack.code }, defaults: pack });
+  }
+
+  const essentiel = await Pack.findOne({ where: { code: 'essentiel' } });
+  if (essentiel) {
+    await Artisan.update({ packId: essentiel.id }, { where: { packId: null } });
+  }
+}
+
+// Job quotidien : (1) suspend les abonnements/essais expirés, (2) alerte les artisans dont
+// l'abonnement expire dans les 3 prochains jours. Pas de dépendance externe (pas de node-cron) :
+// un simple setInterval suffit pour un job à cadence journalière.
+async function runAbonnementDailyJob() {
+  try {
+    const now = new Date();
+
+    const expires = await Artisan.findAll({
+      where: {
+        statutAbonnement: { [Op.in]: ['actif', 'essai'] },
+        dateFinAbonnement: { [Op.lt]: now },
+      },
+    });
+    for (const artisan of expires) {
+      artisan.statutAbonnement = 'expire';
+      await artisan.save();
+      await createNotification(
+        artisan.userId,
+        'paiement',
+        'Abonnement expiré',
+        'Votre abonnement a expiré et votre compte a été suspendu. Renouvelez votre pack pour continuer à recevoir des commandes.',
+        undefined
+      );
+    }
+
+    const dansTroisJours = new Date(now.getTime() + 3 * JOUR_MS);
+    const bientotExpires = await Artisan.findAll({
+      where: {
+        statutAbonnement: { [Op.in]: ['actif', 'essai'] },
+        dateFinAbonnement: { [Op.gte]: now, [Op.lte]: dansTroisJours },
+      },
+    });
+    for (const artisan of bientotExpires) {
+      const dateFin = artisan.dateFinAbonnement as unknown as Date;
+      await createNotification(
+        artisan.userId,
+        'paiement',
+        'Abonnement bientôt expiré',
+        `Votre abonnement expire le ${new Date(dateFin).toLocaleDateString()}. Renouvelez-le pour éviter une suspension.`,
+        undefined
+      );
+    }
+  } catch (error) {
+    console.error('[Abonnements] Erreur lors du job quotidien :', error);
+  }
+}
 
 async function runAutoMigrations() {
   const migrations = [
@@ -37,6 +114,11 @@ async function runAutoMigrations() {
     `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS "motifRejet" TEXT;`,
     `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS "statutAbonnement" VARCHAR(50) DEFAULT 'inactif';`,
     `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS "dateFinAbonnement" TIMESTAMP WITH TIME ZONE;`,
+    `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS pack_id INTEGER;`,
+    `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS logo_url VARCHAR(255);`,
+    `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS wave_number VARCHAR(20);`,
+    `ALTER TABLE artisans ADD COLUMN IF NOT EXISTS orange_money_number VARCHAR(20);`,
+    `ALTER TYPE enum_artisans_statut_abonnement ADD VALUE IF NOT EXISTS 'essai';`,
 
     // Users
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(150);`,
@@ -57,7 +139,11 @@ async function runAutoMigrations() {
 
     // Claims
     `ALTER TABLE claims ADD COLUMN IF NOT EXISTS "preuvePhotoUrl" VARCHAR(255);`,
-    `ALTER TABLE claims ADD COLUMN IF NOT EXISTS "reponseAdmin" TEXT;`
+    `ALTER TABLE claims ADD COLUMN IF NOT EXISTS "reponseAdmin" TEXT;`,
+
+    // Payments (traçabilité pack + cycle des abonnements)
+    `ALTER TABLE payments ADD COLUMN IF NOT EXISTS pack_id INTEGER;`,
+    `ALTER TABLE payments ADD COLUMN IF NOT EXISTS cycle VARCHAR(20);`
   ];
 
   for (const query of migrations) {
@@ -71,8 +157,11 @@ async function runAutoMigrations() {
 
 runAutoMigrations()
   .then(() => sequelize.sync({ force: false }))
+  .then(() => bootstrapAbonnements())
+  .then(() => runAbonnementDailyJob())
   .then(() => {
     console.log('[PostgreSQL] Connexion établie, migrations vérifiées et tables synchronisées.');
+    setInterval(runAbonnementDailyJob, JOUR_MS);
     app.listen(PORT, () => {
       console.log(`[Serveur] API ModèlePro démarrée sur http://localhost:${PORT}`);
     });

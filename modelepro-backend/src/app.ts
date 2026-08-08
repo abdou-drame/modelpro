@@ -6,6 +6,7 @@ import path from 'path';
 // Importation de tous les modèles pour la synchronisation PostgreSQL / tests
 import './models/User';
 import './models/Client';
+import './models/Pack';
 import './models/Artisan';
 import './models/Creation';
 import './models/Appointment';

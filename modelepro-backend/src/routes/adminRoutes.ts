@@ -4,6 +4,7 @@ import {
   toggleUserStatus,
   deleteUser,
   getAllArtisansAdmin,
+  getAbonnementsAdmin,
   getPendingArtisans,
   getArtisanProfileAdmin,
   verifyArtisan,
@@ -27,6 +28,8 @@ import {
   suspendArtisan,
   reactivateArtisan,
   updateArtisanSubscriptionAdmin,
+  getPacksAdmin,
+  updatePackAdmin,
 } from '../controllers/adminController';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 
@@ -80,5 +83,12 @@ router.patch('/claims/:id/status', updateClaimStatus);
 
 // Gestion paiements & abonnements
 router.get('/payments', getAllPaymentsAdmin);
+
+// Gestion des packs d'abonnement (prix, limites)
+router.get('/packs', getPacksAdmin);
+router.put('/packs/:id', updatePackAdmin);
+
+// Liste des abonnements artisans (artisan + pack + statut)
+router.get('/abonnements', getAbonnementsAdmin);
 
 export default router;

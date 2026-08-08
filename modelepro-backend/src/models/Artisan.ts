@@ -1,6 +1,7 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database';
 import { User } from './User';
+import { Pack } from './Pack';
 
 export class Artisan extends Model {
   declare id: number;
@@ -20,8 +21,13 @@ export class Artisan extends Model {
   declare nombreAvis: number;
   declare motifRejet: string | null;
   // Module 7.10 - Abonnement artisan
-  declare statutAbonnement: 'inactif' | 'actif' | 'expire';
+  declare statutAbonnement: 'inactif' | 'essai' | 'actif' | 'expire';
   declare dateFinAbonnement: Date | null;
+  // Packs d'abonnement (Essentiel / Pro / Business)
+  declare packId: number | null;
+  declare logoUrl: string | null;
+  declare waveNumber: string | null;
+  declare orangeMoneyNumber: string | null;
 }
 
 Artisan.init(
@@ -98,13 +104,36 @@ Artisan.init(
     },
     // Module 7.10
     statutAbonnement: {
-      type: DataTypes.ENUM('inactif', 'actif', 'expire'),
+      type: DataTypes.ENUM('inactif', 'essai', 'actif', 'expire'),
       defaultValue: 'inactif',
       allowNull: false,
+      field: 'statut_abonnement',
     },
     dateFinAbonnement: {
       type: DataTypes.DATE,
       allowNull: true,
+      field: 'date_fin_abonnement',
+    },
+    // Packs d'abonnement
+    packId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'pack_id',
+    },
+    logoUrl: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'logo_url',
+    },
+    waveNumber: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      field: 'wave_number',
+    },
+    orangeMoneyNumber: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      field: 'orange_money_number',
     },
   },
   {
@@ -116,3 +145,6 @@ Artisan.init(
 
 User.hasOne(Artisan, { foreignKey: 'user_id', as: 'artisanProfile' });
 Artisan.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+Pack.hasMany(Artisan, { foreignKey: 'pack_id', as: 'artisans' });
+Artisan.belongsTo(Pack, { foreignKey: 'pack_id', as: 'pack' });

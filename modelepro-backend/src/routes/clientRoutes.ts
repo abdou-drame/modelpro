@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 import {
   getMetiers,
+  getPacks,
   createAppointment,
   getMyAppointments,
   cancelAppointment,
@@ -19,6 +20,7 @@ const router = Router();
 
 // Public
 router.get('/metiers', getMetiers);
+router.get('/packs', getPacks);
 router.get('/artisans/:id', getPublicArtisanProfile);
 router.get('/artisans/:artisanId/reviews', getArtisanReviews);
 

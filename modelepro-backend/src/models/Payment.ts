@@ -2,6 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database';
 import { Order } from './Order';
 import { Artisan } from './Artisan';
+import { Pack } from './Pack';
 
 export class Payment extends Model {
   declare id: number;
@@ -12,6 +13,8 @@ export class Payment extends Model {
   declare moyen: 'wave' | 'orange_money' | 'free_money' | 'especes';
   declare statut: 'en_attente' | 'confirme' | 'echoue' | 'rembourse';
   declare referenceTransaction: string | null;
+  declare packId: number | null;
+  declare cycle: 'mensuel' | 'annuel' | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -56,6 +59,16 @@ Payment.init(
       type: DataTypes.STRING(100),
       allowNull: true,
     },
+    // Pack + cycle au moment du paiement d'abonnement (traçabilité, indépendant du pack courant de l'artisan)
+    packId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'pack_id',
+    },
+    cycle: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -68,5 +81,8 @@ Payment.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
 
 Artisan.hasMany(Payment, { foreignKey: 'artisanId', as: 'payments' });
 Payment.belongsTo(Artisan, { foreignKey: 'artisanId', as: 'artisan' });
+
+Pack.hasMany(Payment, { foreignKey: 'pack_id', as: 'payments' });
+Payment.belongsTo(Pack, { foreignKey: 'pack_id', as: 'pack' });
 
 export default Payment;

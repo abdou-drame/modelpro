@@ -244,7 +244,11 @@ export default function Payments() {
                       <span className="text-xs font-mono text-ink-muted">#{p.id}</span>
                       <span className="text-sm font-medium text-ink truncate">{p.artisan.atelier}</span>
                       <span className="text-sm text-ink-sub truncate">
-                        {p.orderId ? `Commande #${p.orderId}` : 'Abonnement'}
+                        {p.orderId
+                          ? `Commande #${p.orderId}`
+                          : p.pack
+                            ? `${p.pack.nom} — ${p.cycle === 'annuel' ? 'Annuel' : 'Mensuel'}`
+                            : 'Abonnement'}
                       </span>
                       <span className="text-sm font-bold text-ink tabular-nums">{formatPrice(p.montant)}</span>
                       <Badge label={typeLabel(p.type)} variant={TYPE_VARIANT[p.type] ?? 'neutral'} />
