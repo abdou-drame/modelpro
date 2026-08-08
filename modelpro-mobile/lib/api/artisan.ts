@@ -23,6 +23,12 @@ export interface ArtisanProfile {
   photosAtelier: string[]
   statutValidation: string
   noteMoyenne: number
+  logoUrl: string | null
+  waveNumber: string | null
+  orangeMoneyNumber: string | null
+  packId: number | null
+  statutAbonnement: 'inactif' | 'essai' | 'actif' | 'expire'
+  dateFinAbonnement: string | null
   user: { nom: string; prenom: string; telephone: string; photoUrl: string | null }
 }
 
@@ -31,6 +37,8 @@ export interface UpdateProfilePayload {
   description?: string
   localisation?: string
   zone?: string
+  waveNumber?: string
+  orangeMoneyNumber?: string
 }
 
 // ── Orders ─────────────────────────────────────────────────────────────────
@@ -152,6 +160,14 @@ export const artisanApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+  uploadLogo: async (uri: string) => {
+    const form = await buildFileFormData('logo', [uri])
+    return apiClient.post(ENDPOINTS.artisanLogo, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  changePack: (packId: number) =>
+    apiClient.put(ENDPOINTS.artisanPack, { packId }),
 
   // Orders
   orders: () =>

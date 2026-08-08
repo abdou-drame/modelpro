@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getMyProfile, searchArtisans, updateArtisanProfile, uploadAtelierPhotos, uploadValidationDocument, uploadAvatarPhoto, deleteAtelierPhoto } from '../controllers/artisanController';
+import { getMyProfile, searchArtisans, updateArtisanProfile, uploadAtelierPhotos, uploadValidationDocument, uploadAvatarPhoto, deleteAtelierPhoto, uploadLogo, changePack } from '../controllers/artisanController';
 import { getAppointments, updateAppointmentStatus, getOrders, getOrderDetails, updateOrderStatus, getArtisanStats, updateOrderDeliveryDate, updateOrderPayment, rescheduleAppointment, getMyReviews } from '../controllers/artisanDashboardController';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 
@@ -19,7 +19,9 @@ router.put('/profile', protect, restrictTo('artisan'), updateArtisanProfile);
 router.post('/photos', protect, restrictTo('artisan'), upload.array('photos', 5), uploadAtelierPhotos);
 router.delete('/photos', protect, restrictTo('artisan'), deleteAtelierPhoto);
 router.post('/avatar', protect, restrictTo('artisan'), upload.single('avatar'), uploadAvatarPhoto);
+router.post('/logo', protect, restrictTo('artisan'), upload.single('logo'), uploadLogo);
 router.post('/document', protect, restrictTo('artisan'), upload.single('document'), uploadValidationDocument);
+router.put('/pack', protect, restrictTo('artisan'), changePack);
 
 router.get('/appointments', protect, restrictTo('artisan'), getAppointments);
 router.patch('/appointments/:id/status', protect, restrictTo('artisan'), updateAppointmentStatus);

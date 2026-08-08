@@ -28,11 +28,15 @@ export interface PaymentSummary {
 export interface CreatePaymentPayload {
   orderId?: number
   artisanId?: number
-  montant: number
+  // Requis pour les paiements de type 'acompte' | 'solde' | 'integral' | 'frais_service'.
+  // Pour 'abonnement', le montant est calculé côté serveur à partir de packId + cycle.
+  montant?: number
   type: PaymentType
   moyen: PaymentMethod
   referenceTransaction?: string
   statut?: 'en_attente' | 'confirme'
+  packId?: number
+  cycle?: 'mensuel' | 'annuel'
 }
 
 export interface Subscription {
@@ -45,9 +49,20 @@ export interface Subscription {
   createdAt: string
 }
 
+export interface Pack {
+  id: number
+  code: 'essentiel' | 'pro' | 'business'
+  nom: string
+  prixMensuel: number
+  prixAnnuel: number
+  limiteModelesActifs: number | null
+  actif: boolean
+}
+
 export interface SubscriptionResponse {
-  statutAbonnement: 'inactif' | 'actif' | 'expire'
+  statutAbonnement: 'inactif' | 'essai' | 'actif' | 'expire'
   dateFinAbonnement: string | null
+  pack: Pack | null
   subscriptions: Subscription[]
 }
 
@@ -66,4 +81,8 @@ export const paymentsApi = {
 
   updateStatus: (id: number, statut: 'confirme' | 'echoue' | 'rembourse') =>
     apiClient.patch(ENDPOINTS.paymentStatus(id), { statut }),
+}
+
+export const packsApi = {
+  list: () => apiClient.get<Pack[]>(ENDPOINTS.packs),
 }

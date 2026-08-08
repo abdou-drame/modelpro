@@ -27,6 +27,8 @@ export const ENDPOINTS = {
   artisanPhotos: '/artisans/photos',
   artisanDocument: '/artisans/document',
   artisanStats: '/artisans/stats',
+  artisanLogo: '/artisans/logo',
+  artisanPack: '/artisans/pack',
   artisanOrders: '/artisans/orders',
   artisanOrderById: (id: number) => `/artisans/orders/${id}`,
   artisanOrderStatus: (id: number) => `/artisans/orders/${id}/status`,
@@ -39,6 +41,9 @@ export const ENDPOINTS = {
 
   // Metiers
   metiers: '/metiers',
+
+  // Packs d'abonnement
+  packs: '/packs',
 
   // Models (catalogue)
   models: '/models',

@@ -1,5 +1,6 @@
 import './User';
 import './Client';
+import './Pack';
 import './Artisan';
 import './Creation';
 import './Appointment';
@@ -13,6 +14,7 @@ import './Payment';
 
 export { User } from './User';
 export { Client } from './Client';
+export { Pack } from './Pack';
 export { Artisan } from './Artisan';
 export { Creation } from './Creation';
 export { Appointment } from './Appointment';

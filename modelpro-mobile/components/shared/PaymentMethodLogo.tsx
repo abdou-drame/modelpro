@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, Image } from 'react-native'
-import { Banknote, Smartphone, Zap } from 'lucide-react-native'
-import { colors } from '@/constants/theme'
+import { View, Text, StyleSheet } from 'react-native'
+import { Banknote } from 'lucide-react-native'
 import type { PaymentMethod } from '@/constants/enums'
 
 interface PaymentMethodLogoProps {
@@ -8,41 +7,32 @@ interface PaymentMethodLogoProps {
   size?: number
 }
 
-// Images / Logos officiels des moyens de paiement au Sénégal
-const LOGO_URLS: Partial<Record<PaymentMethod, string>> = {
-  wave: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Wave_logo.svg/320px-Wave_logo.svg.png',
-  orange_money: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Orange_logo.svg/320px-Orange_logo.svg.png',
-  free_money: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Free_logo.svg/320px-Free_logo.svg.png',
-}
-
+// Badges dessinés localement (pas d'image distante) pour les moyens de paiement
+// mobile money sénégalais — garantit un rendu correct même hors-ligne, et évite
+// tout risque de logo erroné (ex. confondre Free FAI français avec Free Money Sénégal).
 export function PaymentMethodLogo({ method, size = 44 }: PaymentMethodLogoProps) {
   if (method === 'wave') {
     return (
-      <View style={[styles.badge, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#1DC4FF' }]}>
-        <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Wave_Logo.png/320px-Wave_Logo.png' }}
-          style={{ width: size * 0.7, height: size * 0.7, borderRadius: 4 }}
-          resizeMode="contain"
-          defaultSource={{ uri: LOGO_URLS.wave }}
-        />
+      <View style={[styles.badge, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#1DC8FF' }]}>
+        <Text style={[styles.waveText, { fontSize: size * 0.26 }]}>wave</Text>
       </View>
     )
   }
 
   if (method === 'orange_money') {
     return (
-      <View style={[styles.badge, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#FF6600' }]}>
-        <View style={styles.omBadge}>
-          <Text style={[styles.omText, { fontSize: size * 0.32 }]}>om</Text>
-        </View>
+      <View style={[styles.badge, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#FF7900' }]}>
+        <Text style={[styles.omOrange, { fontSize: size * 0.24 }]}>orange</Text>
+        <Text style={[styles.omMoney, { fontSize: size * 0.16 }]}>money</Text>
       </View>
     )
   }
 
   if (method === 'free_money') {
     return (
-      <View style={[styles.badge, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#E2001A' }]}>
-        <Text style={[styles.freeText, { fontSize: size * 0.35 }]}>free</Text>
+      <View style={[styles.badge, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#CE0500' }]}>
+        <Text style={[styles.freeText, { fontSize: size * 0.28 }]}>free</Text>
+        <Text style={[styles.freeMoney, { fontSize: size * 0.14 }]}>MONEY</Text>
       </View>
     )
   }
@@ -66,24 +56,31 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  omBadge: {
-    backgroundColor: '#000000',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+  waveText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  omText: {
-    color: '#FF6600',
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: -0.5,
+  omOrange: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  omMoney: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginTop: -1,
   },
   freeText: {
     color: '#FFFFFF',
     fontWeight: '900',
     fontStyle: 'italic',
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
+  },
+  freeMoney: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginTop: -1,
   },
 })

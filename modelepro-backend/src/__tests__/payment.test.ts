@@ -4,12 +4,14 @@ import sequelize from '../config/database';
 import { User } from '../models/User';
 import { Artisan } from '../models/Artisan';
 import { Order } from '../models/Order';
+import { Pack } from '../models/Pack';
 import { generateToken } from '../utils/auth';
 
 let clientToken: string;
 let artisanToken: string;
 let orderId: number;
 let paymentId: number;
+let packEssentielId: number;
 
 beforeAll(async () => {
   await sequelize.sync({ force: true });
@@ -57,6 +59,15 @@ beforeAll(async () => {
     paymentStatus: 'unpaid',
   });
   orderId = order.id;
+
+  const pack = await Pack.create({
+    code: 'essentiel',
+    nom: 'Essentiel',
+    prixMensuel: 3000,
+    prixAnnuel: 30000,
+    limiteModelesActifs: 5,
+  });
+  packEssentielId = pack.id;
 });
 
 afterAll(async () => {
@@ -159,7 +170,8 @@ describe('Module de Paiement (7.10)', () => {
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${artisanToken}`)
       .send({
-        montant: 5000,
+        packId: packEssentielId,
+        cycle: 'mensuel',
         type: 'abonnement',
         moyen: 'orange_money',
         referenceTransaction: 'OM-SUB-999',
@@ -168,6 +180,7 @@ describe('Module de Paiement (7.10)', () => {
     expect(res.status).toBe(201);
     expect(res.body.type).toBe('abonnement');
     expect(res.body.moyen).toBe('orange_money');
+    expect(res.body.montant).toBe(3000);
 
     // Vérifier abonnement artisan
     const subRes = await request(app)

@@ -91,6 +91,19 @@ export const paymentsAdminApi = {
   list: () => api.get<AdminPayment[]>('/admin/payments'),
 }
 
+// ── Packs d'abonnement ───────────────────────────────────────────────────────
+export const packsAdminApi = {
+  list: () => api.get<Pack[]>('/admin/packs'),
+  update: (id: number, data: Partial<Pick<Pack, 'nom' | 'prixMensuel' | 'prixAnnuel' | 'limiteModelesActifs' | 'actif'>>) =>
+    api.put<Pack>(`/admin/packs/${id}`, data),
+}
+
+// ── Abonnements artisans (artisan + pack + statut) ─────────────────────────────
+export const abonnementsAdminApi = {
+  list: (params?: { search?: string; statutAbonnement?: string; packId?: number } & PaginationParams) =>
+    api.get<PaginatedResponse<AdminArtisan>>('/admin/abonnements', { params }),
+}
+
 // ── Métiers ───────────────────────────────────────────────────────────────────
 export const metiersAdminApi = {
   list: () => api.get<Metier[]>('/metiers'),
@@ -126,6 +139,9 @@ export interface AdminStats {
   chiffreAffairesTotal: number
   commandesEnRetardCount: number
   totalAbonnementsActifs: number
+  totalArtisansEnEssai: number
+  totalArtisansSuspendus: number
+  repartitionParPack: { packId: number; code: string; nom: string; nombreArtisans: number }[]
   commandesParStatut: { statut: string; count: string }[]
   statistiquesAvancees: {
     metiersPlusDemandes: { metier: string; count: number }[]
@@ -179,8 +195,9 @@ export interface AdminArtisan {
   noteMoyenne: number | null
   nombreAvis: number
   statutValidation: 'en_attente' | 'valide' | 'rejete'
-  statutAbonnement: 'inactif' | 'actif' | 'expire'
+  statutAbonnement: 'inactif' | 'essai' | 'actif' | 'expire'
   dateFinAbonnement: string | null
+  pack?: { id: number; code: string; nom: string; prixMensuel: number; prixAnnuel: number } | null
   user: AdminUser
 }
 
@@ -237,6 +254,8 @@ export interface AdminPayment {
   statut: string
   createdAt: string
   orderId?: number | null
+  cycle?: 'mensuel' | 'annuel' | null
+  pack?: { id: number; code: string; nom: string } | null
   artisan: { atelier: string }
 }
 
@@ -244,5 +263,15 @@ export interface Metier {
   id: number
   nom: string
   description: string
+  actif: boolean
+}
+
+export interface Pack {
+  id: number
+  code: 'essentiel' | 'pro' | 'business'
+  nom: string
+  prixMensuel: number
+  prixAnnuel: number
+  limiteModelesActifs: number | null
   actif: boolean
 }

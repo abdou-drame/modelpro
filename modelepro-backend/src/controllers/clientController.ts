@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Op, fn, col } from 'sequelize';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Metier } from '../models/Metier';
+import { Pack } from '../models/Pack';
 import { Creation } from '../models/Creation';
 import { Appointment } from '../models/Appointment';
 import { Order } from '../models/Order';
@@ -18,6 +19,17 @@ export const getMetiers = async (_req: AuthenticatedRequest, res: Response): Pro
   } catch (error) {
     console.error('Erreur récupération des métiers :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des métiers.' });
+  }
+};
+
+// Liste des packs d'abonnement artisan (Essentiel / Pro / Business)
+export const getPacks = async (_req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const packs = await Pack.findAll({ where: { actif: true }, order: [['prixMensuel', 'ASC']] });
+    res.status(200).json(packs);
+  } catch (error) {
+    console.error('Erreur récupération des packs :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des packs.' });
   }
 };
 
@@ -39,6 +51,9 @@ export const createAppointment = async (req: AuthenticatedRequest, res: Response
     }
     if (!artisan) {
       return res.status(404).json({ error: 'Artisan introuvable.' });
+    }
+    if (artisan.statutAbonnement === 'expire') {
+      return res.status(403).json({ error: "Cet artisan n'est pas disponible actuellement (abonnement expiré)." });
     }
 
     const appointment = await Appointment.create({
@@ -170,6 +185,9 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
       artisan = await Artisan.findOne({ where: { userId: Number(effectiveArtisanId) } });
     }
     if (!artisan) return res.status(404).json({ error: 'Artisan introuvable.' });
+    if (artisan.statutAbonnement === 'expire') {
+      return res.status(403).json({ error: "Cet artisan n'est pas disponible actuellement (abonnement expiré)." });
+    }
 
     let computedPrix = prix ? Number(prix) : 0;
     if (!computedPrix && creation && creation.prixEstimatif) {

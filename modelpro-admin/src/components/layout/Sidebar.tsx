@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, UserCheck, ShoppingBag, Calendar,
-  MessageSquareWarning, CreditCard, Scissors, LogOut, Palette, Star,
+  MessageSquareWarning, CreditCard, Scissors, LogOut, Palette, Star, Layers, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
@@ -18,6 +18,8 @@ const NAV = [
   { to: '/claims',       icon: MessageSquareWarning,  label: 'Réclamations' },
   { to: '/reviews',      icon: Star,                  label: 'Avis' },
   { to: '/metiers',      icon: Scissors,              label: 'Métiers' },
+  { to: '/packs',        icon: Layers,                label: 'Packs' },
+  { to: '/abonnements',  icon: Crown,                 label: 'Abonnements' },
 ]
 
 export function Sidebar() {

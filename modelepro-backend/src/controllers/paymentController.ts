@@ -3,20 +3,24 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Payment } from '../models/Payment';
 import { Order } from '../models/Order';
 import { Artisan } from '../models/Artisan';
+import { Pack } from '../models/Pack';
 import { createNotification } from '../services/notificationService';
+
+// Durée en jours ajoutée à l'abonnement selon le cycle choisi.
+const CYCLE_DAYS: Record<'mensuel' | 'annuel', number> = { mensuel: 30, annuel: 365 };
 
 export const createPayment = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
 
-    const { orderId, artisanId, montant, type, moyen, statut, referenceTransaction } = req.body;
+    const { orderId, artisanId, montant, type, moyen, statut, referenceTransaction, packId, cycle } = req.body;
 
     const validTypes = ['acompte', 'solde', 'integral', 'frais_service', 'abonnement'];
     const validMoyens = ['wave', 'orange_money', 'free_money', 'especes'];
 
-    if (!montant || !type || !moyen) {
-      return res.status(400).json({ error: 'Champs requis manquants (montant, type, moyen).' });
+    if (!type || !moyen) {
+      return res.status(400).json({ error: 'Champs requis manquants (type, moyen).' });
     }
 
     if (!validTypes.includes(type)) {
@@ -27,9 +31,13 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
       return res.status(400).json({ error: `Moyen de paiement invalide. Moyens acceptés : ${validMoyens.join(', ')}` });
     }
 
+    if (type !== 'abonnement' && !montant) {
+      return res.status(400).json({ error: 'Champ requis manquant (montant).' });
+    }
+
     const paymentStatut = statut || 'confirme';
 
-    // 1. Cas Abonnement Artisan
+    // 1. Cas Abonnement Artisan (pack + cycle choisis explicitement, montant calculé côté serveur)
     if (type === 'abonnement') {
       let targetArtisanId = artisanId;
       if (!targetArtisanId) {
@@ -43,14 +51,27 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
         return res.status(400).json({ error: 'artisanId requis pour enregistrer un abonnement artisan.' });
       }
 
+      if (!packId || (cycle !== 'mensuel' && cycle !== 'annuel')) {
+        return res.status(400).json({ error: 'packId et cycle (mensuel|annuel) requis pour un paiement d\'abonnement.' });
+      }
+
+      const pack = await Pack.findByPk(packId);
+      if (!pack || !pack.actif) {
+        return res.status(404).json({ error: 'Pack introuvable ou inactif.' });
+      }
+
+      const montantCalcule = cycle === 'annuel' ? pack.prixAnnuel : pack.prixMensuel;
+
       const payment = await Payment.create({
         orderId: null,
         artisanId: Number(targetArtisanId),
-        montant: Number(montant),
+        montant: montantCalcule,
         type: 'abonnement',
         moyen,
         statut: paymentStatut,
         referenceTransaction: referenceTransaction || null,
+        packId: pack.id,
+        cycle,
       });
 
       if (paymentStatut === 'confirme') {
@@ -62,18 +83,18 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
             : now;
 
           const newEnd = new Date(currentEnd);
-          const daysToAdd = Number(montant) >= 40000 ? 365 : 30;
-          newEnd.setDate(newEnd.getDate() + daysToAdd);
+          newEnd.setDate(newEnd.getDate() + CYCLE_DAYS[cycle as 'mensuel' | 'annuel']);
 
           artisan.statutAbonnement = 'actif';
           artisan.dateFinAbonnement = newEnd;
+          artisan.packId = pack.id;
           await artisan.save();
 
           await createNotification(
             artisan.userId,
             'paiement',
             'Abonnement renouvelé',
-            `Votre abonnement artisan a été enregistré avec succès (${montant} FCFA via ${moyen}). Actif jusqu'au ${newEnd.toLocaleDateString()}.`,
+            `Votre abonnement ${pack.nom} a été enregistré avec succès (${montantCalcule} FCFA via ${moyen}). Actif jusqu'au ${newEnd.toLocaleDateString()}.`,
             undefined
           );
         }
@@ -227,9 +248,12 @@ export const getArtisanSubscriptions = async (req: AuthenticatedRequest, res: Re
       order: [['createdAt', 'DESC']],
     });
 
+    const pack = artisan.packId ? await Pack.findByPk(artisan.packId) : null;
+
     return res.status(200).json({
       statutAbonnement: artisan.statutAbonnement,
       dateFinAbonnement: artisan.dateFinAbonnement,
+      pack,
       subscriptions,
     });
   } catch (error) {
@@ -277,10 +301,12 @@ export const updatePaymentStatus = async (req: AuthenticatedRequest, res: Respon
             ? new Date(artisan.dateFinAbonnement)
             : now;
           const newEnd = new Date(currentEnd);
-          newEnd.setDate(newEnd.getDate() + 30);
+          const cycle: 'mensuel' | 'annuel' = payment.cycle === 'annuel' ? 'annuel' : 'mensuel';
+          newEnd.setDate(newEnd.getDate() + CYCLE_DAYS[cycle]);
 
           artisan.statutAbonnement = 'actif';
           artisan.dateFinAbonnement = newEnd;
+          if (payment.packId) artisan.packId = payment.packId;
           await artisan.save();
         }
       }

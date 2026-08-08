@@ -6,6 +6,7 @@ import {
 import {
   Users, UserCheck, UserCircle, ShoppingBag, MessageSquareWarning,
   TrendingUp, CalendarCheck, Crown, AlertTriangle, Star, ArrowRight,
+  Hourglass, UserX, Layers,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { statsApi, type AdminStats } from '@/lib/api'
@@ -131,6 +132,8 @@ export default function Dashboard() {
     { icon: <CalendarCheck size={16} />, label: 'Rendez-vous',       value: stats.totalAppointments,      accent: 'text-brand-500' },
     { icon: <Crown size={16} />,        label: 'Abonnements actifs', value: stats.totalAbonnementsActifs, accent: 'text-warning'   },
     { icon: <UserCircle size={16} />,   label: 'Clients',            value: stats.totalClients,           accent: 'text-brand-400' },
+    { icon: <Hourglass size={16} />,    label: 'Essais en cours',    value: stats.totalArtisansEnEssai,   accent: 'text-brand-500' },
+    { icon: <UserX size={16} />,        label: 'Comptes suspendus',  value: stats.totalArtisansSuspendus, accent: 'text-danger'   },
   ] : []
 
   // Bar chart
@@ -155,6 +158,7 @@ export default function Dashboard() {
 
   const totalUsers = rolesData.reduce((s, r) => s + r.value, 0)
 
+  const repartitionParPack = stats?.repartitionParPack ?? []
   const topMetiers = stats?.statistiquesAvancees?.metiersPlusDemandes ?? []
   const topArtisans = stats?.statistiquesAvancees?.artisansMieuxNotes ?? []
   const hasAlerts = stats && (stats.totalClaims > 0 || stats.commandesEnRetardCount > 0)
@@ -426,6 +430,65 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+        </ChartCard>
+      </div>
+
+      {/* ── Charts row 3 ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <ChartCard title="Répartition par pack" subtitle="Artisans par pack d'abonnement (Essentiel / Pro / Business)" delay={0.68}>
+          {repartitionParPack.length === 0 ? (
+            <p className="text-sm text-ink-sub text-center py-8">Aucune donnée</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {repartitionParPack.map((p, i) => {
+                const max = Math.max(...repartitionParPack.map(x => x.nombreArtisans), 1)
+                const pct = Math.round((p.nombreArtisans / max) * 100)
+                return (
+                  <div key={p.packId}>
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="font-display font-semibold text-ink">{p.nom}</span>
+                      <span className="text-ink-muted">{p.nombreArtisans} artisan{p.nombreArtisans > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ background: 'linear-gradient(90deg, #8b3a0f, #e0843d)' }}
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.65, delay: 0.68 + i * 0.08, ease: 'easeOut' }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Suivi des abonnements" subtitle="Essais, actifs et suspensions en un coup d'œil" delay={0.74}>
+          <div className="flex items-center justify-around py-4">
+            <div className="text-center">
+              <div className="w-11 h-11 mx-auto rounded-xl bg-brand-50 flex items-center justify-center mb-2">
+                <Hourglass size={18} className="text-brand-500" />
+              </div>
+              <p className="font-display font-black text-xl text-ink">{stats?.totalArtisansEnEssai ?? 0}</p>
+              <p className="text-[10px] text-ink-muted uppercase tracking-wide mt-0.5">Essais</p>
+            </div>
+            <div className="text-center">
+              <div className="w-11 h-11 mx-auto rounded-xl bg-surface-muted flex items-center justify-center mb-2">
+                <Layers size={18} className="text-ink-sub" />
+              </div>
+              <p className="font-display font-black text-xl text-ink">{stats?.totalAbonnementsActifs ?? 0}</p>
+              <p className="text-[10px] text-ink-muted uppercase tracking-wide mt-0.5">Actifs</p>
+            </div>
+            <div className="text-center">
+              <div className="w-11 h-11 mx-auto rounded-xl flex items-center justify-center mb-2" style={{ background: 'rgba(193,18,31,0.08)' }}>
+                <UserX size={18} className="text-danger" />
+              </div>
+              <p className="font-display font-black text-xl text-ink">{stats?.totalArtisansSuspendus ?? 0}</p>
+              <p className="text-[10px] text-ink-muted uppercase tracking-wide mt-0.5">Suspendus</p>
+            </div>
+          </div>
         </ChartCard>
       </div>
     </div>

@@ -10,6 +10,8 @@ import Appointments from '@/pages/Appointments'
 import Payments from '@/pages/Payments'
 import Claims from '@/pages/Claims'
 import Metiers from '@/pages/Metiers'
+import Packs from '@/pages/Packs'
+import Abonnements from '@/pages/Abonnements'
 import Reviews from '@/pages/Reviews'
 import ArtisanProfile from '@/pages/ArtisanProfile'
 
@@ -30,6 +32,8 @@ export default function App() {
           <Route path="claims" element={<Claims />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="metiers" element={<Metiers />} />
+          <Route path="packs" element={<Packs />} />
+          <Route path="abonnements" element={<Abonnements />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

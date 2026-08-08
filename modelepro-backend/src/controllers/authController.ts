@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { User } from '../models/User';
 import { Client } from '../models/Client';
 import { Artisan } from '../models/Artisan';
+import { Pack } from '../models/Pack';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth';
 
 // 1. INSCRIPTION (MÉTHODE POST)
@@ -57,6 +58,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         return;
       }
 
+      const packEssentiel = await Pack.findOne({ where: { code: 'essentiel' } });
+
       await Artisan.create({
         userId: newUser.id,
         métier,
@@ -64,7 +67,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         description,
         localisation,
         horaires: horaires || null,
-        zone: zone || null
+        zone: zone || null,
+        packId: packEssentiel ? packEssentiel.id : null,
       });
 
       res.status(201).json({
