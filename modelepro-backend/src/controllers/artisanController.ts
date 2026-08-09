@@ -7,11 +7,11 @@ import { Artisan } from '../models/Artisan';
 import { User } from '../models/User';
 import { Pack } from '../models/Pack';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
+import { uploadBufferToCloudinary, deleteFromCloudinary, isCloudinaryUrl } from '../services/uploadService';
 
+// Conservé uniquement pour la suppression des fichiers déjà stockés en local avant la
+// migration vers Cloudinary (voir deleteAtelierPhoto) — plus aucun nouvel upload n'y passe.
 const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
 // 1. Moteur de recherche avancé (Localisation, zone, métier, atelier) - Seuls les artisans VALIDÉS sont retournés
 export const searchArtisans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -184,18 +184,13 @@ export const uploadAtelierPhotos = async (req: AuthenticatedRequest, res: Respon
     const files = req.files as Express.Multer.File[] | undefined;
     const singleFile = req.file as Express.Multer.File | undefined;
 
-    const uploadedUrls: string[] = [];
     const filesToProcess = files || (singleFile ? [singleFile] : []);
 
-    for (const f of filesToProcess) {
-      if (f.buffer) {
-        const safeName = (f.originalname || 'photo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
-        const fileName = `atelier-${Date.now()}-${safeName}`;
-        const destPath = path.join(uploadDir, fileName);
-        fs.writeFileSync(destPath, f.buffer);
-        uploadedUrls.push(`/uploads/${fileName}`);
-      }
-    }
+    const uploadedUrls = await Promise.all(
+      filesToProcess
+        .filter((f) => f.buffer)
+        .map((f) => uploadBufferToCloudinary(f.buffer, 'atelier'))
+    );
 
     if (uploadedUrls.length === 0) {
       res.status(400).json({ error: 'Aucun fichier valide fourni.' });
@@ -229,12 +224,7 @@ export const uploadValidationDocument = async (req: AuthenticatedRequest, res: R
       return;
     }
 
-    const safeName = (file.originalname || 'doc.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `doc-${Date.now()}-${safeName}`;
-    const destPath = path.join(uploadDir, fileName);
-    fs.writeFileSync(destPath, file.buffer);
-
-    artisan.documentValidation = `/uploads/${fileName}`;
+    artisan.documentValidation = await uploadBufferToCloudinary(file.buffer, 'documents', 'auto');
     artisan.statutValidation = 'en_attente';
     await artisan.save();
 
@@ -257,12 +247,7 @@ export const uploadAvatarPhoto = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const safeName = (file.originalname || 'avatar.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `avatar-${Date.now()}-${safeName}`;
-    const destPath = path.join(uploadDir, fileName);
-    fs.writeFileSync(destPath, file.buffer);
-
-    const photoUrl = `/uploads/${fileName}`;
+    const photoUrl = await uploadBufferToCloudinary(file.buffer, 'avatars');
     await User.update({ photoUrl }, { where: { id: userId } });
 
     res.status(200).json({ message: 'Photo de profil mise à jour avec succès.', photoUrl });
@@ -306,7 +291,10 @@ export const deleteAtelierPhoto = async (req: AuthenticatedRequest, res: Respons
     artisan.photosAtelier = JSON.stringify(updatedPhotos);
     await artisan.save();
 
-    if (cleanTarget.startsWith('/uploads/')) {
+    if (isCloudinaryUrl(photoUrl)) {
+      await deleteFromCloudinary(photoUrl);
+    } else if (cleanTarget.startsWith('/uploads/')) {
+      // Photos téléversées avant la migration vers Cloudinary, encore servies localement.
       const fileName = cleanTarget.replace('/uploads/', '');
       const filePath = path.join(uploadDir, fileName);
       if (fs.existsSync(filePath)) {
@@ -336,12 +324,7 @@ export const uploadLogo = async (req: AuthenticatedRequest, res: Response): Prom
       return;
     }
 
-    const safeName = (file.originalname || 'logo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `logo-${Date.now()}-${safeName}`;
-    const destPath = path.join(uploadDir, fileName);
-    fs.writeFileSync(destPath, file.buffer);
-
-    artisan.logoUrl = `/uploads/${fileName}`;
+    artisan.logoUrl = await uploadBufferToCloudinary(file.buffer, 'logos');
     await artisan.save();
 
     res.status(200).json({ message: 'Logo mis à jour avec succès.', logoUrl: artisan.logoUrl });

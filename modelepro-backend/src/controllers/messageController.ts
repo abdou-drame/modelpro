@@ -1,6 +1,4 @@
 import { Response } from 'express';
-import fs from 'fs';
-import path from 'path';
 import { Op } from 'sequelize';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Order } from '../models/Order';
@@ -8,16 +6,11 @@ import { Message } from '../models/Message';
 import { Notification } from '../models/Notification';
 import { User } from '../models/User';
 import { Artisan } from '../models/Artisan';
+import { uploadBufferToCloudinary } from '../services/uploadService';
 
 interface MulterFileLike {
   originalname: string;
   buffer: Buffer;
-}
-
-const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 export const sendMessage = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
@@ -61,10 +54,7 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response): Pro
     let photoUrl: string | null = null;
     const file = req.file as MulterFileLike | undefined;
     if (file?.buffer) {
-      const fileName = `${Date.now()}-${file.originalname}`;
-      const destPath = path.join(uploadDir, fileName);
-      fs.writeFileSync(destPath, file.buffer);
-      photoUrl = `/uploads/${fileName}`;
+      photoUrl = await uploadBufferToCloudinary(file.buffer, 'messages');
     }
 
     const hasText = typeof texte === 'string' && texte.trim().length > 0;
