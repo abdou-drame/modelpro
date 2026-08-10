@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1073867831599",
+    "project_id": "modelpro-9213f",
+    "storage_bucket": "modelpro-9213f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1073867831599:android:19116079c30a78e29e89da",
+        "android_client_info": {
+          "package_name": "com.modelpro.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxVH25PvXbPnb2RxIUuqTyyaJEGSHRTQA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
