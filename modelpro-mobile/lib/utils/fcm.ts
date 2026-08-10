@@ -1,18 +1,23 @@
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { authApi } from '@/lib/api/auth'
 
 if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  })
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    })
+  } catch (e) {
+    console.warn('[FCM] setNotificationHandler skipped:', e)
+  }
 }
 
 export async function registerFcmToken(): Promise<void> {
@@ -31,7 +36,10 @@ export async function registerFcmToken(): Promise<void> {
 
     if (finalStatus !== 'granted') return
 
-    const { data: token } = await Notifications.getExpoPushTokenAsync()
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    })
+    console.log('Expo Push Token:', token)
     if (token) {
       await authApi.updateFcmToken(token)
     }

@@ -103,6 +103,10 @@ export default function PaymentScreen() {
 
       // Le paiement reste 'en_attente' tant que PayTech n'a pas confirmé via IPN.
       // On ouvre la page de paiement et on attend le retour deep-link.
+      if (!res.data.redirectUrl) {
+        showAlert('Erreur', 'Impossible d’ouvrir la page de paiement.')
+        return
+      }
       pendingPaymentIdRef.current = res.data.id
       setAwaitingConfirmation(true)
       Linking.openURL(res.data.redirectUrl)
