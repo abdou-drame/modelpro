@@ -101,32 +101,6 @@ export default function ArtisanOrderDetailScreen() {
     )
   }
 
-  const paymentMutation = useMutation({
-    mutationFn: (paymentStatus: 'deposit_paid' | 'fully_paid') =>
-      artisanApi.updatePayment(orderId, { paymentStatus }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['artisan-order', orderId] })
-      queryClient.invalidateQueries({ queryKey: ['artisan-orders'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
-      showAlert('Paiement mis à jour !', 'Le statut du paiement a été mis à jour avec succès.')
-    },
-    onError: () => {
-      showAlert('Erreur', 'Impossible de mettre à jour le paiement.')
-    },
-  })
-
-  const handleUpdatePayment = (status: 'deposit_paid' | 'fully_paid') => {
-    const label = status === 'deposit_paid' ? 'Acompte perçu (50%)' : 'Paiement intégral / solde réglé (100%)'
-    showAlert(
-      'Confirmer la mise à jour',
-      `Marquer la commande comme : ${label} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Confirmer', onPress: () => paymentMutation.mutate(status) },
-      ]
-    )
-  }
-
   if (!order) return <View style={{ flex: 1, backgroundColor: colors.bg }} />
 
   const nextStatus = NEXT_STATUS[order.statut]
@@ -290,30 +264,10 @@ export default function ArtisanOrderDetailScreen() {
               </Text>
             </View>
 
-            {/* Quick payment actions for artisan */}
-            {!isFullyPaid && (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                {!isDepositPaid && (
-                  <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: colors.warningLight, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning, alignItems: 'center' }}
-                    onPress={() => handleUpdatePayment('deposit_paid')}
-                  >
-                    <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.warning }}>+ Acompte (50%)</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: `${colors.success}15`, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.success, alignItems: 'center' }}
-                  onPress={() => handleUpdatePayment('fully_paid')}
-                >
-                  <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.success }}>+ Total (100%)</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             <View style={styles.payFooterRow}>
               <Text style={styles.payFooterLabel}>Mode de règlement :</Text>
               <Text style={styles.payFooterValue}>
-                {(order as any).modePaiement ?? 'Wave / Orange Money / Espèces'}
+                {(order as any).modePaiement ?? 'Wave / Orange Money / Free Money'}
               </Text>
             </View>
           </View>

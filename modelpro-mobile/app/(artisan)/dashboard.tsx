@@ -7,7 +7,7 @@ import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import {
   TrendingUp, ShoppingBag, Star, ChevronRight, AlertCircle,
-  BookOpen, CalendarDays, MessageCircle, Crown, User, Bell,
+  BookOpen, CalendarDays, MessageCircle, Crown, User, Bell, Wallet,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -93,6 +93,7 @@ const QUICK_ACTIONS = [
   { label: 'Catalogue', icon: BookOpen, route: '/(artisan)/catalogue', color: colors.success, bg: '#D1FAE520' },
   { label: 'RDV', icon: CalendarDays, route: '/(artisan)/appointments', color: '#7C3AED', bg: '#EDE9FE20' },
   { label: 'Messages', icon: MessageCircle, route: '/(artisan)/messages', color: '#0284C7', bg: '#E0F2FE20' },
+  { label: 'Wallet', icon: Wallet, route: '/(artisan)/wallet', color: colors.success, bg: `${colors.success}15` },
   { label: 'Abo', icon: Crown, route: '/(artisan)/subscription', color: colors.accent, bg: `${colors.accent}15` },
   { label: 'Profil', icon: User, route: '/(artisan)/profile', color: colors.textMuted, bg: colors.bgMuted },
 ]

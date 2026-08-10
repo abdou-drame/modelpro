@@ -22,7 +22,6 @@ export const PAYMENT_METHODS = [
   'wave',
   'orange_money',
   'free_money',
-  'especes',
 ] as const
 
 export const APPOINTMENT_TYPES = [

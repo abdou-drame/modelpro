@@ -199,8 +199,6 @@ export const artisanApi = {
     apiClient.patch(ENDPOINTS.artisanOrderStatus(id), { statut, dateLivraisonEstimee }),
   updateDeliveryDate: (id: number, date: string) =>
     apiClient.patch(ENDPOINTS.artisanOrderDelivery(id), { dateLivraisonEstimee: date }),
-  updatePayment: (id: number, data: { paymentStatus?: string; depositAmount?: number; totalPrice?: number; montant?: number; type?: string; methode?: string }) =>
-    apiClient.patch(ENDPOINTS.artisanOrderPayment(id), data),
 
   // Appointments
   appointments: () =>

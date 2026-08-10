@@ -8,6 +8,7 @@ import Orders from '@/pages/Orders'
 import Catalogue from '@/pages/Catalogue'
 import Appointments from '@/pages/Appointments'
 import Payments from '@/pages/Payments'
+import Retraits from '@/pages/Retraits'
 import Claims from '@/pages/Claims'
 import Metiers from '@/pages/Metiers'
 import Packs from '@/pages/Packs'
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="catalogue" element={<Catalogue />} />
           <Route path="appointments" element={<Appointments />} />
           <Route path="payments" element={<Payments />} />
+          <Route path="retraits" element={<Retraits />} />
           <Route path="claims" element={<Claims />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="metiers" element={<Metiers />} />

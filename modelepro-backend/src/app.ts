@@ -17,6 +17,7 @@ import './models/Claim';
 import './models/Message';
 import './models/Notification';
 import './models/Payment';
+import './models/WalletTransaction';
 
 // Importation des routes v1
 import authRoutes from './routes/authRoutes';

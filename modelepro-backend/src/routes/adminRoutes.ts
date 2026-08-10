@@ -17,6 +17,8 @@ import {
   getClaims,
   updateClaimStatus,
   getAllPaymentsAdmin,
+  getWithdrawalRequests,
+  processWithdrawalRequest,
   getStats,
   createMetier,
   updateMetier,
@@ -83,6 +85,10 @@ router.patch('/claims/:id/status', updateClaimStatus);
 
 // Gestion paiements & abonnements
 router.get('/payments', getAllPaymentsAdmin);
+
+// Wallet artisan : demandes de retrait (reversement manuel Wave/Orange Money)
+router.get('/wallet/retraits', getWithdrawalRequests);
+router.patch('/wallet/retraits/:id', processWithdrawalRequest);
 
 // Gestion des packs d'abonnement (prix, limites)
 router.get('/packs', getPacksAdmin);

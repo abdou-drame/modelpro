@@ -13,11 +13,12 @@ import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import {
-  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut, Star, X, Trash2, Image as ImageIcon, Smartphone,
+  Camera, User, MapPin, FileText, CheckCircle2, Plus, Crown, ChevronRight, LogOut, Star, X, Trash2, Image as ImageIcon, Wallet,
 } from 'lucide-react-native'
 import { artisanApi } from '@/lib/api/artisan'
 import { useAuthStore } from '@/lib/store/authStore'
 import { StarRating } from '@/components/ui/StarRating'
+import { PaymentMethodLogo } from '@/components/shared/PaymentMethodLogo'
 import { colors, spacing, fontSize, radius, shadow } from '@/constants/theme'
 import { getImageUrl } from '@/lib/utils/format'
 import { showAlert } from '@/lib/utils/alert'
@@ -404,16 +405,30 @@ export default function ArtisanProfileScreen() {
                 )}
               />
             </FormField>
+          </Animated.View>
 
-            <FormField label="Numéro Wave">
-              <Controller
-                control={control}
-                name="waveNumber"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <View style={styles.inputRow}>
-                    <Smartphone size={15} color={colors.textMuted} strokeWidth={2} />
+          {/* Moyens de paiement pour les retraits du wallet */}
+          <Animated.View entering={FadeInUp.delay(140).springify()} style={styles.card}>
+            <View style={styles.paymentCardHeader}>
+              <View style={styles.paymentCardIcon}>
+                <Wallet size={16} color={colors.primary} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>Moyens de paiement</Text>
+                <Text style={styles.paymentCardSub}>Utilisés pour recevoir vos retraits du portefeuille</Text>
+              </View>
+            </View>
+
+            <View style={styles.paymentRow}>
+              <PaymentMethodLogo method="wave" size={46} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.paymentLabel}>Numéro Wave</Text>
+                <Controller
+                  control={control}
+                  name="waveNumber"
+                  render={({ field: { value, onChange, onBlur } }) => (
                     <TextInput
-                      style={styles.input}
+                      style={styles.paymentInput}
                       value={value}
                       onChangeText={onChange}
                       onBlur={onBlur}
@@ -422,20 +437,21 @@ export default function ArtisanProfileScreen() {
                       keyboardType="phone-pad"
                       accessibilityLabel="Numéro Wave"
                     />
-                  </View>
-                )}
-              />
-            </FormField>
+                  )}
+                />
+              </View>
+            </View>
 
-            <FormField label="Numéro Orange Money">
-              <Controller
-                control={control}
-                name="orangeMoneyNumber"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <View style={styles.inputRow}>
-                    <Smartphone size={15} color={colors.textMuted} strokeWidth={2} />
+            <View style={[styles.paymentRow, styles.paymentRowOrange]}>
+              <PaymentMethodLogo method="orange_money" size={46} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.paymentLabel}>Numéro Orange Money</Text>
+                <Controller
+                  control={control}
+                  name="orangeMoneyNumber"
+                  render={({ field: { value, onChange, onBlur } }) => (
                     <TextInput
-                      style={styles.input}
+                      style={styles.paymentInput}
                       value={value}
                       onChangeText={onChange}
                       onBlur={onBlur}
@@ -444,10 +460,10 @@ export default function ArtisanProfileScreen() {
                       keyboardType="phone-pad"
                       accessibilityLabel="Numéro Orange Money"
                     />
-                  </View>
-                )}
-              />
-            </FormField>
+                  )}
+                />
+              </View>
+            </View>
 
             {isDirty && (
               <TouchableOpacity
@@ -465,7 +481,7 @@ export default function ArtisanProfileScreen() {
           </Animated.View>
 
           {/* Workshop photos */}
-          <Animated.View entering={FadeInUp.delay(180).springify()} style={styles.card}>
+          <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.card}>
             <View style={styles.sectionHeader}>
               <Text style={styles.cardTitle}>Photos de l'atelier</Text>
               <TouchableOpacity
@@ -712,6 +728,25 @@ const styles = StyleSheet.create({
   inputMultiRow: { alignItems: 'flex-start' },
   input: { flex: 1, fontSize: fontSize.base, color: colors.text },
   inputMulti: { minHeight: 90, paddingTop: 0 },
+
+  paymentCardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  paymentCardIcon: {
+    width: 32, height: 32, borderRadius: radius.md,
+    backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center',
+  },
+  paymentCardSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+
+  paymentRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: '#EAFAFF', borderRadius: radius.lg,
+    padding: spacing.sm, borderWidth: 1.5, borderColor: '#BFEEFC',
+  },
+  paymentRowOrange: { backgroundColor: '#FFF3E8', borderColor: '#FFD9B3' },
+  paymentLabel: { fontSize: fontSize.xs, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  paymentInput: {
+    fontSize: fontSize.base, color: colors.text, fontWeight: '600',
+    paddingVertical: 2,
+  },
 
   saveBtn: {
     backgroundColor: colors.primary, borderRadius: radius.lg,

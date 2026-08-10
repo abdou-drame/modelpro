@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { getMyProfile, searchArtisans, updateArtisanProfile, uploadAtelierPhotos, uploadValidationDocument, uploadAvatarPhoto, deleteAtelierPhoto, uploadLogo, changePack } from '../controllers/artisanController';
-import { getAppointments, updateAppointmentStatus, getOrders, getOrderDetails, updateOrderStatus, getArtisanStats, updateOrderDeliveryDate, updateOrderPayment, rescheduleAppointment, getMyReviews } from '../controllers/artisanDashboardController';
+import { getAppointments, updateAppointmentStatus, getOrders, getOrderDetails, updateOrderStatus, getArtisanStats, updateOrderDeliveryDate, rescheduleAppointment, getMyReviews } from '../controllers/artisanDashboardController';
+import { getMyWallet, requestWithdrawal } from '../controllers/walletController';
 import { protect, restrictTo } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -31,9 +32,11 @@ router.get('/orders', protect, restrictTo('artisan'), getOrders);
 router.get('/orders/:id', protect, restrictTo('artisan'), getOrderDetails);
 router.patch('/orders/:id/status', protect, restrictTo('artisan'), updateOrderStatus);
 router.patch('/orders/:id/delivery-date', protect, restrictTo('artisan'), updateOrderDeliveryDate);
-router.patch('/orders/:id/payment', protect, restrictTo('artisan'), updateOrderPayment);
 
 router.get('/stats', protect, restrictTo('artisan'), getArtisanStats);
 router.get('/reviews', protect, restrictTo('artisan'), getMyReviews);
+
+router.get('/wallet', protect, restrictTo('artisan'), getMyWallet);
+router.post('/wallet/retrait', protect, restrictTo('artisan'), requestWithdrawal);
 
 export default router;

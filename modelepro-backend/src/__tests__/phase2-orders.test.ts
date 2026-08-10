@@ -7,7 +7,6 @@ import { Order } from '../models/Order';
 import { generateToken } from '../utils/auth';
 
 let artisanToken: string;
-let clientToken: string;
 let otherArtisanToken: string;
 let orderId: number;
 
@@ -18,7 +17,6 @@ beforeAll(async () => {
   const artisanUser = await User.create({ nom: 'A', prenom: 'A', telephone: '002', password: 'pwd', role: 'artisan' });
   const otherArtisan = await User.create({ nom: 'O', prenom: 'O', telephone: '003', password: 'pwd', role: 'artisan' });
 
-  clientToken = generateToken(clientUser.id, 'client');
   artisanToken = generateToken(artisanUser.id, 'artisan');
   otherArtisanToken = generateToken(otherArtisan.id, 'artisan');
 
@@ -50,17 +48,5 @@ describe('Phase 2 - Orders', () => {
       .set('Authorization', `Bearer ${otherArtisanToken}`)
       .send({ deliveryDate: '2026-10-10' });
     expect(res.status).toBe(404); // Le otherArtisan n'a pas de profil pourtant dans DB (on a oublié de l'ajouter dans beforeAll, donc 404 est attendu pour Profil artisan introuvable)
-  });
-
-  it('met à jour le statut de paiement', async () => {
-    const res = await request(app)
-      .patch(`/api/v1/artisans/orders/${orderId}/payment`)
-      .set('Authorization', `Bearer ${artisanToken}`)
-      .send({ paymentStatus: 'deposit_paid', depositAmount: 500, totalPrice: 1500 });
-
-    expect(res.status).toBe(200);
-    expect(res.body.paymentStatus).toBe('deposit_paid');
-    expect(res.body.depositAmount).toBe(500);
-    expect(res.body.totalPrice).toBe(1500);
   });
 });

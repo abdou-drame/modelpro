@@ -33,11 +33,12 @@ export const ENDPOINTS = {
   artisanOrderById: (id: number) => `/artisans/orders/${id}`,
   artisanOrderStatus: (id: number) => `/artisans/orders/${id}/status`,
   artisanOrderDelivery: (id: number) => `/artisans/orders/${id}/delivery-date`,
-  artisanOrderPayment: (id: number) => `/artisans/orders/${id}/payment`,
   artisanAppointments: '/artisans/appointments',
   artisanAppointmentStatus: (id: number) => `/artisans/appointments/${id}/status`,
   artisanAppointmentReschedule: (id: number) => `/artisans/appointments/${id}/reschedule`,
   myReviews: '/artisans/reviews',
+  artisanWallet: '/artisans/wallet',
+  artisanWalletWithdraw: '/artisans/wallet/retrait',
 
   // Metiers
   metiers: '/metiers',

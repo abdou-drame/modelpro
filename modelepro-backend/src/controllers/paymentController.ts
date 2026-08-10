@@ -4,6 +4,7 @@ import { Payment } from '../models/Payment';
 import { Order } from '../models/Order';
 import { Artisan } from '../models/Artisan';
 import { Pack } from '../models/Pack';
+import { WalletTransaction } from '../models/WalletTransaction';
 import { createNotification } from '../services/notificationService';
 import { initiatePayment as initiatePaytechPayment, verifyIpnSignature, buildAppRedirectUrl } from '../services/paytechService';
 
@@ -49,7 +50,7 @@ const applyConfirmedAbonnementEffect = async (payment: Payment): Promise<void> =
  * artisan + client. Réutilisé par le paiement en espèces (confirmation immédiate),
  * updatePaymentStatus (confirmation manuelle) et l'IPN PayTech (confirmation automatique).
  */
-const applyConfirmedOrderPaymentEffect = async (payment: Payment): Promise<void> => {
+export const applyConfirmedOrderPaymentEffect = async (payment: Payment): Promise<void> => {
   if (!payment.orderId) return;
 
   const order = await Order.findByPk(payment.orderId);
@@ -61,6 +62,24 @@ const applyConfirmedOrderPaymentEffect = async (payment: Payment): Promise<void>
     order.paymentStatus = 'fully_paid';
   }
   await order.save();
+
+  // Crédite le wallet artisan uniquement pour l'argent de la commande (acompte/solde/integral) —
+  // frais_service et abonnement restent des revenus plateforme, jamais reversés. Idempotent :
+  // un paiement ne peut créditer qu'une seule fois (protège contre un double appel de cette
+  // fonction, ex. confirmation admin répétée ou rejeu IPN).
+  if (payment.type === 'acompte' || payment.type === 'solde' || payment.type === 'integral') {
+    const existingCredit = await WalletTransaction.findOne({ where: { paymentId: payment.id, type: 'credit' } });
+    if (!existingCredit) {
+      await WalletTransaction.create({
+        artisanId: order.artisanId,
+        orderId: order.id,
+        paymentId: payment.id,
+        type: 'credit',
+        montant: payment.montant,
+        statut: 'valide',
+      });
+    }
+  }
 
   const artisan = await Artisan.findByPk(order.artisanId);
   if (artisan) {
@@ -88,10 +107,10 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Utilisateur non authentifié.' });
 
-    const { orderId, artisanId, montant, type, moyen, statut, referenceTransaction, packId, cycle } = req.body;
+    const { orderId, artisanId, montant, type, moyen, referenceTransaction, packId, cycle } = req.body;
 
     const validTypes = ['acompte', 'solde', 'integral', 'frais_service', 'abonnement'];
-    const validMoyens = ['wave', 'orange_money', 'free_money', 'especes'];
+    const validMoyens = ['wave', 'orange_money', 'free_money'];
 
     if (!type || !moyen) {
       return res.status(400).json({ error: 'Champs requis manquants (type, moyen).' });
@@ -108,8 +127,6 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
     if (type !== 'abonnement' && !montant) {
       return res.status(400).json({ error: 'Champ requis manquant (montant).' });
     }
-
-    const paymentStatut = statut || 'confirme';
 
     // 1. Cas Abonnement Artisan (pack + cycle choisis explicitement, montant calculé côté serveur)
     if (type === 'abonnement') {
@@ -136,86 +153,43 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
 
       const montantCalcule = cycle === 'annuel' ? pack.prixAnnuel : pack.prixMensuel;
 
-      // Paiement électronique (wave/orange_money/free_money) : passage obligatoire par PayTech.
-      // Le statut n'est jamais pris depuis le client ici — sinon n'importe quel utilisateur
-      // authentifié pourrait s'auto-confirmer un abonnement sans payer.
-      if (moyen !== 'especes') {
-        const payment = await Payment.create({
-          orderId: null,
-          artisanId: Number(targetArtisanId),
-          montant: montantCalcule,
-          type: 'abonnement',
-          moyen,
-          statut: 'en_attente',
-          referenceTransaction: null,
-          packId: pack.id,
-          cycle,
-        });
-
-        try {
-          const mobileScheme = process.env.MOBILE_APP_SCHEME || 'modelpro';
-          const paytechResponse = await initiatePaytechPayment({
-            itemName: `Abonnement ${pack.nom}`,
-            itemPrice: montantCalcule,
-            refCommand: `ABO-${payment.id}`,
-            commandName: `Abonnement ${pack.nom} (${cycle}) - artisan #${targetArtisanId}`,
-            customField: { paymentId: payment.id, type: 'abonnement' },
-            successUrl: buildAppRedirectUrl(`${mobileScheme}://(artisan)/subscription?payment=success`),
-            cancelUrl: buildAppRedirectUrl(`${mobileScheme}://(artisan)/subscription?payment=cancel`),
-          });
-
-          payment.referenceTransaction = paytechResponse.token;
-          await payment.save();
-
-          return res.status(201).json({ ...payment.toJSON(), redirectUrl: paytechResponse.redirect_url });
-        } catch (paytechError) {
-          console.error('Erreur initiation PayTech :', paytechError);
-          payment.statut = 'echoue';
-          await payment.save();
-          return res.status(502).json({ error: "Impossible d'initier le paiement PayTech." });
-        }
-      }
-
-      // Paiement en espèces : déclaratif, confirmé directement (remise en main propre).
+      // Passage obligatoire par PayTech (wave/orange_money/free_money). Le statut n'est jamais
+      // pris depuis le client — sinon n'importe quel utilisateur authentifié pourrait
+      // s'auto-confirmer un abonnement sans payer.
       const payment = await Payment.create({
         orderId: null,
         artisanId: Number(targetArtisanId),
         montant: montantCalcule,
         type: 'abonnement',
         moyen,
-        statut: paymentStatut,
-        referenceTransaction: referenceTransaction || null,
+        statut: 'en_attente',
+        referenceTransaction: null,
         packId: pack.id,
         cycle,
       });
 
-      if (paymentStatut === 'confirme') {
-        const artisan = await Artisan.findByPk(targetArtisanId);
-        if (artisan) {
-          const now = new Date();
-          const currentEnd = artisan.dateFinAbonnement && new Date(artisan.dateFinAbonnement) > now
-            ? new Date(artisan.dateFinAbonnement)
-            : now;
+      try {
+        const mobileScheme = process.env.MOBILE_APP_SCHEME || 'modelpro';
+        const paytechResponse = await initiatePaytechPayment({
+          itemName: `Abonnement ${pack.nom}`,
+          itemPrice: montantCalcule,
+          refCommand: `ABO-${payment.id}`,
+          commandName: `Abonnement ${pack.nom} (${cycle}) - artisan #${targetArtisanId}`,
+          customField: { paymentId: payment.id, type: 'abonnement' },
+          successUrl: buildAppRedirectUrl(`${mobileScheme}://(artisan)/subscription?payment=success`),
+          cancelUrl: buildAppRedirectUrl(`${mobileScheme}://(artisan)/subscription?payment=cancel`),
+        });
 
-          const newEnd = new Date(currentEnd);
-          newEnd.setDate(newEnd.getDate() + CYCLE_DAYS[cycle as 'mensuel' | 'annuel']);
+        payment.referenceTransaction = paytechResponse.token;
+        await payment.save();
 
-          artisan.statutAbonnement = 'actif';
-          artisan.dateFinAbonnement = newEnd;
-          artisan.packId = pack.id;
-          await artisan.save();
-
-          await createNotification(
-            artisan.userId,
-            'paiement',
-            'Abonnement renouvelé',
-            `Votre abonnement ${pack.nom} a été enregistré avec succès (${montantCalcule} FCFA via ${moyen}). Actif jusqu'au ${newEnd.toLocaleDateString()}.`,
-            undefined
-          );
-        }
+        return res.status(201).json({ ...payment.toJSON(), redirectUrl: paytechResponse.redirect_url });
+      } catch (paytechError) {
+        console.error('Erreur initiation PayTech :', paytechError);
+        payment.statut = 'echoue';
+        await payment.save();
+        return res.status(502).json({ error: "Impossible d'initier le paiement PayTech." });
       }
-
-      return res.status(201).json(payment);
     }
 
     // 2. Cas Paiement lié à une commande (acompte, solde, integral, frais_service)
@@ -228,60 +202,41 @@ export const createPayment = async (req: AuthenticatedRequest, res: Response): P
       return res.status(404).json({ error: 'Commande introuvable.' });
     }
 
-    // Paiement électronique (wave/orange_money/free_money) : passage obligatoire par PayTech,
-    // même logique que pour l'abonnement artisan — le statut n'est jamais pris depuis le client,
-    // sinon n'importe quel client pourrait s'auto-déclarer un paiement sans avoir payé.
-    if (moyen !== 'especes') {
-      const payment = await Payment.create({
-        orderId: Number(orderId),
-        artisanId: order.artisanId,
-        montant: Number(montant),
-        type,
-        moyen,
-        statut: 'en_attente',
-        referenceTransaction: null,
-      });
-
-      try {
-        const mobileScheme = process.env.MOBILE_APP_SCHEME || 'modelpro';
-        const paytechResponse = await initiatePaytechPayment({
-          itemName: `Paiement ${type} - commande #${order.id}`,
-          itemPrice: Number(montant),
-          refCommand: `ORD-${payment.id}`,
-          commandName: `Paiement ${type} - commande #${order.id}`,
-          customField: { paymentId: payment.id, type: 'commande' },
-          successUrl: buildAppRedirectUrl(`${mobileScheme}://(client)/payment?orderId=${order.id}&payment=success`),
-          cancelUrl: buildAppRedirectUrl(`${mobileScheme}://(client)/payment?orderId=${order.id}&payment=cancel`),
-        });
-
-        payment.referenceTransaction = paytechResponse.token;
-        await payment.save();
-
-        return res.status(201).json({ ...payment.toJSON(), redirectUrl: paytechResponse.redirect_url });
-      } catch (paytechError) {
-        console.error('Erreur initiation PayTech (commande) :', paytechError);
-        payment.statut = 'echoue';
-        await payment.save();
-        return res.status(502).json({ error: "Impossible d'initier le paiement PayTech." });
-      }
-    }
-
-    // Espèces : déclaratif, confirmé directement (remise en main propre).
+    // Passage obligatoire par PayTech (wave/orange_money/free_money), même logique que pour
+    // l'abonnement artisan — le statut n'est jamais pris depuis le client, sinon n'importe quel
+    // client pourrait s'auto-déclarer un paiement sans avoir payé.
     const payment = await Payment.create({
       orderId: Number(orderId),
       artisanId: order.artisanId,
       montant: Number(montant),
       type,
       moyen,
-      statut: paymentStatut,
-      referenceTransaction: referenceTransaction || null,
+      statut: 'en_attente',
+      referenceTransaction: null,
     });
 
-    if (paymentStatut === 'confirme') {
-      await applyConfirmedOrderPaymentEffect(payment);
-    }
+    try {
+      const mobileScheme = process.env.MOBILE_APP_SCHEME || 'modelpro';
+      const paytechResponse = await initiatePaytechPayment({
+        itemName: `Paiement ${type} - commande #${order.id}`,
+        itemPrice: Number(montant),
+        refCommand: `ORD-${payment.id}`,
+        commandName: `Paiement ${type} - commande #${order.id}`,
+        customField: { paymentId: payment.id, type: 'commande' },
+        successUrl: buildAppRedirectUrl(`${mobileScheme}://(client)/payment?orderId=${order.id}&payment=success`),
+        cancelUrl: buildAppRedirectUrl(`${mobileScheme}://(client)/payment?orderId=${order.id}&payment=cancel`),
+      });
 
-    return res.status(201).json(payment);
+      payment.referenceTransaction = paytechResponse.token;
+      await payment.save();
+
+      return res.status(201).json({ ...payment.toJSON(), redirectUrl: paytechResponse.redirect_url });
+    } catch (paytechError) {
+      console.error('Erreur initiation PayTech (commande) :', paytechError);
+      payment.statut = 'echoue';
+      await payment.save();
+      return res.status(502).json({ error: "Impossible d'initier le paiement PayTech." });
+    }
   } catch (error) {
     console.error('Erreur createPayment :', error);
     return res.status(500).json({ error: 'Une erreur est survenue lors de la création du paiement.' });
@@ -406,11 +361,14 @@ export const updatePaymentStatus = async (req: AuthenticatedRequest, res: Respon
     const payment = await Payment.findByPk(paymentId);
     if (!payment) return res.status(404).json({ error: 'Paiement introuvable.' });
 
+    const wasAlreadyConfirmed = payment.statut === 'confirme';
+
     payment.statut = statut;
     await payment.save();
 
-    // Effet de bord si confirmé
-    if (statut === 'confirme') {
+    // Effet de bord si confirmé, une seule fois (évite un double crédit wallet / double
+    // notification si l'admin confirme deux fois le même paiement déjà confirmé).
+    if (statut === 'confirme' && !wasAlreadyConfirmed) {
       if (payment.orderId) {
         await applyConfirmedOrderPaymentEffect(payment);
       } else if (payment.type === 'abonnement') {

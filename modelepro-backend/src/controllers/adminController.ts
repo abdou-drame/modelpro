@@ -22,6 +22,7 @@ import { User } from '../models/User';
 import { Metier } from '../models/Metier';
 import { Pack } from '../models/Pack';
 import { Appointment } from '../models/Appointment';
+import { WalletTransaction } from '../models/WalletTransaction';
 import { createNotification } from '../services/notificationService';
 
 // 1. Liste et recherche de tous les utilisateurs (Clients & Artisans & Admins)
@@ -589,6 +590,77 @@ export const getAllPaymentsAdmin = async (req: AuthenticatedRequest, res: Respon
   } catch (error) {
     console.error('Erreur getAllPaymentsAdmin :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des paiements.' });
+  }
+};
+
+// 14b. Wallet artisan : liste des demandes de retrait (voir WalletTransaction). PayTech n'offre
+// pas de reversement automatique vers l'artisan, l'admin traite donc chaque demande après avoir
+// envoyé les fonds manuellement via Wave/Orange Money.
+export const getWithdrawalRequests = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { statut } = req.query;
+    const whereClause: any = { type: 'retrait' };
+    if (statut) whereClause.statut = statut;
+
+    const retraits = await WalletTransaction.findAll({
+      where: whereClause,
+      include: [
+        { model: Artisan, as: 'artisan', include: [{ model: User, as: 'user', attributes: ['nom', 'prenom', 'telephone'] }] },
+      ],
+      order: [['createdAt', 'ASC']],
+    });
+
+    res.status(200).json(retraits);
+  } catch (error) {
+    console.error('Erreur getWithdrawalRequests :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des retraits.' });
+  }
+};
+
+// 14c. Valide (fonds déjà envoyés manuellement) ou rejette (recrédite le wallet) une demande de retrait.
+export const processWithdrawalRequest = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { statut, commentaireAdmin } = req.body;
+
+    if (statut !== 'valide' && statut !== 'rejete') {
+      res.status(400).json({ error: 'Statut requis : valide ou rejete.' });
+      return;
+    }
+
+    const retrait = await WalletTransaction.findOne({ where: { id: Number(id), type: 'retrait' } });
+    if (!retrait) {
+      res.status(404).json({ error: 'Demande de retrait introuvable.' });
+      return;
+    }
+
+    if (retrait.statut !== 'en_attente') {
+      res.status(400).json({ error: 'Cette demande a déjà été traitée.' });
+      return;
+    }
+
+    retrait.statut = statut;
+    retrait.commentaireAdmin = commentaireAdmin || null;
+    retrait.traiteAt = new Date();
+    await retrait.save();
+
+    const artisan = await Artisan.findByPk(retrait.artisanId);
+    if (artisan) {
+      await createNotification(
+        artisan.userId,
+        'paiement',
+        statut === 'valide' ? 'Retrait effectué' : 'Retrait rejeté',
+        statut === 'valide'
+          ? `Votre retrait de ${retrait.montant} FCFA via ${retrait.moyenPaiement} a été envoyé.`
+          : `Votre demande de retrait de ${retrait.montant} FCFA a été rejetée.${commentaireAdmin ? ' Motif : ' + commentaireAdmin : ''}`,
+        undefined
+      );
+    }
+
+    res.status(200).json(retrait);
+  } catch (error) {
+    console.error('Erreur processWithdrawalRequest :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors du traitement du retrait.' });
   }
 };
 

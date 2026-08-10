@@ -19,7 +19,6 @@ const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'wave', label: 'Wave' },
   { key: 'orange_money', label: 'Orange Money' },
   { key: 'free_money', label: 'Free Money' },
-  { key: 'especes', label: 'Espèces' },
 ]
 
 const CYCLES: { key: 'mensuel' | 'annuel'; label: string }[] = [
@@ -100,19 +99,10 @@ export default function ArtisanSubscriptionScreen() {
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['my-subscription'] })
 
-      const redirectUrl = res.data.redirectUrl
-      if (redirectUrl) {
-        // Paiement mobile money : le paiement reste 'en_attente' tant que PayTech n'a pas
-        // confirmé via IPN. On ouvre la page de paiement et on attend le retour deep-link.
-        setAwaitingConfirmation(true)
-        Linking.openURL(redirectUrl)
-        return
-      }
-
-      // Espèces : confirmé immédiatement côté serveur, pas de redirection.
-      queryClient.invalidateQueries({ queryKey: ['artisan-profile'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan-stats'] })
-      showAlert('Abonnement activé !', 'Votre abonnement ModèlePro a été activé avec succès.')
+      // Le paiement reste 'en_attente' tant que PayTech n'a pas confirmé via IPN.
+      // On ouvre la page de paiement et on attend le retour deep-link.
+      setAwaitingConfirmation(true)
+      Linking.openURL(res.data.redirectUrl)
     },
     onError: (err: any) => {
       showAlert('Erreur', err.response?.data?.error ?? "Impossible d'activer l'abonnement.")

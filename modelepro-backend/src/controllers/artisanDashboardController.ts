@@ -339,49 +339,6 @@ export const updateOrderDeliveryDate = async (req: AuthenticatedRequest, res: Re
   }
 };
 
-export const updateOrderPayment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) { res.status(401).json({ error: 'Utilisateur non authentifié.' }); return; }
-
-    const artisan = await Artisan.findOne({ where: { userId } });
-    if (!artisan) { res.status(404).json({ error: 'Profil artisan introuvable.' }); return; }
-
-    const orderId = parseIdParam(req.params.id);
-    if (!orderId) { res.status(400).json({ error: 'Identifiant invalide.' }); return; }
-
-    const order = await Order.findByPk(orderId);
-    if (!order) { res.status(404).json({ error: 'Commande introuvable.' }); return; }
-    if (order.artisanId !== artisan.id) { res.status(403).json({ error: 'Accès refusé.' }); return; }
-
-    const { paymentStatus, depositAmount, totalPrice } = req.body;
-    const allowedPaymentStatuses = ['unpaid', 'deposit_paid', 'fully_paid'];
-    if (paymentStatus && !allowedPaymentStatuses.includes(paymentStatus)) {
-      res.status(400).json({ error: 'Statut de paiement invalide.' });
-      return;
-    }
-
-    if (paymentStatus) order.paymentStatus = paymentStatus;
-    if (depositAmount !== undefined) order.depositAmount = depositAmount;
-    if (totalPrice !== undefined) order.totalPrice = totalPrice;
-
-    await order.save();
-
-    await createNotification(
-      order.clientId,
-      'commande_statut',
-      'Mise à jour du paiement',
-      `Le statut de paiement de votre commande est maintenant : ${order.paymentStatus}.`,
-      order.id
-    );
-
-    res.status(200).json(order);
-  } catch (error) {
-    console.error('Erreur updateOrderPayment :', error);
-    res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
-
 export const getArtisanStats = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;

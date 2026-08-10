@@ -26,6 +26,7 @@ let paymentId: number;
 let packEssentielId: number;
 let abonnementPaymentId: number;
 let fraisServicePaymentId: number;
+let soldePaymentId: number;
 
 beforeAll(async () => {
   await sequelize.sync({ force: true });
@@ -187,7 +188,13 @@ describe('Module de Paiement (7.10)', () => {
     expect(res.status).toBe(200);
   });
 
-  it('4. Crée un paiement du solde (Espèces) et marque la commande fully_paid', async () => {
+  it('4. Crée un paiement du solde (Wave) via PayTech', async () => {
+    mockInitiatePayment.mockResolvedValueOnce({
+      success: 1,
+      token: 'PAYTECH-TOKEN-ORDER-3',
+      redirect_url: 'https://paytech.sn/payment/PAYTECH-TOKEN-ORDER-3',
+    });
+
     const res = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${clientToken}`)
@@ -195,11 +202,24 @@ describe('Module de Paiement (7.10)', () => {
         orderId,
         montant: 30000,
         type: 'solde',
-        moyen: 'especes',
-        statut: 'confirme',
+        moyen: 'wave',
       });
     expect(res.status).toBe(201);
-    expect(res.body.moyen).toBe('especes');
+    expect(res.body.moyen).toBe('wave');
+    expect(res.body.statut).toBe('en_attente');
+    soldePaymentId = res.body.id;
+  });
+
+  it('4b. Confirme le solde via l’IPN PayTech et marque la commande fully_paid', async () => {
+    mockVerifyIpnSignature.mockReturnValueOnce(true);
+
+    const res = await request(app)
+      .post('/api/v1/payments/paytech/ipn')
+      .send({
+        type_event: 'sale_complete',
+        custom_field: JSON.stringify({ paymentId: soldePaymentId, type: 'commande' }),
+      });
+    expect(res.status).toBe(200);
 
     const orderRes = await request(app)
       .get(`/api/v1/artisans/orders/${orderId}`)

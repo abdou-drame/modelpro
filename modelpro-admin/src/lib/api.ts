@@ -91,6 +91,14 @@ export const paymentsAdminApi = {
   list: () => api.get<AdminPayment[]>('/admin/payments'),
 }
 
+// ── Wallet artisan : demandes de retrait ────────────────────────────────────
+export const walletAdminApi = {
+  list: (statut?: WithdrawalStatus) =>
+    api.get<AdminWithdrawal[]>('/admin/wallet/retraits', { params: statut ? { statut } : undefined }),
+  process: (id: number, data: { statut: 'valide' | 'rejete'; commentaireAdmin?: string }) =>
+    api.patch<AdminWithdrawal>(`/admin/wallet/retraits/${id}`, data),
+}
+
 // ── Packs d'abonnement ───────────────────────────────────────────────────────
 export const packsAdminApi = {
   list: () => api.get<Pack[]>('/admin/packs'),
@@ -274,4 +282,23 @@ export interface Pack {
   prixAnnuel: number
   limiteModelesActifs: number | null
   actif: boolean
+}
+
+export type WithdrawalStatus = 'en_attente' | 'valide' | 'rejete'
+
+export interface AdminWithdrawal {
+  id: number
+  artisanId: number
+  montant: number
+  type: 'retrait'
+  statut: WithdrawalStatus
+  moyenPaiement: 'wave' | 'orange_money'
+  numeroReception: string
+  commentaireAdmin: string | null
+  traiteAt: string | null
+  createdAt: string
+  artisan: {
+    atelier: string
+    user: Pick<AdminUser, 'nom' | 'prenom' | 'telephone'>
+  }
 }

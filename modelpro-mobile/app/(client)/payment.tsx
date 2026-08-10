@@ -18,7 +18,6 @@ const METHODS: { key: PaymentMethod; label: string; sub: string }[] = [
   { key: 'wave', label: 'Wave', sub: 'Paiement mobile instantané Wave' },
   { key: 'orange_money', label: 'Orange Money', sub: 'Paiement mobile Orange Money' },
   { key: 'free_money', label: 'Free Money', sub: 'Paiement mobile Free Money' },
-  { key: 'especes', label: 'Espèces', sub: 'Paiement en main propre' },
 ]
 
 const TYPES: { key: PaymentType; label: string; desc: string }[] = [
@@ -102,20 +101,11 @@ export default function PaymentScreen() {
       queryClient.invalidateQueries({ queryKey: ['order-payments', id] })
       queryClient.invalidateQueries({ queryKey: ['payment-summary', id] })
 
-      const redirectUrl = res.data.redirectUrl
-      if (redirectUrl) {
-        // Paiement mobile money : le paiement reste 'en_attente' tant que PayTech n'a pas
-        // confirmé via IPN. On ouvre la page de paiement et on attend le retour deep-link.
-        pendingPaymentIdRef.current = res.data.id
-        setAwaitingConfirmation(true)
-        Linking.openURL(redirectUrl)
-        return
-      }
-
-      // Espèces : confirmé immédiatement côté serveur, pas de redirection.
-      queryClient.invalidateQueries({ queryKey: ['my-orders'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan-orders'] })
-      showAlert('Paiement enregistré', 'Votre paiement a bien été confirmé.')
+      // Le paiement reste 'en_attente' tant que PayTech n'a pas confirmé via IPN.
+      // On ouvre la page de paiement et on attend le retour deep-link.
+      pendingPaymentIdRef.current = res.data.id
+      setAwaitingConfirmation(true)
+      Linking.openURL(res.data.redirectUrl)
     },
     onError: () => {
       showAlert('Erreur', 'Impossible d’enregistrer le paiement.')
