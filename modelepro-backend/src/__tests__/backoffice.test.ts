@@ -7,6 +7,7 @@ import { SubscriptionPlan } from '../models/SubscriptionPlan';
 import { Notification } from '../models/Notification';
 import { hashPassword } from '../utils/auth';
 import { runSubscriptionMaintenance } from '../services/subscriptionService';
+import * as emailService from '../services/emailService';
 
 let superToken: string;
 let supportToken: string;
@@ -205,6 +206,22 @@ describe('Abonnements — suspension, expiration, renouvellement', () => {
     expect(first.alerted).toBe(1);
     expect(await Notification.count({ where: { userId: companyAAdminId } })).toBe(before + 1);
     expect((await runSubscriptionMaintenance()).alerted).toBe(0);
+  });
+
+  it('envoie aussi un e-mail à l’admin lors de l’alerte d’expiration (Phase 5, alertes métier)', async () => {
+    const reg = await request(app).post('/api/v1/companies/register').send({
+      companyNom: 'Email Alert SARL', nom: 'Ka', prenom: 'Modou', telephone: '794000099', email: 'admin-alert@example.com', password: 'password',
+    });
+    // Reste en 'essai' (valeur par défaut à l'inscription) : l'alerte y lit dateFinEssai, pas dateFinPeriode.
+    await CompanySubscription.update(
+      { dateFinEssai: new Date(Date.now() + 2 * 24 * 3600 * 1000), alerteExpirationEnvoyee: false },
+      { where: { companyId: reg.body.company.id } }
+    );
+
+    const sendEmailSpy = jest.spyOn(emailService, 'sendEmail').mockResolvedValue();
+    await runSubscriptionMaintenance();
+    expect(sendEmailSpy).toHaveBeenCalledWith('admin-alert@example.com', expect.any(String), expect.any(String));
+    sendEmailSpy.mockRestore();
   });
 
   it('prolongation d’essai', async () => {

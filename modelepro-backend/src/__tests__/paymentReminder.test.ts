@@ -4,6 +4,7 @@ import sequelize from '../config/database';
 import { Invoice } from '../models/Invoice';
 import { Notification } from '../models/Notification';
 import { runPaymentReminders } from '../services/paymentReminderService';
+import * as emailService from '../services/emailService';
 
 jest.setTimeout(30000);
 
@@ -97,6 +98,21 @@ describe('Suivi natif des paiements — relances d’échéance et de retard', (
     expect(await Notification.count({ where: { userId: adminUserId } })).toBe(before);
     const d = await Invoice.findByPk(draft.body.id);
     expect(d!.statut).toBe('brouillon');
+  });
+
+  it('envoie aussi un e-mail au destinataire quand il a une adresse enregistrée (Phase 5, alertes métier)', async () => {
+    const withEmail = await request(app).post('/api/v1/companies/members').set('Authorization', `Bearer ${adminToken}`)
+      .send({ nom: 'Avec', prenom: 'Email', telephone: '798000010', email: 'finance-relance@example.com', password: 'password', companyRole: 'finance' });
+
+    const sendEmailSpy = jest.spyOn(emailService, 'sendEmail').mockResolvedValue();
+    await createSentInvoice(iso(3));
+    await runPaymentReminders();
+
+    const appelPourCeDestinataire = sendEmailSpy.mock.calls.find((call) => call[0] === 'finance-relance@example.com');
+    expect(appelPourCeDestinataire).toBeTruthy();
+    expect(appelPourCeDestinataire![1]).toContain('Échéance');
+    sendEmailSpy.mockRestore();
+    void withEmail;
   });
 
   it('isolation : les relances d’une entreprise ne notifient jamais une autre entreprise', async () => {

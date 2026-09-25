@@ -6,6 +6,7 @@ import { Company } from '../models/Company';
 import { User } from '../models/User';
 import { Site } from '../models/Site';
 import { createNotification } from './notificationService';
+import { sendEmail } from './emailService';
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 
@@ -164,11 +165,15 @@ export const renewSubscription = async (
 };
 
 // Exporté : réutilisé par dexpayController.ts pour notifier un échec de paiement d'abonnement
-// (webhook subscription.payment.failed) sans dupliquer cette logique.
+// (webhook subscription.payment.failed) sans dupliquer cette logique. Notifications e-mail des
+// alertes métier (2026-09-25) : en plus de la notification in-app + push existante, un e-mail est
+// envoyé à chaque admin qui a une adresse enregistrée — sendEmail() journalise en console si SMTP
+// n'est pas configuré (jamais bloquant, voir emailService.ts).
 export const notifyCompanyAdmins = async (companyId: number, titre: string, description: string): Promise<void> => {
   const admins = await User.findAll({ where: { companyId, companyRole: 'admin', statut: 'actif' } });
   for (const admin of admins) {
     await createNotification(admin.id, 'paiement', titre, description, undefined);
+    if (admin.email) await sendEmail(admin.email, titre, description);
   }
 };
 

@@ -1171,6 +1171,34 @@ L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel d�
 
 - Prochaine étape : au choix de l'utilisateur — notifications e-mail métier, rentabilité avancée (à préciser), reporting multisite, ou étendre le journal d'activité au pipeline commercial si jugé prioritaire.
 
+## 2026-09-25 — Notifications e-mail pour les alertes métier
+
+- Objectif : suite à la liste de priorités de l'utilisateur. Les alertes métier de Naatalix (échéance de facture, abonnement bientôt expiré, échec de paiement DexPay) restaient uniquement des notifications in-app + push, jamais un e-mail — malgré l'infrastructure e-mail déjà construite le 2026-09-25 pour l'OTP (`emailService.ts`).
+
+- Décision de conception : pas de nouvelle route ni de nouveau déclencheur. Les alertes métier passent déjà toutes par deux fonctions dédiées, déjà scoping "entreprise" (par opposition à `notificationService.createNotification`, partagée avec ModèlePro/client/artisan et volontairement non touchée — un e-mail à chaque nouveau message ou statut de rendez-vous serait du spam, hors sujet ici) :
+  - `subscriptionService.notifyCompanyAdmins` (abonnement bientôt expiré/expiré, échec de paiement DexPay).
+  - `paymentReminderService.notifyCompanyFinance` (échéance de facture à J-3, facture en retard).
+  Un seul ajout dans chacune : `if (user.email) await sendEmail(user.email, titre, description);` juste après la notification in-app existante — même titre/description, aucune nouvelle logique métier.
+
+- Fichiers modifiés : `src/services/subscriptionService.ts`, `src/services/paymentReminderService.ts` (+ commentaire mis à jour, qui disait encore "e-mail non construit" — obsolète depuis l'OTP par e-mail).
+
+- Tests ajoutés/complétés (via `jest.spyOn(emailService, 'sendEmail')`, pas d'envoi réel) :
+  - `src/__tests__/paymentReminder.test.ts` — un membre avec e-mail enregistré reçoit bien l'e-mail de rappel J-3.
+  - `src/__tests__/dexpay.test.ts` — `subscription.payment.failed` envoie l'e-mail à l'admin (`seydou@example.com`, déjà utilisé dans ce fichier).
+  - `src/__tests__/backoffice.test.ts` — l'alerte d'expiration d'essai envoie l'e-mail à l'admin.
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit                     → OK
+  npx jest paymentReminder.test.ts dexpay.test.ts backoffice.test.ts → 43/43 passants
+  npm test (suite complète)            → 439/441, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental)
+  ```
+  Vérifié aussi en conditions réelles : facture réelle créée avec échéance à J+3 sur PostgreSQL, job de relance déclenché manuellement, e-mail journalisé en console (SMTP non configuré en dev, comportement attendu) avec le bon destinataire/sujet/contenu. Données nettoyées ensuite.
+
+- Limite connue : toujours pas de canal vers le client final (SMS/WhatsApp, en option non construite) — ces e-mails restent internes à l'équipe de l'entreprise (admin/finance), pas envoyés au client qui doit payer.
+
+- Prochaine étape : au choix de l'utilisateur — rentabilité avancée (à préciser), reporting multisite, ou étendre le journal d'activité/les alertes e-mail au pipeline commercial.
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module

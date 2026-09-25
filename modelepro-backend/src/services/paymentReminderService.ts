@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import { Invoice } from '../models/Invoice';
 import { User } from '../models/User';
 import { createNotification } from './notificationService';
+import { sendEmail } from './emailService';
 import { hasFeature, PLAN_FEATURE_KEYS } from './subscriptionService';
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
@@ -18,14 +19,17 @@ const notifyCompanyFinance = async (companyId: number, titre: string, descriptio
   const recipients = await User.findAll({ where: { companyId, companyRole: { [Op.in]: ['admin', 'finance'] }, statut: 'actif' } });
   for (const user of recipients) {
     await createNotification(user.id, 'paiement', titre, description, referenceId);
+    if (user.email) await sendEmail(user.email, titre, description);
   }
 };
 
 // Relances "manuelles" (Essentiel) vs "assistées"/"automatisées" (Pro/Business) — cahier
-// NAATALIX_Formules_Fonctionnalites.docx, 2026-09-24. En l'absence de canal sortant vers le
-// client (e-mail/SMS non construits), les deux paliers payants se traduisent par la même alerte
-// interne au service Finance ; l'Essentiel n'a droit à aucune relance automatique (feature absente
-// de son plan), le suivi y reste manuel comme prévu au cahier.
+// NAATALIX_Formules_Fonctionnalites.docx, 2026-09-24. Le canal e-mail existe désormais
+// (emailService.ts, construit le 2026-09-25 pour l'OTP puis réutilisé ici) : les deux paliers
+// payants envoient la même alerte, in-app + e-mail, au service Finance de l'entreprise — pas
+// encore de relance envoyée directement au client final (SMS/WhatsApp, toujours en option non
+// construite). L'Essentiel n'a droit à aucune relance automatique (feature absente de son plan),
+// le suivi y reste manuel comme prévu au cahier.
 export const runPaymentReminders = async (now = new Date()): Promise<{ upcoming: number; overdue: number }> => {
   let upcoming = 0;
   let overdue = 0;

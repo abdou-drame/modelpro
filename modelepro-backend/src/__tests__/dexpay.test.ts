@@ -4,6 +4,7 @@ import app from '../app';
 import sequelize from '../config/database';
 import { CompanySubscription } from '../models/CompanySubscription';
 import { SubscriptionPlan } from '../models/SubscriptionPlan';
+import * as emailService from '../services/emailService';
 
 jest.setTimeout(30000);
 
@@ -173,13 +174,18 @@ describe('DexPay — webhook', () => {
     expect(sub!.statut).toBe('suspendu');
   });
 
-  it('subscription.payment.failed notifie sans changer le statut (DexPay relance de lui-même)', async () => {
+  it('subscription.payment.failed notifie sans changer le statut (DexPay relance de lui-même), avec e-mail à l’admin', async () => {
+    const sendEmailSpy = jest.spyOn(emailService, 'sendEmail').mockResolvedValue();
     const before = (await CompanySubscription.findOne({ where: { companyId } }))!.statut;
     const res = await sendWebhook({ id: 'evt_4', event: 'subscription.payment.failed', data: { subscription_id: 'sub_123' } });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('traite');
     const sub = await CompanySubscription.findOne({ where: { companyId } });
     expect(sub!.statut).toBe(before);
+    // L'admin a été enregistré avec seydou@example.com (beforeAll) — notifyCompanyAdmins envoie
+    // aussi un e-mail depuis le 2026-09-25 (alertes métier, en plus de la notification in-app).
+    expect(sendEmailSpy).toHaveBeenCalledWith('seydou@example.com', expect.any(String), expect.any(String));
+    sendEmailSpy.mockRestore();
   });
 
   it('subscription.cancelled suspend l’abonnement', async () => {
