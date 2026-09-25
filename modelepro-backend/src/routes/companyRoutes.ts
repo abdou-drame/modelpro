@@ -1,0 +1,42 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { protect } from '../middlewares/authMiddleware';
+import { enforceSubscription } from '../middlewares/subscriptionMiddleware';
+import { requireCompany, requireCompanyRole } from '../middlewares/tenantMiddleware';
+import {
+  registerCompany,
+  getMyCompany,
+  updateMyCompany,
+  uploadCompanyLogo,
+  listMembers,
+  createMember,
+  updateMemberRole,
+  removeMember,
+} from '../controllers/companyController';
+import { sendCompanyEmailOtp, enableCompanyEmailTwoFactor, disableCompanyEmailTwoFactor } from '../controllers/companyTwoFactorController';
+import { authLimiter } from '../middlewares/rateLimitMiddleware';
+
+const router = Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+router.post('/register', registerCompany);
+
+router.get('/me', protect, requireCompany, getMyCompany);
+router.put('/me', protect, requireCompany, enforceSubscription, requireCompanyRole('admin'), updateMyCompany);
+router.post('/me/logo', protect, requireCompany, enforceSubscription, requireCompanyRole('admin'), upload.single('logo'), uploadCompanyLogo);
+
+// 2FA par e-mail (Phase 5) — libre-service sur son propre compte, aucun requireCompanyRole : ça
+// n'affecte jamais que req.user.id, jamais un collègue (voir companyTwoFactorController.ts).
+router.post('/me/2fa/email/send-code', protect, requireCompany, authLimiter, sendCompanyEmailOtp);
+router.post('/me/2fa/email/enable', protect, requireCompany, enableCompanyEmailTwoFactor);
+router.post('/me/2fa/email/disable', protect, requireCompany, disableCompanyEmailTwoFactor);
+
+router.get('/members', protect, requireCompany, listMembers);
+router.post('/members', protect, requireCompany, enforceSubscription, requireCompanyRole('admin'), createMember);
+router.patch('/members/:id/role', protect, requireCompany, enforceSubscription, requireCompanyRole('admin'), updateMemberRole);
+router.delete('/members/:id', protect, requireCompany, enforceSubscription, requireCompanyRole('admin'), removeMember);
+
+export default router;

@@ -948,8 +948,12 @@ export const deleteArtisanAdmin = async (req: AuthenticatedRequest, res: Respons
     }
 
     const userId = artisan.userId;
-    await artisan.destroy();
-    await User.destroy({ where: { id: userId } });
+    // Les deux suppressions doivent réussir ensemble : sans transaction, un échec entre les deux
+    // laisserait un User orphelin (artisan supprimé, compte utilisateur toujours présent).
+    await sequelize.transaction(async (t) => {
+      await artisan.destroy({ transaction: t });
+      await User.destroy({ where: { id: userId }, transaction: t });
+    });
 
     res.status(200).json({ message: 'Artisan et compte utilisateur supprimés définitivement.' });
   } catch (error) {

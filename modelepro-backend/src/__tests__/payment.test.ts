@@ -21,6 +21,7 @@ const mockVerifyIpnSignature = verifyIpnSignature as jest.Mock;
 
 let clientToken: string;
 let artisanToken: string;
+let externalToken: string;
 let orderId: number;
 let paymentId: number;
 let packEssentielId: number;
@@ -83,6 +84,17 @@ beforeAll(async () => {
     limiteModelesActifs: 5,
   });
   packEssentielId = pack.id;
+
+  const externalUser = await User.create({
+    nom: 'Externe',
+    prenom: 'Test',
+    telephone: '0733333333',
+    email: 'external.pay@test.com',
+    password: 'password',
+    role: 'client',
+    statut: 'actif',
+  });
+  externalToken = generateToken(externalUser.id, 'client');
 });
 
 afterAll(async () => {
@@ -241,6 +253,24 @@ describe('Module de Paiement (7.10)', () => {
     expect(res.body.remainingBalance).toBe(0);
     expect(res.body.totalFraisServicePaid).toBe(1000);
     expect(res.body.paymentStatus).toBe('fully_paid');
+  });
+
+  it('5b. Refuse à un utilisateur externe la liste, le résumé et la modification des paiements d’une commande qui ne le concerne pas', async () => {
+    const listRes = await request(app)
+      .get(`/api/v1/payments/order/${orderId}`)
+      .set('Authorization', `Bearer ${externalToken}`);
+    expect(listRes.status).toBe(403);
+
+    const summaryRes = await request(app)
+      .get(`/api/v1/payments/summary/${orderId}`)
+      .set('Authorization', `Bearer ${externalToken}`);
+    expect(summaryRes.status).toBe(403);
+
+    const statusRes = await request(app)
+      .patch(`/api/v1/payments/${paymentId}/status`)
+      .set('Authorization', `Bearer ${externalToken}`)
+      .send({ statut: 'confirme' });
+    expect(statusRes.status).toBe(403);
   });
 
   it('6. Un abonnement payé en mobile money passe par PayTech et reste en_attente jusqu’à l’IPN', async () => {

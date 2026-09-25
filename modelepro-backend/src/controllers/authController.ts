@@ -4,12 +4,40 @@ import { User } from '../models/User';
 import { Client } from '../models/Client';
 import { Artisan } from '../models/Artisan';
 import { Pack } from '../models/Pack';
-import { hashPassword, comparePassword, generateToken } from '../utils/auth';
+import { hashPassword, comparePassword, generateToken, generateTwoFactorPendingToken, verifyTwoFactorPendingToken } from '../utils/auth';
+import { verifyTwoFactorCode } from '../services/twoFactorService';
+import { sendEmailOtp, verifyEmailOtp } from '../services/emailOtpService';
+import { isSmtpConfigured } from '../services/emailService';
+
+// En dev/test sans SMTP configuré, le code OTP est journalisé en console (emailService.ts) mais
+// aussi renvoyé ici dans la réponse (`devCode`) pour rester testable sans service SMTP réel —
+// jamais en production, y compris si SMTP est mal configuré par erreur.
+const devCodeIfApplicable = (code: string): { devCode?: string } =>
+  process.env.NODE_ENV !== 'production' && !isSmtpConfigured() ? { devCode: code } : {};
+
+const userLoginPayload = (user: User) => ({
+  id: user.id,
+  nom: user.nom,
+  prenom: user.prenom,
+  telephone: user.telephone,
+  role: user.role,
+  photoUrl: user.photoUrl || null,
+  companyId: user.companyId || null,
+  companyRole: user.companyRole || null,
+  platformRole: user.platformRole || null,
+});
 
 // 1. INSCRIPTION (MÉTHODE POST)
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { nom, prenom, telephone, email, password, role, localisation, métier, atelier, description, horaires, zone } = req.body;
+
+    // Seuls client et artisan peuvent s'inscrire publiquement. Sans ce contrôle en amont, un rôle
+    // privilégié (admin, ataaba_staff...) passé dans le corps était créé en base avant le rejet.
+    if (role !== 'client' && role !== 'artisan') {
+      res.status(400).json({ error: 'Rôle invalide lors de l\'inscription.' });
+      return;
+    }
 
     // Vérifier si le numéro de téléphone (identifiant unique de connexion) existe déjà
     const userExists = await User.findOne({ where: { telephone } });
@@ -155,23 +183,94 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Générer le jeton JWT
-    const token = generateToken(user.id, user.role);
+    // 2FA activée (Phase 5, cahier des charges §14) : pas de jeton normal tant que le second
+    // facteur n'est pas vérifié — voir verifyTwoFactor() ci-dessous. Deux méthodes possibles
+    // (twoFactorMethod) : 'totp' (personnel ATAABA, code généré par une application) ou 'email'
+    // (comptes Naatalix, code envoyé par e-mail à chaque connexion).
+    if (user.twoFactorEnabled && user.twoFactorMethod) {
+      const tempToken = generateTwoFactorPendingToken(user.id);
+      if (user.twoFactorMethod === 'email') {
+        const code = await sendEmailOtp(user);
+        res.status(200).json({ requiresTwoFactor: true, method: 'email', tempToken, ...devCodeIfApplicable(code) });
+        return;
+      }
+      res.status(200).json({ requiresTwoFactor: true, method: 'totp', tempToken });
+      return;
+    }
+
+    // Générer le jeton JWT (les comptes Naatalix embarquent en plus companyId/companyRole)
+    const token = generateToken(
+      user.id,
+      user.role,
+      user.role === 'entreprise'
+        ? { companyId: user.companyId, companyRole: user.companyRole }
+        : user.role === 'ataaba_staff'
+          ? { platformRole: user.platformRole }
+          : undefined
+    );
 
     res.status(200).json({
       message: 'Connexion réussie !',
       token,
-      user: {
-        id: user.id,
-        nom: user.nom,
-        prenom: user.prenom,
-        telephone: user.telephone,
-        role: user.role,
-        photoUrl: user.photoUrl || null,
-      }
+      user: userLoginPayload(user),
     });
   } catch (error) {
     console.error('Erreur lors de la connexion :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la connexion.' });
+  }
+};
+
+// POST /api/v1/auth/2fa/verify — public (le tempToken fait office d'identification, comme un mot
+// de passe à usage unique). Échange le jeton temporaire émis par login() contre le vrai jeton
+// d'accès une fois le second facteur vérifié (TOTP ou code e-mail selon twoFactorMethod).
+export const verifyTwoFactor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tempToken, code } = req.body;
+    if (!tempToken || !code) {
+      res.status(400).json({ error: 'tempToken et code sont requis.' });
+      return;
+    }
+
+    const userId = verifyTwoFactorPendingToken(tempToken);
+    if (!userId) {
+      res.status(401).json({ error: 'Jeton temporaire invalide ou expiré. Reconnectez-vous.' });
+      return;
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user || !user.twoFactorEnabled || !user.twoFactorMethod) {
+      res.status(401).json({ error: 'Vérification à deux facteurs indisponible pour ce compte.' });
+      return;
+    }
+    if (user.statut !== 'actif') {
+      res.status(403).json({ error: 'Votre compte a été suspendu par l\'administrateur.' });
+      return;
+    }
+
+    const isValid = user.twoFactorMethod === 'totp'
+      ? Boolean(user.twoFactorSecret) && verifyTwoFactorCode(user.twoFactorSecret!, String(code))
+      : await verifyEmailOtp(user, String(code));
+    if (!isValid) {
+      res.status(401).json({ error: 'Code de vérification incorrect ou expiré.' });
+      return;
+    }
+
+    const token = generateToken(
+      user.id,
+      user.role,
+      user.role === 'entreprise'
+        ? { companyId: user.companyId, companyRole: user.companyRole }
+        : user.role === 'ataaba_staff'
+          ? { platformRole: user.platformRole }
+          : undefined
+    );
+    res.status(200).json({
+      message: 'Connexion réussie !',
+      token,
+      user: userLoginPayload(user),
+    });
+  } catch (error) {
+    console.error('Erreur lors de la vérification 2FA :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la vérification.' });
   }
 };

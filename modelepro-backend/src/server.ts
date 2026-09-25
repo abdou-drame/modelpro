@@ -4,6 +4,10 @@ import sequelize from './config/database';
 import { Pack } from './models/Pack';
 import { Artisan } from './models/Artisan';
 import { createNotification } from './services/notificationService';
+import { Company } from './models/Company';
+import { CompanySubscription } from './models/CompanySubscription';
+import { ensureDefaultPlans, createTrialSubscription, runSubscriptionMaintenance } from './services/subscriptionService';
+import { runPaymentReminders } from './services/paymentReminderService';
 
 const PORT = process.env.PORT || 5000;
 const JOUR_MS = 24 * 60 * 60 * 1000;
@@ -80,6 +84,35 @@ async function runAbonnementDailyJob() {
   }
 }
 
+// Phase 4 : plans par défaut + abonnement d'essai pour les entreprises créées avant l'introduction
+// des abonnements (idempotent).
+async function bootstrapSaas() {
+  await ensureDefaultPlans();
+  const companies = await Company.findAll();
+  for (const company of companies) {
+    const exists = await CompanySubscription.findOne({ where: { companyId: company.id } });
+    if (!exists) await sequelize.transaction((t) => createTrialSubscription(company.id, t));
+  }
+}
+
+async function runSaasMaintenanceJob() {
+  try {
+    await runSubscriptionMaintenance();
+  } catch (error) {
+    console.error('[Abonnements SaaS] Erreur lors du job quotidien :', error);
+  }
+}
+
+// Suivi natif des paiements Naatalix (décision direction ATAABA du 2026-09-23 : autonomie vis-à-vis
+// de PayTrack) : relances d'échéance/retard sur les factures.
+async function runPaymentReminderJob() {
+  try {
+    await runPaymentReminders();
+  } catch (error) {
+    console.error('[Paiements] Erreur lors du job de relance quotidien :', error);
+  }
+}
+
 async function runAutoMigrations() {
   const migrations = [
     // Appointments
@@ -143,7 +176,27 @@ async function runAutoMigrations() {
 
     // Payments (traçabilité pack + cycle des abonnements)
     `ALTER TABLE payments ADD COLUMN IF NOT EXISTS pack_id INTEGER;`,
-    `ALTER TABLE payments ADD COLUMN IF NOT EXISTS cycle VARCHAR(20);`
+    `ALTER TABLE payments ADD COLUMN IF NOT EXISTS cycle VARCHAR(20);`,
+
+    // Naatalix — rattachement entreprise (table companies créée par sequelize.sync ci-dessous)
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER;`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_role VARCHAR(20);`,
+    `ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'entreprise';`,
+    `ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'ataaba_staff';`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS platform_role VARCHAR(20);`,
+
+    // Naatalix — identité documentaire (injectée dans les PDF générés)
+    `ALTER TABLE companies ADD COLUMN IF NOT EXISTS coordonnees_paiement TEXT;`,
+    `ALTER TABLE companies ADD COLUMN IF NOT EXISTS mentions_commerciales TEXT;`,
+    `ALTER TABLE companies ADD COLUMN IF NOT EXISTS paytrack_actif BOOLEAN NOT NULL DEFAULT false;`,
+    `ALTER TABLE saas_plans ADD COLUMN IF NOT EXISTS features TEXT NOT NULL DEFAULT '[]';`,
+    `ALTER TABLE crm_invoices ADD COLUMN IF NOT EXISTS rappel_echeance_envoye BOOLEAN NOT NULL DEFAULT false;`,
+    `ALTER TABLE crm_invoices ADD COLUMN IF NOT EXISTS alerte_retard_envoyee BOOLEAN NOT NULL DEFAULT false;`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret VARCHAR(255);`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT false;`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(20);`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_otp_code_hash VARCHAR(255);`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_otp_expires_at TIMESTAMP WITH TIME ZONE;`,
   ];
 
   for (const query of migrations) {
@@ -158,10 +211,15 @@ async function runAutoMigrations() {
 runAutoMigrations()
   .then(() => sequelize.sync({ force: false }))
   .then(() => bootstrapAbonnements())
+  .then(() => bootstrapSaas())
+  .then(() => runSaasMaintenanceJob())
+  .then(() => runPaymentReminderJob())
   .then(() => runAbonnementDailyJob())
   .then(() => {
     console.log('[PostgreSQL] Connexion établie, migrations vérifiées et tables synchronisées.');
     setInterval(runAbonnementDailyJob, JOUR_MS);
+    setInterval(runSaasMaintenanceJob, JOUR_MS);
+    setInterval(runPaymentReminderJob, JOUR_MS);
     app.listen(PORT, () => {
       console.log(`[Serveur] API ModèlePro démarrée sur http://localhost:${PORT}`);
     });

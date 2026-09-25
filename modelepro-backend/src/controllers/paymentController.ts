@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
+import sequelize from '../config/database';
 import { Payment } from '../models/Payment';
 import { Order } from '../models/Order';
 import { Artisan } from '../models/Artisan';
@@ -7,6 +8,27 @@ import { Pack } from '../models/Pack';
 import { WalletTransaction } from '../models/WalletTransaction';
 import { createNotification } from '../services/notificationService';
 import { initiatePayment as initiatePaytechPayment, verifyIpnSignature, buildAppRedirectUrl } from '../services/paytechService';
+
+// Un paiement est accessible à l'admin, au client de la commande, à l'artisan de la commande,
+// ou — pour un abonnement (pas de commande associée) — à l'artisan concerné.
+const canAccessPayment = async (payment: Payment, userId: number, role?: string): Promise<boolean> => {
+  if (role === 'admin') return true;
+
+  if (payment.orderId) {
+    const order = await Order.findByPk(payment.orderId);
+    if (!order) return false;
+    if (order.clientId === userId) return true;
+    const artisanOfOrder = await Artisan.findByPk(order.artisanId, { attributes: ['userId'] });
+    return artisanOfOrder?.userId === userId;
+  }
+
+  if (payment.type === 'abonnement' && payment.artisanId) {
+    const artisan = await Artisan.findByPk(payment.artisanId, { attributes: ['userId'] });
+    return artisan?.userId === userId;
+  }
+
+  return false;
+};
 
 // Durée en jours ajoutée à l'abonnement selon le cycle choisi.
 const CYCLE_DAYS: Record<'mensuel' | 'annuel', number> = { mensuel: 30, annuel: 365 };
@@ -56,30 +78,38 @@ export const applyConfirmedOrderPaymentEffect = async (payment: Payment): Promis
   const order = await Order.findByPk(payment.orderId);
   if (!order) return;
 
-  if (payment.type === 'acompte') {
-    order.paymentStatus = 'deposit_paid';
-  } else if (payment.type === 'solde' || payment.type === 'integral') {
-    order.paymentStatus = 'fully_paid';
-  }
-  await order.save();
-
-  // Crédite le wallet artisan uniquement pour l'argent de la commande (acompte/solde/integral) —
-  // frais_service et abonnement restent des revenus plateforme, jamais reversés. Idempotent :
-  // un paiement ne peut créditer qu'une seule fois (protège contre un double appel de cette
-  // fonction, ex. confirmation admin répétée ou rejeu IPN).
-  if (payment.type === 'acompte' || payment.type === 'solde' || payment.type === 'integral') {
-    const existingCredit = await WalletTransaction.findOne({ where: { paymentId: payment.id, type: 'credit' } });
-    if (!existingCredit) {
-      await WalletTransaction.create({
-        artisanId: order.artisanId,
-        orderId: order.id,
-        paymentId: payment.id,
-        type: 'credit',
-        montant: payment.montant,
-        statut: 'valide',
-      });
+  // order.paymentStatus et le crédit WalletTransaction doivent changer ensemble : sans
+  // transaction, un crash entre les deux pourrait marquer la commande payée sans créditer
+  // l'artisan (ou l'inverse).
+  await sequelize.transaction(async (t) => {
+    if (payment.type === 'acompte') {
+      order.paymentStatus = 'deposit_paid';
+    } else if (payment.type === 'solde' || payment.type === 'integral') {
+      order.paymentStatus = 'fully_paid';
     }
-  }
+    await order.save({ transaction: t });
+
+    // Crédite le wallet artisan uniquement pour l'argent de la commande (acompte/solde/integral) —
+    // frais_service et abonnement restent des revenus plateforme, jamais reversés. Idempotent :
+    // un paiement ne peut créditer qu'une seule fois (protège contre un double appel de cette
+    // fonction, ex. confirmation admin répétée ou rejeu IPN).
+    if (payment.type === 'acompte' || payment.type === 'solde' || payment.type === 'integral') {
+      const existingCredit = await WalletTransaction.findOne({
+        where: { paymentId: payment.id, type: 'credit' },
+        transaction: t,
+      });
+      if (!existingCredit) {
+        await WalletTransaction.create({
+          artisanId: order.artisanId,
+          orderId: order.id,
+          paymentId: payment.id,
+          type: 'credit',
+          montant: payment.montant,
+          statut: 'valide',
+        }, { transaction: t });
+      }
+    }
+  });
 
   const artisan = await Artisan.findByPk(order.artisanId);
   if (artisan) {
@@ -254,6 +284,13 @@ export const getPaymentsByOrder = async (req: AuthenticatedRequest, res: Respons
     const order = await Order.findByPk(orderId);
     if (!order) return res.status(404).json({ error: 'Commande introuvable.' });
 
+    const isClient = order.clientId === userId;
+    const artisanOfOrder = isClient ? null : await Artisan.findByPk(order.artisanId, { attributes: ['userId'] });
+    const isArtisan = artisanOfOrder?.userId === userId;
+    if (req.user?.role !== 'admin' && !isClient && !isArtisan) {
+      return res.status(403).json({ error: 'Vous n\'avez pas accès aux paiements de cette commande.' });
+    }
+
     const payments = await Payment.findAll({
       where: { orderId },
       order: [['createdAt', 'DESC']],
@@ -276,6 +313,13 @@ export const getPaymentSummary = async (req: AuthenticatedRequest, res: Response
 
     const order = await Order.findByPk(orderId);
     if (!order) return res.status(404).json({ error: 'Commande introuvable.' });
+
+    const isClient = order.clientId === userId;
+    const artisanOfOrder = isClient ? null : await Artisan.findByPk(order.artisanId, { attributes: ['userId'] });
+    const isArtisan = artisanOfOrder?.userId === userId;
+    if (req.user?.role !== 'admin' && !isClient && !isArtisan) {
+      return res.status(403).json({ error: 'Vous n\'avez pas accès au résumé de cette commande.' });
+    }
 
     const payments = await Payment.findAll({
       where: { orderId, statut: 'confirme' },
@@ -360,6 +404,10 @@ export const updatePaymentStatus = async (req: AuthenticatedRequest, res: Respon
 
     const payment = await Payment.findByPk(paymentId);
     if (!payment) return res.status(404).json({ error: 'Paiement introuvable.' });
+
+    if (!(await canAccessPayment(payment, userId, req.user?.role))) {
+      return res.status(403).json({ error: 'Vous n\'avez pas accès à ce paiement.' });
+    }
 
     const wasAlreadyConfirmed = payment.statut === 'confirme';
 

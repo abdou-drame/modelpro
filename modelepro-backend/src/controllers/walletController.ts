@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
+import sequelize from '../config/database';
 import { Artisan } from '../models/Artisan';
 import { WalletTransaction } from '../models/WalletTransaction';
 import { computeArtisanWalletSolde } from '../services/walletService';
@@ -64,20 +65,31 @@ export const requestWithdrawal = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const solde = await computeArtisanWalletSolde(artisan.id);
-    if (montantNumber > solde) {
-      res.status(400).json({ error: `Solde insuffisant. Solde disponible : ${solde} FCFA.` });
+    // Verrouille la ligne artisan pendant la vérification + réservation du solde : sans ça, deux
+    // demandes de retrait simultanées pourraient toutes deux lire un solde suffisant avant que
+    // l'une des deux n'ait été committée (double retrait au-delà du solde réel disponible).
+    let insufficientBalance: number | null = null;
+    const retrait = await sequelize.transaction(async (t) => {
+      await Artisan.findByPk(artisan.id, { transaction: t, lock: t.LOCK.UPDATE });
+      const solde = await computeArtisanWalletSolde(artisan.id, t);
+      if (montantNumber > solde) {
+        insufficientBalance = solde;
+        return null;
+      }
+      return WalletTransaction.create({
+        artisanId: artisan.id,
+        type: 'retrait',
+        montant: montantNumber,
+        statut: 'en_attente',
+        moyenPaiement,
+        numeroReception,
+      }, { transaction: t });
+    });
+
+    if (insufficientBalance !== null) {
+      res.status(400).json({ error: `Solde insuffisant. Solde disponible : ${insufficientBalance} FCFA.` });
       return;
     }
-
-    const retrait = await WalletTransaction.create({
-      artisanId: artisan.id,
-      type: 'retrait',
-      montant: montantNumber,
-      statut: 'en_attente',
-      moyenPaiement,
-      numeroReception,
-    });
 
     res.status(201).json(retrait);
   } catch (error) {
