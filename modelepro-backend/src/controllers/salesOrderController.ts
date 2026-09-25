@@ -15,6 +15,7 @@ import { applyStockMovement, StockNegativeError } from '../services/stockService
 import { Company } from '../models/Company';
 import { generateSalesOrderPdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const ORDER_STATUSES = ['brouillon', 'confirmee', 'en_preparation', 'livree', 'annulee'] as const;
 
@@ -205,6 +206,7 @@ export const convertQuoteToOrder = async (req: AuthenticatedRequest, res: Respon
     });
 
     const full = await SalesOrder.findByPk(order.id, { include: [{ model: SalesOrderLine, as: 'lignes' }] });
+    await recordCompanyActivity(req, 'devis.transforme_en_commande', 'SalesOrder', order.id, { numeroCommande: order.numero, numeroDevis: quote.numero });
     res.status(201).json(full);
   } catch (error) {
     console.error('Erreur convertQuoteToOrder :', error);
@@ -401,6 +403,7 @@ const transition = (allowedFrom: string[], to: SalesOrder['statut']) => {
       order.statut = to;
       appendHistory(order, to, req.user!.id);
       await order.save();
+      await recordCompanyActivity(req, `commande.${to}`, 'SalesOrder', order.id, { numero: order.numero });
       res.status(200).json(order);
     } catch (error) {
       console.error('Erreur transition commande :', error);
@@ -464,6 +467,7 @@ export const deliverOrder = async (req: AuthenticatedRequest, res: Response): Pr
       throw e;
     }
 
+    await recordCompanyActivity(req, 'commande.livree', 'SalesOrder', order.id, { numero: order.numero });
     res.status(200).json(order);
   } catch (error) {
     console.error('Erreur deliverOrder :', error);

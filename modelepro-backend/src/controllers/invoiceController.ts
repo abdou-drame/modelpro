@@ -14,6 +14,7 @@ import { nextDocumentNumber } from '../services/documentNumberingService';
 import { Company } from '../models/Company';
 import { generateInvoicePdf, generateReceiptPdf, generateCustomerStatementPdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const INVOICE_STATUSES = ['brouillon', 'envoyee', 'annulee'] as const;
 const PAYMENT_MEANS = ['especes', 'virement', 'cheque', 'mobile_money', 'autre'] as const;
@@ -402,6 +403,7 @@ export const sendInvoice = async (req: AuthenticatedRequest, res: Response): Pro
 
     invoice.statut = 'envoyee';
     await invoice.save();
+    await recordCompanyActivity(req, 'facture.envoyee', 'Invoice', invoice.id, { numero: invoice.numero });
     res.status(200).json(invoice);
   } catch (error) {
     console.error('Erreur sendInvoice :', error);
@@ -426,6 +428,7 @@ export const cancelInvoice = async (req: AuthenticatedRequest, res: Response): P
 
     invoice.statut = 'annulee';
     await invoice.save();
+    await recordCompanyActivity(req, 'facture.annulee', 'Invoice', invoice.id, { numero: invoice.numero });
     res.status(200).json(invoice);
   } catch (error) {
     console.error('Erreur cancelInvoice :', error);
@@ -491,6 +494,7 @@ export const createCreditNote = async (req: AuthenticatedRequest, res: Response)
     });
 
     const full = await Invoice.findByPk(avoir.id, { include: [{ model: InvoiceLine, as: 'lignes' }] });
+    await recordCompanyActivity(req, 'avoir.cree', 'Invoice', avoir.id, { numero: avoir.numero, factureOrigine: original.numero });
     res.status(201).json(full);
   } catch (error) {
     console.error('Erreur createCreditNote :', error);
@@ -539,6 +543,7 @@ export const recordPayment = async (req: AuthenticatedRequest, res: Response): P
       return payment;
     });
 
+    await recordCompanyActivity(req, 'facture.paiement_enregistre', 'Invoice', invoice.id, { numero: invoice.numero, montant: montantNumber });
     res.status(201).json({ payment, invoice });
   } catch (error) {
     console.error('Erreur recordPayment :', error);

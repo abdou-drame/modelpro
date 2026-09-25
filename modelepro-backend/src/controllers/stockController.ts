@@ -9,6 +9,7 @@ import { Product } from '../models/Product';
 import { applyStockMovement, StockNegativeError } from '../services/stockService';
 import { toCsv, sendCsv } from '../services/csvExportService';
 import { checkQuota } from '../services/subscriptionService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const MOVEMENT_TYPES = ['entree', 'sortie', 'ajustement'] as const;
 
@@ -246,6 +247,7 @@ export const createMovement = async (req: AuthenticatedRequest, res: Response): 
           forcerStockNegatif: canForceNegative(req),
         }, t);
       });
+      await recordCompanyActivity(req, `stock.mouvement_${type}`, 'Product', product.id, { produit: product.nom, quantite: quantiteNumber, site: site.nom });
       res.status(201).json(result);
     } catch (e) {
       if (e instanceof StockNegativeError) {
@@ -304,6 +306,7 @@ export const recordInventaire = async (req: AuthenticatedRequest, res: Response)
           forcerStockNegatif: canForceNegative(req),
         }, t);
       });
+      await recordCompanyActivity(req, 'stock.inventaire', 'Product', product.id, { produit: product.nom, avant: quantiteActuelle, apres: quantitePhysiqueNumber });
       res.status(201).json(result);
     } catch (e) {
       if (e instanceof StockNegativeError) {

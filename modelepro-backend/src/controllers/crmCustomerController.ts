@@ -5,6 +5,7 @@ import sequelize from '../config/database';
 import { Customer } from '../models/Customer';
 import { Contact } from '../models/Contact';
 import { toCsv, sendCsv } from '../services/csvExportService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const CUSTOMER_TYPES = ['particulier', 'entreprise'] as const;
 
@@ -74,6 +75,7 @@ export const createCustomer = async (req: AuthenticatedRequest, res: Response): 
       assignedToUserId: assignedToUserId || null,
       convertedAt: statut === 'client' ? new Date() : null,
     });
+    await recordCompanyActivity(req, 'client.cree', 'Customer', customer.id, { nom: customer.nom, statut: customer.statut });
 
     res.status(201).json({
       customer,
@@ -186,6 +188,7 @@ export const convertToClient = async (req: AuthenticatedRequest, res: Response):
     customer.statut = 'client';
     customer.convertedAt = new Date();
     await customer.save();
+    await recordCompanyActivity(req, 'prospect.converti', 'Customer', customer.id, { nom: customer.nom });
 
     res.status(200).json(customer);
   } catch (error) {

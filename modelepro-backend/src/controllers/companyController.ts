@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import sequelize from '../config/database';
 import { Company } from '../models/Company';
 import { User } from '../models/User';
+import { AuditLog } from '../models/AuditLog';
 import { hashPassword, generateToken } from '../utils/auth';
 import { seedDefaultPipelineStages, seedDefaultSite } from '../services/crmSeedService';
 import { createTrialSubscription, checkQuota } from '../services/subscriptionService';
 import { saveImageLocally, deleteLocalFile } from '../services/localUploadService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const COMPANY_ROLES = ['admin', 'manager', 'commercial', 'finance', 'stock', 'readonly'] as const;
 
@@ -116,6 +119,7 @@ export const updateMyCompany = async (req: AuthenticatedRequest, res: Response):
     if (mentionsCommerciales !== undefined) company.mentionsCommerciales = mentionsCommerciales;
     if (paytrackActif !== undefined) company.paytrackActif = Boolean(paytrackActif);
     await company.save();
+    await recordCompanyActivity(req, 'entreprise.parametres_modifies', 'Company', company.id, { champs: Object.keys(req.body) });
 
     res.status(200).json(company);
   } catch (error) {
@@ -212,6 +216,7 @@ export const createMember = async (req: AuthenticatedRequest, res: Response): Pr
       companyId: req.user!.companyId!,
       companyRole,
     });
+    await recordCompanyActivity(req, 'membre.ajoute', 'User', member.id, { nom: `${prenom} ${nom}`, companyRole });
 
     res.status(201).json({
       id: member.id,
@@ -242,8 +247,10 @@ export const updateMemberRole = async (req: AuthenticatedRequest, res: Response)
     });
     if (!member) { res.status(404).json({ error: 'Membre introuvable dans votre entreprise.' }); return; }
 
+    const ancienRole = member.companyRole;
     member.companyRole = companyRole;
     await member.save();
+    await recordCompanyActivity(req, 'membre.role_modifie', 'User', member.id, { de: ancienRole, vers: companyRole });
 
     res.status(200).json({ id: member.id, companyRole: member.companyRole });
   } catch (error) {
@@ -268,14 +275,58 @@ export const removeMember = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
+    const nomMembre = `${member.prenom} ${member.nom}`;
     member.statut = 'suspendu';
     member.companyRole = null;
     member.companyId = null;
     await member.save();
+    await recordCompanyActivity(req, 'membre.retire', 'User', member.id, { nom: nomMembre });
 
     res.status(200).json({ message: 'Membre retiré de l\'entreprise.' });
   } catch (error) {
     console.error('Erreur removeMember :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// GET /api/v1/companies/me/activity-log?action=&userId=&page=&limit= — protect + requireCompany.
+// Journal d'activité de l'équipe (qui a fait quoi et quand dans l'entreprise) : lecture ouverte à
+// tout membre (y compris readonly), pas seulement les admins — c'est un outil de visibilité
+// d'équipe, pas une donnée sensible. Volontairement limité à actorType='company_user' : les
+// actions du personnel ATAABA sur cette entreprise (suspension, changement de plan...) restent
+// dans le journal interne back-office, jamais exposées ici.
+export const listActivityLog = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { action, userId, page = 1, limit = 50 } = req.query;
+    const where: any = { companyId: req.user!.companyId!, actorType: 'company_user' };
+    if (action) where.action = { [Op.like]: `${String(action)}%` };
+    if (userId) where.actorUserId = Number(userId);
+
+    const offset = (Number(page) - 1) * Number(limit);
+    const { count, rows } = await AuditLog.findAndCountAll({
+      where,
+      limit: Number(limit),
+      offset,
+      order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    });
+
+    const actorIds = Array.from(new Set(rows.map((r) => r.actorUserId).filter((id): id is number => id !== null)));
+    const actors = actorIds.length ? await User.findAll({ where: { id: { [Op.in]: actorIds } }, attributes: ['id', 'nom', 'prenom'] }) : [];
+    const actorById = new Map(actors.map((a) => [a.id, `${a.prenom} ${a.nom}`]));
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      objectType: r.objectType,
+      objectId: r.objectId,
+      details: r.details ? JSON.parse(r.details) : null,
+      auteur: r.actorUserId ? (actorById.get(r.actorUserId) || 'Utilisateur supprimé') : null,
+      createdAt: r.createdAt,
+    }));
+
+    res.status(200).json({ data, total: count, page: Number(page), totalPages: Math.ceil(count / Number(limit)) });
+  } catch (error) {
+    console.error('Erreur listActivityLog :', error);
     res.status(500).json({ error: 'Une erreur est survenue.' });
   }
 };

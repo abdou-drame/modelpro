@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { AuditLog } from '../models/AuditLog';
+import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 
 interface AuditParams {
   actorUserId?: number | null;
@@ -31,4 +32,28 @@ export const recordAudit = async (params: AuditParams): Promise<void> => {
   } catch (error) {
     console.error('[Audit] Écriture du journal impossible :', error);
   }
+};
+
+// Journal d'activité entreprise (2026-09-25) : raccourci pour les actions métier des membres d'une
+// entreprise (devis envoyé, commande confirmée, facture payée...), visible par l'équipe elle-même
+// via GET /companies/me/activity-log — distinct du journal interne ATAABA (actorType 'staff',
+// consultable uniquement au back-office). Réutilise la même table AuditLog : même mécanisme,
+// même garantie "n'échoue jamais", juste un contexte (l'utilisateur courant) déjà rempli.
+export const recordCompanyActivity = async (
+  req: AuthenticatedRequest,
+  action: string,
+  objectType?: string,
+  objectId?: number | null,
+  details?: Record<string, unknown>
+): Promise<void> => {
+  await recordAudit({
+    actorUserId: req.user!.id,
+    actorType: 'company_user',
+    companyId: req.user!.companyId!,
+    action,
+    objectType,
+    objectId,
+    details,
+    req,
+  });
 };

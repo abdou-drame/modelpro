@@ -1135,6 +1135,42 @@ L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel d�
 
 - Prochaine étape : retester plus tard (ou dès que l'utilisateur voit la plateforme DexPay stabilisée) avec un nouvel abonnement — celui utilisé pour ce test a été nettoyé (entreprise de test supprimée de la base).
 
+## 2026-09-25 — Journal d'activité entreprise
+
+- Objectif : suite au choix de l'utilisateur sur la liste de priorités ("journal d'activité"). Un flux "qui a fait quoi et quand" dans l'entreprise, visible par toute l'équipe — distinct du journal interne ATAABA (`AuditLog`, `actorType='staff'`, consultable uniquement au back-office par le personnel plateforme).
+
+- Décision de conception : pas de nouveau modèle. `AuditLog` avait déjà exactement la bonne forme (`actorUserId`, `actorType`, `companyId`, `action`, `objectType`, `objectId`, `details`, `createdAt`) et prévoyait déjà `actorType: 'company_user'` sans qu'aucun contrôleur métier ne l'utilise jamais — le gap n'était pas un manque de modèle, mais l'absence totale d'appels `recordAudit` dans les contrôleurs CRM/ERP (vérifié : seuls back-office/PayTrack/DexPay/support/2FA staff l'utilisaient) et l'absence d'un point d'entrée pour qu'une entreprise consulte son propre journal.
+
+- Fichiers modifiés :
+  - `src/services/auditService.ts` — nouveau `recordCompanyActivity(req, action, objectType?, objectId?, details?)`, raccourci pré-rempli (`actorType: 'company_user'`, `companyId`/`actorUserId` lus sur `req.user`) pour éviter de répéter ces champs à chaque appel.
+  - `src/controllers/companyController.ts` — nouveau `listActivityLog` (`GET /companies/me/activity-log?action=&userId=&page=&limit=`), lecture ouverte à tout membre de l'entreprise (y compris `readonly` — outil de visibilité d'équipe, pas une donnée sensible réservée aux admins), filtré strictement sur `actorType='company_user'` pour ne jamais exposer les actions du personnel ATAABA sur cette entreprise. Résout aussi le nom de l'auteur (`prenom nom`) pour chaque entrée plutôt que de renvoyer un `actorUserId` brut. Appels `recordCompanyActivity` ajoutés à `createMember`/`updateMemberRole`/`removeMember`/`updateMyCompany`.
+  - `src/controllers/crmCustomerController.ts` — `createCustomer` (`client.cree`), `convertToClient` (`prospect.converti`).
+  - `src/controllers/quoteController.ts` — la factory `transition()` partagée par `sendQuote`/`acceptQuote`/`refuseQuote`/`expireQuote` loggue désormais `devis.<statut>` en un seul point (au lieu de dupliquer l'appel dans chacune).
+  - `src/controllers/salesOrderController.ts` — même principe pour la factory `transition()` (`confirmOrder`/`startPreparationOrder`/`cancelOrder` → `commande.<statut>`), plus `convertQuoteToOrder` (`devis.transforme_en_commande`) et `deliverOrder` (`commande.livree`, hors factory car couplé aux mouvements de stock).
+  - `src/controllers/invoiceController.ts` — `sendInvoice`, `cancelInvoice`, `createCreditNote` (`avoir.cree`), `recordPayment` (`facture.paiement_enregistre`, montant dans les détails).
+  - `src/controllers/purchaseOrderController.ts` — même principe (factory `transition()` → `commande_achat.<statut>`, `receivePurchaseOrder`, `recordPayment`).
+  - `src/controllers/stockController.ts` — `createMovement` (`stock.mouvement_<type>`), `recordInventaire` (`stock.inventaire`, avant/après).
+  - `src/routes/companyRoutes.ts` — `GET /me/activity-log`.
+
+- Aucune migration nécessaire : réutilise la table `audit_logs` existante, aucune nouvelle colonne.
+
+- Tests ajoutés : `src/__tests__/activityLog.test.ts` (8) — ajout de membre avec auteur/détails corrects, création client filtrable par préfixe d'action, cycle devis (envoyé/accepté/transformé en commande), paiement de facture avec montant dans les détails, lecture autorisée à un rôle `readonly`, isolation stricte entre entreprises, changement de rôle/retrait de membre, **actions du personnel ATAABA invisibles dans ce journal** (créé un staff, suspendu l'entreprise via le back-office, vérifié que rien n'apparaît côté entreprise).
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit && npm run build   → OK
+  npx jest activityLog.test.ts        → 8/8 passants
+  npm test (suite complète)           → 437/439, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental)
+  ```
+  Vérifié aussi en conditions réelles sur PostgreSQL : création d'un client réelle suivie d'une lecture du journal via `curl`, entrée retrouvée avec le bon auteur et les bons détails. Données nettoyées ensuite.
+
+- Limites connues / périmètre volontairement non couvert (pour rester dans un temps raisonnable, pas un oubli) :
+  - **Pipeline commercial** (opportunités, changement d'étape, tâches/rendez-vous) — pas encore instrumenté. Ajout naturel si le besoin se confirme, même mécanisme (`recordCompanyActivity`) à répliquer dans `opportunityController.ts`/`crmTaskController.ts`.
+  - **Fournisseurs** (création, pas seulement les commandes d'achat) et **catalogue produits** — non instrumentés, jugés plus bas niveau/moins "activité d'équipe" que les documents commerciaux.
+  - Pas de pagination infinie ni de export CSV de ce journal — juste la pagination page/limit standard déjà utilisée ailleurs.
+
+- Prochaine étape : au choix de l'utilisateur — notifications e-mail métier, rentabilité avancée (à préciser), reporting multisite, ou étendre le journal d'activité au pipeline commercial si jugé prioritaire.
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module

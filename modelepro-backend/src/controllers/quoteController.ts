@@ -11,6 +11,7 @@ import { nextDocumentNumber } from '../services/documentNumberingService';
 import { Company } from '../models/Company';
 import { generateQuotePdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const QUOTE_STATUSES = ['brouillon', 'envoye', 'accepte', 'refuse', 'expire'] as const;
 
@@ -318,6 +319,7 @@ const transition = (allowedFrom: string[], to: Quote['statut']) => {
 
       quote.statut = to;
       await quote.save();
+      await recordCompanyActivity(req, `devis.${to}`, 'Quote', quote.id, { numero: quote.numero });
       res.status(200).json(quote);
     } catch (error) {
       console.error('Erreur transition devis :', error);

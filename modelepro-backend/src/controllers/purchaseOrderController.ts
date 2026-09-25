@@ -14,6 +14,7 @@ import { applyStockMovement } from '../services/stockService';
 import { Company } from '../models/Company';
 import { generatePurchaseOrderPdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const ORDER_STATUSES = ['brouillon', 'envoyee', 'confirmee', 'recue', 'annulee'] as const;
 const PAYMENT_MEANS = ['especes', 'virement', 'cheque', 'mobile_money', 'autre'] as const;
@@ -337,6 +338,7 @@ const transition = (allowedFrom: string[], to: PurchaseOrder['statut']) => {
       order.statut = to;
       appendHistory(order, to, req.user!.id);
       await order.save();
+      await recordCompanyActivity(req, `commande_achat.${to}`, 'PurchaseOrder', order.id, { numero: order.numero });
       res.status(200).json(order);
     } catch (error) {
       console.error('Erreur transition commande fournisseur :', error);
@@ -391,6 +393,7 @@ export const receivePurchaseOrder = async (req: AuthenticatedRequest, res: Respo
       await order.save({ transaction: t });
     });
 
+    await recordCompanyActivity(req, 'commande_achat.recue', 'PurchaseOrder', order.id, { numero: order.numero });
     res.status(200).json(order);
   } catch (error) {
     console.error('Erreur receivePurchaseOrder :', error);
@@ -441,6 +444,7 @@ export const recordPayment = async (req: AuthenticatedRequest, res: Response): P
       return payment;
     });
 
+    await recordCompanyActivity(req, 'commande_achat.paiement_enregistre', 'PurchaseOrder', order.id, { numero: order.numero, montant: montantNumber });
     res.status(201).json({ payment, order });
   } catch (error) {
     console.error('Erreur recordPayment (purchase order) :', error);
