@@ -59,8 +59,8 @@ beforeAll(async () => {
     localisation: 'Dakar',
   });
 
-  artisanToken = generateToken(artisanUser.id, 'artisan');
-  clientToken = generateToken(clientUser.id, 'client');
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
+  clientToken = generateToken(clientUser.id, 'client', 0);
 
   const order = await Order.create({
     artisanId: artisanProfile.id,
@@ -94,7 +94,7 @@ beforeAll(async () => {
     role: 'client',
     statut: 'actif',
   });
-  externalToken = generateToken(externalUser.id, 'client');
+  externalToken = generateToken(externalUser.id, 'client', 0);
 });
 
 afterAll(async () => {

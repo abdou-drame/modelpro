@@ -37,6 +37,12 @@ import { Company } from './Company';
   declare twoFactorEnabled: boolean;
   declare emailOtpCodeHash: string | null;
   declare emailOtpExpiresAt: Date | null;
+  // Déconnexion serveur (Phase 5). Le JWT embarque la valeur de `sessionVersion` au moment de sa
+  // création (claim `sv`) ; authMiddleware.protect compare ce claim à la valeur actuelle en base à
+  // CHAQUE requête. `POST /auth/logout` incrémente ce compteur : tout jeton émis avant devient
+  // instantanément invalide, sur tous les appareils (pas de session par appareil trackée) — une
+  // reconnexion normale (login) émet un nouveau jeton avec la valeur à jour.
+  declare sessionVersion: number;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -121,6 +127,11 @@ User.init(
     emailOtpExpiresAt: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    sessionVersion: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
   },
   {

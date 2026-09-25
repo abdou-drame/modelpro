@@ -10,6 +10,7 @@ import {
 } from '../controllers/backofficeController';
 import { listAllTickets, getTicketAsStaff, replyAsStaff, updateTicketAsStaff } from '../controllers/supportController';
 import { listEvents as listPaytrackEvents, listTransactions as listPaytrackTransactions } from '../controllers/paytrackController';
+import { listEvents as listDexpayEvents } from '../controllers/dexpayController';
 import { setupTwoFactor, confirmTwoFactor, disableTwoFactor, resetStaffTwoFactor } from '../controllers/twoFactorController';
 
 const router = Router();
@@ -54,6 +55,7 @@ router.post('/companies/:id/trial/extend', superadmin, extendTrial);
 
 router.get('/integrations/paytrack/events', supportOrAbove, listPaytrackEvents);
 router.get('/integrations/paytrack/transactions', supportOrAbove, listPaytrackTransactions);
+router.get('/integrations/dexpay/events', supportOrAbove, listDexpayEvents);
 
 router.get('/tickets', supportOrAbove, listAllTickets);
 router.get('/tickets/:id', supportOrAbove, getTicketAsStaff);

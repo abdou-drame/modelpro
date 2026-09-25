@@ -14,6 +14,7 @@ import {
   removeMember,
 } from '../controllers/companyController';
 import { sendCompanyEmailOtp, enableCompanyEmailTwoFactor, disableCompanyEmailTwoFactor } from '../controllers/companyTwoFactorController';
+import { subscribeCompany, cancelCompanySubscription } from '../controllers/dexpayController';
 import { authLimiter } from '../middlewares/rateLimitMiddleware';
 
 const router = Router();
@@ -33,6 +34,12 @@ router.post('/me/logo', protect, requireCompany, enforceSubscription, requireCom
 router.post('/me/2fa/email/send-code', protect, requireCompany, authLimiter, sendCompanyEmailOtp);
 router.post('/me/2fa/email/enable', protect, requireCompany, enableCompanyEmailTwoFactor);
 router.post('/me/2fa/email/disable', protect, requireCompany, disableCompanyEmailTwoFactor);
+
+// Paiement DexPay des abonnements (2026-09-25) — volontairement SANS enforceSubscription : une
+// entreprise suspendue/expirée doit pouvoir payer pour se réactiver, ce que enforceSubscription
+// bloquerait sinon (même principe que les routes /support, jamais gatées non plus).
+router.post('/me/subscription/dexpay/subscribe', protect, requireCompany, requireCompanyRole('admin'), subscribeCompany);
+router.post('/me/subscription/dexpay/cancel', protect, requireCompany, requireCompanyRole('admin'), cancelCompanySubscription);
 
 router.get('/members', protect, requireCompany, listMembers);
 router.post('/members', protect, requireCompany, enforceSubscription, requireCompanyRole('admin'), createMember);

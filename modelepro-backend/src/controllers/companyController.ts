@@ -64,7 +64,7 @@ export const registerCompany = async (req: Request, res: Response): Promise<void
       return { company, owner };
     });
 
-    const token = generateToken(owner.id, owner.role, { companyId: company.id, companyRole: owner.companyRole });
+    const token = generateToken(owner.id, owner.role, owner.sessionVersion, { companyId: company.id, companyRole: owner.companyRole });
 
     res.status(201).json({
       message: 'Entreprise et compte administrateur créés avec succès.',

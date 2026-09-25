@@ -96,7 +96,9 @@ describe('Back-office ATAABA — contrôle d’accès', () => {
 
   it('un membre du personnel suspendu perd l’accès immédiatement (token encore valide)', async () => {
     await request(app).patch(`/api/v1/backoffice/staff/${staffSupportId}/status`).set('Authorization', `Bearer ${superToken}`).send({ statut: 'suspendu' });
-    expect((await request(app).get('/api/v1/backoffice/companies').set('Authorization', `Bearer ${supportToken}`)).status).toBe(403);
+    // 401 (authMiddleware.protect revalide le compte à chaque requête, Phase 5) et non plus 403 :
+    // la suspension est désormais détectée avant même d'atteindre requirePlatformStaff.
+    expect((await request(app).get('/api/v1/backoffice/companies').set('Authorization', `Bearer ${supportToken}`)).status).toBe(401);
     await request(app).patch(`/api/v1/backoffice/staff/${staffSupportId}/status`).set('Authorization', `Bearer ${superToken}`).send({ statut: 'actif' });
     expect((await request(app).get('/api/v1/backoffice/companies').set('Authorization', `Bearer ${supportToken}`)).status).toBe(200);
   });

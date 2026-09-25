@@ -54,8 +54,8 @@ beforeAll(async () => {
   artisanId = artisanProfile.id;
   otherArtisanId = otherArtisanProfile.id;
 
-  artisanToken = generateToken(artisanUser.id, 'artisan');
-  clientToken = generateToken(clientUser.id, 'client');
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
+  clientToken = generateToken(clientUser.id, 'client', 0);
 
   const creation = await Creation.create({ artisanId, titre: 'Robe A', description: 'Tunique', prixEstimatif: 10000 });
   creationId = creation.id;

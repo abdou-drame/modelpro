@@ -17,6 +17,19 @@ export class CompanySubscription extends Model {
   declare dateFinPeriode: Date | null;
   declare motifSuspension: string | null;
   declare alerteExpirationEnvoyee: boolean;
+  // Facturation DexPay (2026-09-25) — liens vers le customer/subscription créés côté DexPay pour
+  // cette entreprise. Renseignés à la création de l'abonnement DexPay (dexpayService.ts),
+  // retrouvés par le webhook pour appliquer les événements (paiement réussi/échoué, annulation) à
+  // la bonne entreprise.
+  declare dexpayCustomerId: string | null;
+  declare dexpaySubscriptionId: string | null;
+  // Corrélation du webhook `checkout.completed` (2026-09-25, vérifié contre le vrai sandbox) : ce
+  // type d'événement n'a NI subscription_id NI les metadata passées à la création (DexPay renvoie
+  // les siennes, ex. merchant_id) — seul `data.payment.checkout_session_id` de la réponse de
+  // POST /subscriptions correspond au `checkout_session_id` reçu dans ce webhook précis. Les
+  // renouvellements ultérieurs (`subscription.payment.succeeded` d'après le guide) sont, eux,
+  // censés porter `subscription_id` — non encore vérifié en conditions réelles.
+  declare dexpayCheckoutSessionId: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -39,6 +52,9 @@ CompanySubscription.init(
     dateFinPeriode: { type: DataTypes.DATE, allowNull: true },
     motifSuspension: { type: DataTypes.TEXT, allowNull: true },
     alerteExpirationEnvoyee: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    dexpayCustomerId: { type: DataTypes.STRING(120), allowNull: true },
+    dexpaySubscriptionId: { type: DataTypes.STRING(120), allowNull: true },
+    dexpayCheckoutSessionId: { type: DataTypes.STRING(120), allowNull: true },
   },
   { sequelize, tableName: 'saas_subscriptions', timestamps: true }
 );

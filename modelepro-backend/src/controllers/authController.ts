@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { Client } from '../models/Client';
 import { Artisan } from '../models/Artisan';
 import { Pack } from '../models/Pack';
+import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { hashPassword, comparePassword, generateToken, generateTwoFactorPendingToken, verifyTwoFactorPendingToken } from '../utils/auth';
 import { verifyTwoFactorCode } from '../services/twoFactorService';
 import { sendEmailOtp, verifyEmailOtp } from '../services/emailOtpService';
@@ -65,7 +66,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       await Client.create({ userId: newUser.id, localisation: localisation || null });
 
       // Générer le jeton JWT pour connecter directement le client après inscription
-      const token = generateToken(newUser.id, newUser.role);
+      const token = generateToken(newUser.id, newUser.role, newUser.sessionVersion);
 
       res.status(201).json({
         message: 'Compte client créé avec succès !',
@@ -202,6 +203,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = generateToken(
       user.id,
       user.role,
+      user.sessionVersion,
       user.role === 'entreprise'
         ? { companyId: user.companyId, companyRole: user.companyRole }
         : user.role === 'ataaba_staff'
@@ -258,6 +260,7 @@ export const verifyTwoFactor = async (req: Request, res: Response): Promise<void
     const token = generateToken(
       user.id,
       user.role,
+      user.sessionVersion,
       user.role === 'entreprise'
         ? { companyId: user.companyId, companyRole: user.companyRole }
         : user.role === 'ataaba_staff'
@@ -272,5 +275,24 @@ export const verifyTwoFactor = async (req: Request, res: Response): Promise<void
   } catch (error) {
     console.error('Erreur lors de la vérification 2FA :', error);
     res.status(500).json({ error: 'Une erreur est survenue lors de la vérification.' });
+  }
+};
+
+// POST /api/v1/auth/logout — protect requis. Déconnexion serveur (Phase 5) : incrémente
+// `sessionVersion`, ce qui invalide immédiatement TOUS les jetons émis avant cet appel, sur tous
+// les appareils (pas de session par appareil trackée) — authMiddleware.protect compare ce compteur
+// à chaque requête. Une reconnexion normale (login) émet un nouveau jeton avec la valeur à jour.
+export const logout = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = await User.findByPk(req.user!.id);
+    if (!user) { res.status(404).json({ error: 'Utilisateur introuvable.' }); return; }
+
+    user.sessionVersion += 1;
+    await user.save();
+
+    res.status(200).json({ message: 'Déconnexion réussie.' });
+  } catch (error) {
+    console.error('Erreur lors de la déconnexion :', error);
+    res.status(500).json({ error: 'Une erreur est survenue lors de la déconnexion.' });
   }
 };

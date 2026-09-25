@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/database';
+import { User } from '../models/User';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -32,6 +33,7 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
     const decoded = jwt.verify(token, JWT_SECRET) as {
       id: number;
       role: string;
+      sv?: number;
       companyId?: number | null;
       companyRole?: string | null;
       platformRole?: string | null;
@@ -43,6 +45,19 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
     // en profondeur — il ne doit jamais servir de jeton d'accès normal.
     if (decoded.purpose === '2fa_pending') {
       res.status(401).json({ error: 'Vérification à deux facteurs requise.' });
+      return;
+    }
+
+    // Déconnexion serveur (Phase 5) : le compte est revalidé en base à CHAQUE requête, pas
+    // seulement fait confiance au JWT — un jeton dont `sv` ne correspond plus à
+    // `user.sessionVersion` a été invalidé par un `POST /auth/logout` depuis son émission (sur cet
+    // appareil ou un autre, aucune session par appareil trackée). Ferme au passage un trou
+    // préexistant : un compte suspendu en cours de route gardait un accès valide jusqu'à
+    // l'expiration naturelle du jeton (jusqu'à 7 jours) faute de revalidation ailleurs que pour le
+    // personnel ATAABA (platformMiddleware.requirePlatformStaff).
+    const user = await User.findByPk(decoded.id);
+    if (!user || user.statut !== 'actif' || user.sessionVersion !== (decoded.sv ?? 0)) {
+      res.status(401).json({ error: 'Session invalide ou expirée. Reconnectez-vous.' });
       return;
     }
 

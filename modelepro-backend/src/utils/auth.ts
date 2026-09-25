@@ -11,13 +11,18 @@ export const comparePassword = async (password: string, hashed: string): Promise
   return bcrypt.compare(password, hashed);
 };
 
+// `sessionVersion` (claim `sv`) est requis explicitement (pas de valeur par défaut) : chaque appel
+// doit lire la valeur actuelle sur l'utilisateur concerné (0 pour un compte tout juste créé, sinon
+// `user.sessionVersion`) — voir authMiddleware.protect, qui compare ce claim à la valeur en base à
+// chaque requête pour permettre une déconnexion serveur (`POST /auth/logout`).
 export const generateToken = (
   userId: number,
   role: string,
+  sessionVersion: number,
   companyContext?: { companyId?: number | null; companyRole?: string | null; platformRole?: string | null }
 ): string => {
   return jwt.sign(
-    { id: userId, role, ...(companyContext ?? {}) },
+    { id: userId, role, sv: sessionVersion, ...(companyContext ?? {}) },
     JWT_SECRET,
     { expiresIn: '7d' }
   );

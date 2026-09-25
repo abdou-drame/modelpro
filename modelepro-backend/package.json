@@ -12,7 +12,8 @@
     "seed": "ts-node --transpile-only src/seed.ts",
     "seed:reset": "ts-node --transpile-only src/seed.ts --force",
     "db:clean": "ts-node --transpile-only src/clean-db.ts",
-    "staff:create": "ts-node --transpile-only src/createStaff.ts"
+    "staff:create": "ts-node --transpile-only src/createStaff.ts",
+    "dexpay:setup-products": "ts-node --transpile-only src/setupDexpayProducts.ts"
   },
   "keywords": [],
   "author": "",

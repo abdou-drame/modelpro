@@ -15,7 +15,7 @@ beforeAll(async () => {
 
   const clientUser = await User.create({ nom: 'Client', prenom: 'Test', telephone: '001', email: 'c@test.com', password: 'pwd', role: 'client' });
   clientId = clientUser.id;
-  clientToken = generateToken(clientId, 'client');
+  clientToken = generateToken(clientId, 'client', 0);
 
   const artisanUser = await User.create({ nom: 'Artisan', prenom: 'A', telephone: '002', password: 'pwd', role: 'artisan' });
   const artisanProfile = await Artisan.create({ userId: artisanUser.id, métier: 'Tailleur', atelier: 'A1', localisation: 'Dakar' });

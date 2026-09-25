@@ -197,6 +197,10 @@ async function runAutoMigrations() {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(20);`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_otp_code_hash VARCHAR(255);`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_otp_expires_at TIMESTAMP WITH TIME ZONE;`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE saas_subscriptions ADD COLUMN IF NOT EXISTS dexpay_customer_id VARCHAR(120);`,
+    `ALTER TABLE saas_subscriptions ADD COLUMN IF NOT EXISTS dexpay_subscription_id VARCHAR(120);`,
+    `ALTER TABLE saas_subscriptions ADD COLUMN IF NOT EXISTS dexpay_checkout_session_id VARCHAR(120);`,
   ];
 
   for (const query of migrations) {

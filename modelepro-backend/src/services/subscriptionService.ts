@@ -163,7 +163,9 @@ export const renewSubscription = async (
   return sub;
 };
 
-const notifyCompanyAdmins = async (companyId: number, titre: string, description: string): Promise<void> => {
+// Exporté : réutilisé par dexpayController.ts pour notifier un échec de paiement d'abonnement
+// (webhook subscription.payment.failed) sans dupliquer cette logique.
+export const notifyCompanyAdmins = async (companyId: number, titre: string, description: string): Promise<void> => {
   const admins = await User.findAll({ where: { companyId, companyRole: 'admin', statut: 'actif' } });
   for (const admin of admins) {
     await createNotification(admin.id, 'paiement', titre, description, undefined);

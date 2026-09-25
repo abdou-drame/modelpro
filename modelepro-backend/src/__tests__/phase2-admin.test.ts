@@ -17,7 +17,7 @@ beforeAll(async () => {
   await sequelize.sync({ force: true });
 
   const adminUser = await User.create({ nom: 'Admin', prenom: 'A', telephone: '001', password: 'pwd', role: 'admin' });
-  adminToken = generateToken(adminUser.id, 'admin');
+  adminToken = generateToken(adminUser.id, 'admin', 0);
 
   const clientUser = await User.create({ nom: 'Client', prenom: 'C', telephone: '002', password: 'pwd', role: 'client' });
   clientId = clientUser.id;

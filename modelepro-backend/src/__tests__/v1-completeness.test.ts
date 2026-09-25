@@ -30,7 +30,7 @@ describe('Audit Backend V1 - Tests d\'intégration des fonctionnalités complét
     });
     clientId = clientUser.id;
     await Client.create({ userId: clientId, localisation: 'Dakar' });
-    clientToken = generateToken(clientId, 'client');
+    clientToken = generateToken(clientId, 'client', 0);
 
     // Artisan
     const artisanUser = await User.create({
@@ -52,7 +52,7 @@ describe('Audit Backend V1 - Tests d\'intégration des fonctionnalités complét
       statutValidation: 'valide',
     });
     artisanId = artisanProf.id;
-    artisanToken = generateToken(artisanUserId, 'artisan');
+    artisanToken = generateToken(artisanUserId, 'artisan', 0);
 
     // Admin
     const adminUser = await User.create({
@@ -65,7 +65,7 @@ describe('Audit Backend V1 - Tests d\'intégration des fonctionnalités complét
       statut: 'actif',
     });
     adminId = adminUser.id;
-    adminToken = generateToken(adminId, 'admin');
+    adminToken = generateToken(adminId, 'admin', 0);
   });
 
   afterAll(async () => {

@@ -51,6 +51,7 @@ import './models/CompanySubscription';
 import './models/SubscriptionEvent';
 import './models/PaytrackTransaction';
 import './models/PaytrackEvent';
+import './models/DexpayEvent';
 import './models/SupportTicket';
 import './models/SupportTicketMessage';
 
@@ -73,6 +74,7 @@ import dashboardRoutes from './routes/dashboardRoutes';
 import backofficeRoutes from './routes/backofficeRoutes';
 import integrationRoutes from './routes/integrationRoutes';
 import supportRoutes from './routes/supportRoutes';
+import { handleWebhook as handleDexpayWebhook } from './controllers/dexpayController';
 
 dotenv.config();
 
@@ -111,6 +113,10 @@ app.use('/api/v1/crm/dashboard', dashboardRoutes);
 app.use('/api/v1/backoffice', backofficeRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/support', supportRoutes);
+// Alias : URL déjà configurée dans le tableau de bord marchand DexPay (2026-09-25). Le chemin
+// canonique reste /api/v1/integrations/dexpay/webhook (integrationRoutes.ts) ; les deux pointent
+// vers le même handler.
+app.post('/api/v1/webhooks/dexpay', handleDexpayWebhook);
 app.use('/api/v1', clientRoutes);
 
 // Route de test pour la santé de l'API

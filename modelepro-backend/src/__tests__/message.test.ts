@@ -58,8 +58,8 @@ beforeAll(async () => {
 
   orderId = order.id;
 
-  clientToken = generateToken(clientUser.id, 'client');
-  artisanToken = generateToken(artisanUser.id, 'artisan');
+  clientToken = generateToken(clientUser.id, 'client', 0);
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
 
   const externalUser = await User.create({
     nom: 'Externe',
@@ -71,7 +71,7 @@ beforeAll(async () => {
     statut: 'actif',
   });
 
-  externalToken = generateToken(externalUser.id, 'client');
+  externalToken = generateToken(externalUser.id, 'client', 0);
 });
 
 afterAll(async () => {

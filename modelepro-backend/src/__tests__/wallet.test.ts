@@ -64,9 +64,9 @@ beforeAll(async () => {
     waveNumber: '771234567',
   });
 
-  artisanToken = generateToken(artisanUser.id, 'artisan');
-  clientToken = generateToken(clientUser.id, 'client');
-  adminToken = generateToken(adminUser.id, 'admin');
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
+  clientToken = generateToken(clientUser.id, 'client', 0);
+  adminToken = generateToken(adminUser.id, 'admin', 0);
 
   const order = await Order.create({
     artisanId: artisanProfile.id,

@@ -98,9 +98,9 @@ beforeAll(async () => {
   });
   metierId = metier.id;
 
-  adminToken = generateToken(adminUser.id, 'admin');
-  clientToken = generateToken(clientUser.id, 'client');
-  artisanToken = generateToken(artisanUser.id, 'artisan');
+  adminToken = generateToken(adminUser.id, 'admin', 0);
+  clientToken = generateToken(clientUser.id, 'client', 0);
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
 });
 
 afterAll(async () => {

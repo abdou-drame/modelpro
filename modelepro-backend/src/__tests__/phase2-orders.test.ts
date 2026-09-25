@@ -17,8 +17,8 @@ beforeAll(async () => {
   const artisanUser = await User.create({ nom: 'A', prenom: 'A', telephone: '002', password: 'pwd', role: 'artisan' });
   const otherArtisan = await User.create({ nom: 'O', prenom: 'O', telephone: '003', password: 'pwd', role: 'artisan' });
 
-  artisanToken = generateToken(artisanUser.id, 'artisan');
-  otherArtisanToken = generateToken(otherArtisan.id, 'artisan');
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
+  otherArtisanToken = generateToken(otherArtisan.id, 'artisan', 0);
 
   const artisanProfile = await Artisan.create({ userId: artisanUser.id, métier: 'Tailleur', atelier: 'X', localisation: 'Y' });
   

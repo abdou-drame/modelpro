@@ -44,6 +44,7 @@ import './CompanySubscription';
 import './SubscriptionEvent';
 import './PaytrackTransaction';
 import './PaytrackEvent';
+import './DexpayEvent';
 import './SupportTicket';
 import './SupportTicketMessage';
 
@@ -93,5 +94,6 @@ export { CompanySubscription } from './CompanySubscription';
 export { SubscriptionEvent } from './SubscriptionEvent';
 export { PaytrackTransaction } from './PaytrackTransaction';
 export { PaytrackEvent } from './PaytrackEvent';
+export { DexpayEvent } from './DexpayEvent';
 export { SupportTicket } from './SupportTicket';
 export { SupportTicketMessage } from './SupportTicketMessage';

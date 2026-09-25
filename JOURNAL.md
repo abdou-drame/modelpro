@@ -990,6 +990,151 @@ Documents/Export PDF (§7.6, toujours différé), ou Phase 5 (2FA staff, rate li
 
 - Prochaine étape : clarifier le statut de ModèlePro avec l'utilisateur ; sinon, au choix — doc OpenAPI, CI/CD, ou une autre brique.
 
+## 2026-09-25 — Déconnexion serveur (JWT + sessionVersion)
+
+- Objectif : clarification obtenue sur "ModèlePro n'existe plus" — c'est l'ancien nom, devenu Naatalix (pas une instruction de suppression ; noté en mémoire, aucune action sur le code). L'utilisateur a ensuite demandé un état des lieux priorisé du reste du travail, avec un point qui l'a interpellé : il n'y avait pas de vraie déconnexion côté serveur (un jeton JWT restait valide jusqu'à son expiration naturelle, 7 jours, même après "déconnexion" côté client). Demandé de traiter ce point en premier, avant l'intégration DexPay (guide fourni, à traiter ensuite).
+
+- Solution retenue : compteur `sessionVersion` par utilisateur plutôt qu'une liste de jetons révoqués (pas de table à nettoyer, O(1) par utilisateur) :
+  - `User.sessionVersion` (INTEGER, défaut 0). Le JWT embarque sa valeur au moment de l'émission (claim `sv`).
+  - `authMiddleware.protect` devient asynchrone et revalide le compte en base à CHAQUE requête (pas seulement décoder le JWT) : compare `user.sessionVersion` au claim `sv`, et vérifie `user.statut === 'actif'`.
+  - `POST /auth/logout` (protégé) incrémente `sessionVersion` : tous les jetons émis avant deviennent invalides immédiatement, sur tous les appareils (pas de session par appareil trackée — un logout déconnecte partout, jugé plus utile qu'un logout partiel vu qu'aucun tracking par device n'existe). Une reconnexion normale (`/auth/login`, `/auth/2fa/verify`) émet un nouveau jeton avec la valeur à jour.
+  - `generateToken()` (`utils/auth.ts`) : `sessionVersion` devient un paramètre obligatoire (pas de valeur par défaut, pour ne jamais émettre un jeton avec une valeur périmée par erreur) — tous les points d'émission mis à jour (`register`, `login`, `verifyTwoFactor`, `registerCompany`).
+
+- Effet de bord positif (gratuit, puisque `protect` fait déjà la lecture en base) : un compte suspendu en cours de session (`User.statut = 'suspendu'`) perd l'accès immédiatement, plutôt que de garder un jeton valide jusqu'à 7 jours. Avant cette session, seul le personnel ATAABA bénéficiait de cette revalidation (`platformMiddleware.requirePlatformStaff`) ; c'est maintenant vrai pour tous les rôles (client/artisan/admin/entreprise/ataaba_staff).
+
+- Fichiers modifiés : `src/models/User.ts`, `src/server.ts` (migration `session_version`), `src/utils/auth.ts`, `src/middlewares/authMiddleware.ts`, `src/controllers/authController.ts` (nouveau `logout`), `src/controllers/companyController.ts`, `src/routes/authRoutes.ts`.
+
+- Tests ajoutés : `src/__tests__/logout.test.ts` (4) — logout invalide le jeton courant, une reconnexion en émet un nouveau distinct et définitivement séparé de l'ancien, logout invalide tous les appareils à la fois, un compte suspendu en cours de route perd l'accès immédiatement, logout sans jeton refusé.
+
+- Tests existants adaptés : tous les appels directs à `generateToken(...)` dans les fichiers de test (23 occurrences, 12 fichiers) nécessitaient déjà `sessionVersion` en 3ᵉ argument (signature devenue obligatoire) — complété à `0` (valeur par défaut d'un utilisateur de test fraîchement créé). `backoffice.test.ts` : l'assertion "personnel suspendu perd l'accès" passe de 403 à 401 (détecté maintenant par `protect` avant même d'atteindre `requirePlatformStaff`).
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit                  → OK
+  npx jest logout.test.ts           → 4/4 passants
+  npm test (suite complète)         → 414/416, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental)
+  ```
+  Vérifié aussi en conditions réelles sur PostgreSQL : colonne `session_version` confirmée après migration automatique, cycle complet testé via `curl` sur le serveur réel (accès avant logout → 200, même jeton après logout → 401, nouveau jeton après reconnexion → 200). Données de test nettoyées ensuite.
+
+- Limites connues : pas de session par appareil — un logout déconnecte tous les appareils d'un même compte, pas seulement celui qui l'a demandé (décision assumée, cf. ci-dessus). `protect` fait désormais une lecture en base à chaque requête authentifiée (avant : uniquement un décodage JWT, aucun accès base) — impact de performance mineur mais réel sur l'ensemble de l'API, nécessaire pour une vraie révocation.
+
+- Prochaine étape : intégration des paiements d'abonnement via DexPay (guide de mise en place fourni par l'utilisateur le 2026-09-25 — sandbox, produits/clients/abonnements côté serveur, webhook avec vérification de signature HMAC-SHA256, ne jamais activer un abonnement avant confirmation webhook).
+
+## 2026-09-25 — Facturation des abonnements Naatalix via DexPay
+
+- Objectif : implémenter le paiement des abonnements Naatalix (jusqu'ici gérés uniquement manuellement depuis le back-office) via DexPay, d'après un guide de mise en place détaillé fourni par l'utilisateur (endpoints, authentification par deux types de clés, format du webhook, piège à éviter). Contrairement à PayTrack (intégration construite sur un contrat hypothétique, jamais vérifié), ce guide donne un vrai contrat à suivre — même principe de prudence conservé : tout ce qui dépend du format réel de l'API DexPay reste isolé dans `dexpayService.ts`.
+
+- Fichiers ajoutés :
+  - `src/services/dexpayService.ts` — client DexPay : `createProduct` (mise en place initiale), `createCustomer`, `createSubscription`, `cancelSubscription` (authentifiés `x-api-secret`, jamais appelés depuis un frontend), `listPaymentProviders` (`x-api-key`), `verifyWebhookSignature` (HMAC-SHA256 du corps brut avec la clé secrète, comparaison en temps constant), `getProductId` (lit `DEXPAY_PRODUCT_<PLAN>_<PERIODE>` depuis l'environnement).
+  - `src/models/DexpayEvent.ts` — journal des webhooks reçus, même rôle que `PaytrackEvent`.
+  - `src/controllers/dexpayController.ts` — `subscribeCompany`/`cancelCompanySubscription` (actions admin entreprise) et `handleWebhook` (traite `checkout.completed`, `subscription.payment.succeeded/failed`, `subscription.cancelled`) + `listEvents` (supervision back-office).
+  - `src/setupDexpayProducts.ts` (+ script npm `dexpay:setup-products`) — crée les 6 produits DexPay (Essentiel/Pro/Business × mensuel/annuel — Entreprise exclue, sur devis) et affiche les variables `DEXPAY_PRODUCT_*` à coller dans `.env`. À lancer UNE SEULE FOIS (DexPay ne permet pas de relister les produits par nom).
+  - `CompanySubscription` : nouveaux champs `dexpayCustomerId`/`dexpaySubscriptionId`.
+  - `subscriptionService.notifyCompanyAdmins` exporté (était privé) pour être réutilisé par le webhook DexPay (notification d'échec de paiement) sans dupliquer cette logique.
+
+- Règles métier (issues du guide) :
+  - **Jamais d'activation optimiste** : `subscribeCompany` crée le client/abonnement DexPay et renvoie l'URL de paiement, mais ne touche jamais au statut de `CompanySubscription` — seul le webhook confirmé active (`renewSubscription`, déjà existant depuis la Phase 4) ou suspend. Même principe pour `cancelCompanySubscription` : la demande est transmise à DexPay, la suspension réelle attend `subscription.cancelled`.
+  - Webhook exposé hors authentification JWT (`POST /api/v1/integrations/dexpay/webhook`, à renseigner dans le tableau de bord marchand DexPay — le champ `webhook_url` des requêtes API est ignoré par DexPay, confirmé par l'utilisateur), confiance uniquement par la signature `X-Webhook-Signature`.
+  - `checkout.completed` : accepte `status` = `'completed'` ET `'success'` (ambiguïté du guide lui-même : "leur doc dit success, en pratique c'est completed").
+  - Payload accepté sous `data` OU à plat à la racine (`const data = payload.data ?? payload`).
+  - Entreprise retrouvée par `dexpaySubscriptionId` d'abord, repli sur `metadata.organization_id` sinon (les deux testés).
+  - Routes `subscribe`/`cancel` volontairement SANS `enforceSubscription` : une entreprise suspendue/expirée doit pouvoir payer pour se réactiver — même exception déjà appliquée aux routes `/support`.
+
+- **Hypothèses non confirmées par le guide (à vérifier dès l'accès à un vrai sandbox DexPay)** :
+  - Le champ exact contenant l'URL de paiement dans la réponse de `POST /subscriptions` (le guide ne détaille que l'id) — `checkout_url`/`payment_url`/`url` sont tous les trois tentés, dans cet ordre.
+  - Le nom du champ d'identifiant unique d'un événement webhook, nécessaire à une vraie idempotence (PayTrack, lui, documente `event_id`) — plusieurs noms plausibles sont tentés (`id`, `event_id`, `webhook_id`) ; en leur absence, l'événement est traité sans déduplication stricte. Accepté ici car les transitions appliquées (activer/suspendre/notifier) sont idempotentes par nature — rejouer "activer" n'a pas d'effet de bord, contrairement à l'enregistrement d'un `InvoicePayment` côté PayTrack.
+  - Le code devise attendu par DexPay pour des montants en FCFA (`XOF` utilisé par défaut dans `setupDexpayProducts.ts`).
+
+- Tests ajoutés : `src/__tests__/dexpay.test.ts` (15) — configuration manquante (503), création client+abonnement sans activation locale, refus pour un non-admin, signature invalide (401), activation par `subscription.payment.succeeded`, idempotence sur rejeu du même `eventId`, `checkout.completed` (statut abouti vs non abouti), échec de paiement sans blocage, annulation → suspension, repli par `metadata.organization_id`, payload à plat, abonnement introuvable (anomalie, jamais 500), annulation demandée sans suspension immédiate. Webhooks envoyés avec une vraie signature HMAC calculée sur le corps brut exact (même technique que `paytrack.test.ts` : `JSON.stringify` pré-calculé, jamais re-sérialisé par supertest).
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit && npm run build   → OK
+  npx jest dexpay.test.ts             → 15/15 passants
+  npm test (suite complète)           → 429/431, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental)
+  ```
+  Vérifié aussi en conditions réelles sur PostgreSQL : colonnes `dexpay_customer_id`/`dexpay_subscription_id` et table `integration_dexpay_events` confirmées après migration automatique.
+
+- Limites connues : rien de tout ceci n'a encore tourné contre le vrai sandbox DexPay (seulement `fetch` mocké en test) — avant mise en production, lancer `npm run dexpay:setup-products` avec de vraies clés sandbox, faire un premier `subscribe` réel et vérifier la forme exacte de la réponse (URL de paiement) et du webhook reçu, corriger les hypothèses ci-dessus si elles diffèrent.
+
+- Prochaine étape : test réel contre le sandbox DexPay dès que l'utilisateur fournit des clés `DEXPAY_PUBLIC_KEY`/`DEXPAY_SECRET_KEY` de test ; sinon, au choix — notifications e-mail métier, journal d'activité, doc OpenAPI/CI/CD.
+
+### Correction — les 3 hypothèses vérifiées par l'utilisateur contre un vrai sandbox DexPay (autre projet)
+
+L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel déjà en production sur DexPay (pas des suppositions) :
+
+1. **Enveloppe de réponse — bug réel corrigé, plus large que prévu.** Toute réponse DexPay (`/products`, `/customers`, `/subscriptions`) enveloppe son contenu utile sous une clé `data`. `dexpayService.secretRequest` ne déballait PAS cette enveloppe (il renvoyait le corps brut tel quel) — `createProduct`/`createCustomer` lisaient donc `id` au mauvais niveau et auraient échoué dès le premier vrai appel, pas seulement `createSubscription` comme supposé initialement. Corrigé : `secretRequest` renvoie désormais `raw.data ?? raw`.
+   - Particularité confirmée de `/subscriptions` : l'id de l'abonnement est imbriqué sous `data.subscription.id` (pas `data.id` comme pour les deux autres endpoints), et deux URLs de paiement sont exposées sous `data.payment` : `payment_url` (prod) et `sandbox_payment_url` (à utiliser en sandbox pour un vrai test de paiement). `createSubscription` choisit désormais la bonne URL selon que `DEXPAY_BASE_URL` contient `sandbox` ou non (`isSandbox()`), avec repli sur l'autre champ si celui attendu est absent.
+2. **Identifiant unique d'événement webhook — confirmé non nécessaire.** L'utilisateur n'a jamais eu besoin de dédupliquer par id dans son intégration DexPay en production : ses handlers (`activate()`/`suspend()`) sont naturellement idempotents (réappliquer le même statut plusieurs fois ne change rien), ce qui absorbe les doublons de livraison que certains fournisseurs déclenchent en cas de timeout. C'est exactement la conception déjà retenue ici (voir §"Webhook" plus haut) — validée, pas seulement "acceptée comme limite". Le commentaire du code a été mis à jour pour refléter que c'est un choix confirmé, pas une incertitude.
+3. **Devise `XOF` — confirmée à 100%**, vérifié à la fois à la création des produits et sur de vrais webhooks reçus en sandbox.
+
+- Fichiers modifiés : `src/services/dexpayService.ts` (déballage de l'enveloppe `data`, lecture correcte de `data.subscription.id` et `data.payment.{payment_url,sandbox_payment_url}`, sélection sandbox/prod), `src/controllers/dexpayController.ts` (commentaire mis à jour), `src/setupDexpayProducts.ts` (commentaire devise mis à jour), `src/__tests__/dexpay.test.ts` (mocks alignés sur la vraie forme de réponse, `DEXPAY_BASE_URL` de test contient désormais `sandbox` pour exercer la sélection d'URL).
+
+- Résultats : `npx tsc --noEmit && npm run build` → OK ; `npx jest dexpay.test.ts` → 15/15 ; suite complète → 429/431 (inchangé, mêmes 2 échecs connus).
+
+- Prochaine étape : inchangée — un vrai test contre le sandbox DexPay reste la meilleure vérification finale, mais les trois plus gros risques (enveloppe de réponse, URL de paiement, devise) sont désormais réglés sur la base d'un retour d'expérience réel plutôt que d'une supposition.
+
+### Test réel contre le sandbox DexPay (clés fournies par l'utilisateur, 2026-09-25)
+
+- Objectif : l'utilisateur a fourni ses vraies clés de test DexPay (`pk_test_...`/`sk_test_...`). Vérification en conditions réelles plutôt que mockées, jusqu'au bout de ce qui est possible sans passer par un vrai paiement en navigateur.
+
+- Déroulé :
+  1. Clés ajoutées à `.env` (jamais dans une commande shell, jamais affichées à nouveau dans les réponses — confirmé `.env` toujours gitignoré avant et après).
+  2. `npm run dexpay:setup-products` lancé contre le vrai sandbox → **succès** : les 6 produits (Essentiel/Pro/Business × mensuel/annuel) créés réellement, ids récupérés et collés dans `.env`. Confirme au passage que le correctif de déballage de l'enveloppe `data` (voir section précédente) était correct pour `/products`.
+  3. Premier essai de `subscribe` en conditions réelles → échoué avec `DEXPAY_NOT_CONFIGURED`, alors que `.env` était correct. Cause identifiée : cette session avait accumulé plusieurs processus serveur (`npm run dev`) jamais proprement arrêtés au fil des tests précédents (chaque `taskkill` ne visait que le PID lié au port 5000 au moment T, laissant les processus parents `ts-node-dev`/`npm` de l'arborescence orphelins) — un de ces processus fantômes, démarré avant l'ajout des clés DexPay à `.env`, a fini par reprendre le port 5000. **Pas un bug du code.** Tous les processus Node liés au projet tués (`Get-CimInstance Win32_Process` + `Stop-Process`), un seul serveur relancé proprement.
+  4. Nouvel essai → **succès réel** : `POST /companies/me/subscription/dexpay/subscribe` a créé un vrai client et un vrai abonnement DexPay, renvoyé `checkoutUrl` (`https://checkout.dexpay.africa/sandbox/SUB-...`, vérifié HTTP 200) et `dexpaySubscriptionId`. Vérifié en base : `CompanySubscription.statut` restée à `essai` (jamais activée avant confirmation), `dexpayCustomerId`/`dexpaySubscriptionId` bien enregistrés.
+  5. Données de test nettoyées, tous les processus serveur arrêtés proprement.
+
+- Confirmé par ce test réel (au-delà des 3 points déjà vérifiés par l'utilisateur la fois précédente) : l'authentification `x-api-secret` fonctionne avec les vraies clés, `createCustomer`/`createSubscription` fonctionnent de bout en bout avec le correctif d'enveloppe `data`, `sandbox_payment_url` est bien la bonne URL à utiliser en sandbox.
+
+- Limite restante : la confirmation par **webhook réel** n'a pas pu être testée (nécessite soit de compléter un paiement dans un navigateur sur l'URL de checkout, soit un tunnel public — `npm run tunnel`, déjà présent dans le projet pour PayTech — pour que DexPay puisse joindre `POST /api/v1/integrations/dexpay/webhook`, plus configurer cette URL dans le tableau de bord marchand DexPay). Dès que l'utilisateur veut aller jusqu'au bout (paiement réel en sandbox + réception du webhook), la prochaine étape est de monter ce tunnel ensemble.
+
+- Point de vigilance opérationnel noté pour la suite : toujours arrêter complètement l'arborescence de processus d'un `npm run dev` lancé en arrière-plan (pas seulement le PID sur le port), pour éviter de retester par erreur contre un processus obsolète.
+
+### Webhook réel reçu via ngrok + tableau de bord DexPay (2026-09-25)
+
+- L'utilisateur a monté son propre tunnel (ngrok, `pectin-spew-breeches.ngrok-free.dev`) et utilisé la fonction "Envoyez un événement de test" du tableau de bord marchand DexPay, configurée sur l'URL `https://.../api/v1/webhooks/dexpay`. Un premier essai a renvoyé 502 : chemin non reconnu (`/api/v1/webhooks/dexpay` ≠ le chemin construit `/api/v1/integrations/dexpay/webhook`) ET aucun serveur local actif à ce moment (arrêté à la fin de l'étape précédente). Corrigé par un alias `app.post('/api/v1/webhooks/dexpay', ...)` dans `app.ts` (même handler que le chemin canonique — évite à l'utilisateur de retoucher la configuration déjà saisie côté DexPay) puis redémarrage propre du serveur.
+
+- Deuxième essai : **200 OK**, confirmé à la fois côté ngrok (log `POST /api/v1/webhooks/dexpay 200 OK`) et côté base (`integration_dexpay_events`, un nouvel enregistrement). Valide tout le pipeline réel : DexPay → ngrok → notre serveur → vérification de signature HMAC (avec la vraie clé secrète) → réponse 200.
+
+- **Payload réel `checkout.completed` capturé** (précieux, absent du guide initial) :
+  ```json
+  {
+    "event": "checkout.completed", "reference": "TEST_...", "checkout_session_id": "...",
+    "transaction_id": "...", "amount": 10000, "currency": "XOF", "status": "completed",
+    "metadata": { "test": true }, "payment_attempt_id": "...", "operator": "wave_sn",
+    "payment_method": "mobile_money", "customer": { "name": "...", "phone": "...", "email": "..." }
+  }
+  ```
+  - **Aucune enveloppe `data`** pour les webhooks — les champs sont bien à plat à la racine, ce que `handleWebhook` gère déjà correctement (`payload.data ?? payload`).
+  - **Aucun champ `subscription_id`** pour `checkout.completed` — contrairement à l'hypothèse initiale du guide. Cet événement s'articule autour d'une session de paiement (`checkout_session_id`/`reference`/`transaction_id`), pas directement d'un abonnement. Le repli déjà en place sur `metadata.organization_id` reste donc le SEUL mécanisme de corrélation qui peut fonctionner pour cet événement précis — non cassé par cette découverte, mais son importance est plus grande que prévu.
+  - Résultat `anomalie` obtenu ("Abonnement introuvable") : **attendu et correct**, pas un bug — le bouton de test du tableau de bord DexPay envoie un événement synthétique (`metadata: {"test": true}`) non rattaché à un vrai abonnement Naatalix. Le comportement recherché (200, pas de crash, anomalie journalisée) est exactement celui obtenu.
+
+- Incertitude restant à lever : est-ce que DexPay propage réellement les `metadata` passées à la création de l'abonnement (`organization_id`/`plan`/`cycle`) jusque dans l'événement `checkout.completed` d'un VRAI paiement complété (pas le test synthétique du tableau de bord) ? Seul un vrai paiement en sandbox (via l'URL de checkout obtenue par `subscribeCompany`) le confirmerait. Proposé à l'utilisateur comme prochaine étape s'il souhaite aller jusqu'au bout.
+
+- Fichiers modifiés : `src/app.ts` (alias de route `/api/v1/webhooks/dexpay`).
+
+### Correction de la corrélation webhook : `checkout_session_id` (2026-09-25)
+
+- Objectif : lever l'incertitude ci-dessus. L'utilisateur a partagé un exemple de payload d'un **vrai paiement réussi** tiré de l'historique DexPay (pas un test synthétique) — réponse à sa propre question "quelle différence avec ce qu'on envoie à PayTech".
+
+- **Confirmé : l'incertitude était fondée, et dans le mauvais sens.** Le payload réel a `"metadata": {"merchant_id": "..."}` — DexPay remplace intégralement les metadata qu'on lui passe à la création de l'abonnement par les siennes. `metadata.organization_id` ne survit JAMAIS jusqu'au webhook `checkout.completed`. Le mécanisme de repli sur lequel reposait toute la corrélation pour cet événement était donc inopérant en pratique.
+
+- **Corrigé** en inspectant la réponse complète (non tronquée) de `POST /subscriptions` contre le vrai sandbox : `data.payment.checkout_session_id` existe et correspond exactement au `checkout_session_id` reçu dans le webhook `checkout.completed`. C'est un identifiant stable, connu dès la création de l'abonnement — contrairement aux metadata, qui ne sont pas fiables.
+  - Nouveau champ `CompanySubscription.dexpayCheckoutSessionId`, renseigné par `subscribeCompany` à la création.
+  - `dexpayService.createSubscription` renvoie désormais aussi `checkoutSessionId`.
+  - `dexpayController.findSubscription` tente désormais, dans l'ordre : `subscription_id` (renouvellements, non encore vérifié en réel) → **`checkout_session_id` (nouveau, le cas qui compte vraiment pour l'activation initiale)** → `metadata.organization_id` (dernier repli, sans certitude qu'un événement réel le fournira un jour).
+  - Tests mis à jour : le mock de `/subscriptions` inclut désormais `checkout_session_id` ; un nouveau test reproduit exactement la forme du payload réel (`checkout.completed`, ni `subscription_id` ni `organization_id`, seulement `merchant_id` dans `metadata`) et vérifie l'activation via `checkout_session_id` uniquement.
+
+- Migration : `saas_subscriptions.dexpay_checkout_session_id` (VARCHAR). `npx tsc --noEmit`, `npm run build`, `npx jest dexpay.test.ts` (15/15) → OK.
+
+- **Nouveau test réel tenté, bloqué côté DexPay (pas un bug Naatalix).** Après avoir annulé l'ancien abonnement de test resté "pending" (bloquait la création d'un nouveau via une erreur 409 — confirme au passage que le paiement précédent n'avait en réalité jamais abouti côté DexPay, cohérent avec l'absence de webhook observée avant cette session de débogage), un nouvel abonnement a été créé avec le correctif en place (`checkout_session_id` bien capturé). L'utilisateur a complété un paiement réel, redirigé vers `app.dexpay.africa/subscriptions/success` — page qui a renvoyé une **erreur 502 Cloudflare** côté DexPay. Vérification croisée :
+  - Journal des webhooks DexPay (tableau de bord) : aucune ligne pour cette transaction — la seule livraison "Succes" visible est un événement history antérieur et sans rapport.
+  - Interface d'inspection ngrok (`127.0.0.1:4040`, "All Requests") : une seule requête reçue depuis le démarrage du tunnel, celle du bouton "envoyer un test" d'avant — rien depuis.
+  - Conclusion : DexPay n'a jamais déclenché l'envoi d'un webhook pour ce paiement (pas un échec de livraison avec retries, une absence totale de tentative), cohérent avec leur propre page de succès en 502 au même moment — panne/instabilité ponctuelle de leur plateforme sandbox, pas un problème de notre côté. Tout ce qu'on contrôle a été validé positivement au passage : réception + vérification de signature (test réel réussi plus tôt), création réelle de client/abonnement/session de paiement, nouvelle logique de corrélation.
+
+- Prochaine étape : retester plus tard (ou dès que l'utilisateur voit la plateforme DexPay stabilisée) avec un nouvel abonnement — celui utilisé pour ce test a été nettoyé (entreprise de test supprimée de la base).
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module
