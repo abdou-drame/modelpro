@@ -15,6 +15,7 @@ import { Company } from '../models/Company';
 import { generatePurchaseOrderPdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
 import { recordCompanyActivity } from '../services/auditService';
+import { resolveSiteId } from '../services/siteService';
 
 const ORDER_STATUSES = ['brouillon', 'envoyee', 'confirmee', 'recue', 'annulee'] as const;
 const PAYMENT_MEANS = ['especes', 'virement', 'cheque', 'mobile_money', 'autre'] as const;
@@ -92,7 +93,7 @@ const buildLineData = async (companyId: number, raw: any, ordre: number) => {
 export const createPurchaseOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const companyId = req.user!.companyId!;
-    const { supplierId, contactId, dateEcheance, notes, remiseGlobale, lines } = req.body;
+    const { supplierId, contactId, siteId, dateEcheance, notes, remiseGlobale, lines } = req.body;
 
     if (!supplierId) { res.status(400).json({ error: 'supplierId requis.' }); return; }
 
@@ -114,6 +115,8 @@ export const createPurchaseOrder = async (req: AuthenticatedRequest, res: Respon
       }
     }
 
+    const resolvedSiteId = await resolveSiteId(companyId, siteId);
+
     const order = await sequelize.transaction(async (t) => {
       const numero = await nextDocumentNumber(companyId, 'ACH', t);
 
@@ -122,6 +125,7 @@ export const createPurchaseOrder = async (req: AuthenticatedRequest, res: Respon
         numero,
         supplierId: supplier.id,
         contactId: contactId || null,
+        siteId: resolvedSiteId,
         dateEcheance: dateEcheance || null,
         notes: notes || null,
         remiseGlobale: remiseGlobale !== undefined ? Number(remiseGlobale) : 0,

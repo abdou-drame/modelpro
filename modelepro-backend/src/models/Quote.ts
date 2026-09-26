@@ -4,6 +4,7 @@ import { Company } from './Company';
 import { Customer } from './Customer';
 import { Contact } from './Contact';
 import { User } from './User';
+import { Site } from './Site';
 
 // Devis (ROADMAP_BACKEND.md §7.1). sousTotal/totalTaxes/totalTTC sont recalculés et stockés à
 // chaque mutation de lignes (voir quoteController.recalculateQuoteTotals) — source unique
@@ -14,6 +15,10 @@ export class Quote extends Model {
   declare numero: string;
   declare customerId: number;
   declare contactId: number | null;
+  // Reporting multisite (2026-09-26, cahier §13 "Consolidation multisite"/"Reporting par site" —
+  // Business uniquement). Nullable : une entreprise mono-site n'a pas à en préciser un, et les
+  // documents créés avant cette date n'en ont pas.
+  declare siteId: number | null;
   declare statut: 'brouillon' | 'envoye' | 'accepte' | 'refuse' | 'expire';
   declare dateValidite: Date | null;
   declare notes: string | null;
@@ -52,6 +57,12 @@ Quote.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: Contact, key: 'id' },
+      onDelete: 'SET NULL',
+    },
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: Site, key: 'id' },
       onDelete: 'SET NULL',
     },
     statut: {
@@ -107,5 +118,6 @@ Quote.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
 Customer.hasMany(Quote, { foreignKey: 'customerId', as: 'quotes' });
 Quote.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 Quote.belongsTo(User, { foreignKey: 'createdByUserId', as: 'createdBy' });
+Quote.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
 
 export default Quote;

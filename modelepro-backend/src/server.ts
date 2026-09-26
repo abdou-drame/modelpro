@@ -201,6 +201,10 @@ async function runAutoMigrations() {
     `ALTER TABLE saas_subscriptions ADD COLUMN IF NOT EXISTS dexpay_customer_id VARCHAR(120);`,
     `ALTER TABLE saas_subscriptions ADD COLUMN IF NOT EXISTS dexpay_subscription_id VARCHAR(120);`,
     `ALTER TABLE saas_subscriptions ADD COLUMN IF NOT EXISTS dexpay_checkout_session_id VARCHAR(120);`,
+    `ALTER TABLE crm_quotes ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
+    `ALTER TABLE crm_sales_orders ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
+    `ALTER TABLE crm_invoices ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
+    `ALTER TABLE crm_purchase_orders ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
   ];
 
   for (const query of migrations) {

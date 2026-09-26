@@ -36,6 +36,10 @@ export const PLAN_FEATURE_KEYS = {
   RELANCES_ASSISTEES: 'relances_assistees',
   // Business uniquement.
   REPORTING_UTILISATEUR: 'reporting_utilisateur',
+  // Reporting multisite (2026-09-26, cahier §13 "Consolidation multisite"/"Reporting par site") —
+  // Business uniquement. Nécessite qu'un document commercial porte un siteId (Quote/SalesOrder/
+  // Invoice/PurchaseOrder, voir migration correspondante) pour être ventilable.
+  REPORTING_SITE: 'reporting_site',
 } as const;
 const PRO_FEATURES = [
   PLAN_FEATURE_KEYS.CRM_PIPELINE,
@@ -47,7 +51,7 @@ const PRO_FEATURES = [
   PLAN_FEATURE_KEYS.RENTABILITE_AVANCEE,
   PLAN_FEATURE_KEYS.RELANCES_ASSISTEES,
 ];
-const BUSINESS_FEATURES = [...PRO_FEATURES, PLAN_FEATURE_KEYS.REPORTING_UTILISATEUR];
+const BUSINESS_FEATURES = [...PRO_FEATURES, PLAN_FEATURE_KEYS.REPORTING_UTILISATEUR, PLAN_FEATURE_KEYS.REPORTING_SITE];
 
 // Tarifs de lancement et quotas validés par la direction ATAABA (NAATALIX_Formules_Fonctionnalites.docx,
 // 2026-09-24) — remplace les quotas de sites communiqués par e-mail le 2026-09-23 (Pro 3→2,

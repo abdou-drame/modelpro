@@ -20,6 +20,9 @@ import {
   discountSimulation,
   compareSimulations,
   supplierComparison,
+  getPrevisionnelVsReel,
+  getTresorerie,
+  getProfitabilityScore,
 } from '../controllers/profitabilityController';
 
 const router = Router();
@@ -40,6 +43,10 @@ const advanced = requireFeature(PLAN_FEATURE_KEYS.RENTABILITE_AVANCEE);
 router.get('/simulations/compare', advanced, compareSimulations);
 router.get('/supplier-comparison', advanced, supplierComparison);
 
+// Rentabilité avancée (2026-09-26) : prévisionnel vs réel, trésorerie, score /100.
+router.get('/tresorerie', advanced, getTresorerie);
+router.get('/score', advanced, getProfitabilityScore);
+
 router.get('/simulations', listSimulations);
 router.post('/simulations', canWrite, createSimulation);
 router.get('/simulations/:id', getSimulation);
@@ -56,5 +63,6 @@ router.post('/simulations/:id/target-profit', advanced, targetProfit);
 router.get('/simulations/:id/scenarios', advanced, getScenarios);
 router.post('/simulations/:id/sensitivity', advanced, sensitivityAnalysis);
 router.post('/simulations/:id/discount-simulation', advanced, discountSimulation);
+router.get('/simulations/:id/previsionnel-vs-reel', advanced, getPrevisionnelVsReel);
 
 export default router;

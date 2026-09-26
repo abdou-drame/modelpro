@@ -15,6 +15,7 @@ import { Company } from '../models/Company';
 import { generateInvoicePdf, generateReceiptPdf, generateCustomerStatementPdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
 import { recordCompanyActivity } from '../services/auditService';
+import { resolveSiteId } from '../services/siteService';
 
 const INVOICE_STATUSES = ['brouillon', 'envoyee', 'annulee'] as const;
 const PAYMENT_MEANS = ['especes', 'virement', 'cheque', 'mobile_money', 'autre'] as const;
@@ -95,7 +96,7 @@ const buildLineData = async (companyId: number, raw: any, ordre: number) => {
 export const createInvoice = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const companyId = req.user!.companyId!;
-    const { customerId, contactId, dateEcheance, notes, remiseGlobale, lines } = req.body;
+    const { customerId, contactId, siteId, dateEcheance, notes, remiseGlobale, lines } = req.body;
 
     if (!customerId) { res.status(400).json({ error: 'customerId requis.' }); return; }
 
@@ -117,6 +118,8 @@ export const createInvoice = async (req: AuthenticatedRequest, res: Response): P
       }
     }
 
+    const resolvedSiteId = await resolveSiteId(companyId, siteId);
+
     const invoice = await sequelize.transaction(async (t) => {
       const numero = await nextDocumentNumber(companyId, 'FAC', t);
 
@@ -125,6 +128,7 @@ export const createInvoice = async (req: AuthenticatedRequest, res: Response): P
         numero,
         customerId: customer.id,
         contactId: contactId || null,
+        siteId: resolvedSiteId,
         dateEcheance: dateEcheance || null,
         notes: notes || null,
         remiseGlobale: remiseGlobale !== undefined ? Number(remiseGlobale) : 0,
@@ -178,6 +182,7 @@ export const convertOrderToInvoice = async (req: AuthenticatedRequest, res: Resp
         numero,
         customerId: order.customerId,
         contactId: order.contactId,
+        siteId: order.siteId,
         salesOrderId: order.id,
         statut: 'envoyee',
         remiseGlobale: order.remiseGlobale,
@@ -482,6 +487,7 @@ export const createCreditNote = async (req: AuthenticatedRequest, res: Response)
         numero,
         customerId: original.customerId,
         contactId: original.contactId,
+        siteId: original.siteId,
         type: 'avoir',
         avoirDeFactureId: original.id,
         statut: 'envoyee',

@@ -13,10 +13,17 @@ import {
   computeSensitivity,
   computeDiscountSimulation,
   computeTargetProfit,
+  comparePrevisionnelVsReel,
+  computeProfitabilityScore,
   CostLine,
   SimulationInputs,
+  SimulationResults,
   SensitivityParameter,
 } from '../services/profitabilityCalculationService';
+import { Invoice } from '../models/Invoice';
+import { InvoiceLine } from '../models/InvoiceLine';
+import { PurchaseOrder } from '../models/PurchaseOrder';
+import { StockItem } from '../models/StockItem';
 
 const NATURES = ['produit', 'service', 'projet', 'commerce', 'production', 'importation', 'transformation', 'prestation', 'autre'] as const;
 const COST_CATEGORIES = ['achat_production', 'transport_logistique', 'frais_paiement', 'marketing', 'rh_fiscal', 'autre'] as const;
@@ -487,6 +494,168 @@ export const supplierComparison = async (req: AuthenticatedRequest, res: Respons
     });
   } catch (error) {
     console.error('Erreur supplierComparison :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// Reconstruit un SimulationResults à partir des champs mis en cache sur le modèle (source unique
+// déjà maintenue par recalculateSimulation) — évite de refaire tourner computeResults ici.
+const toResults = (sim: ProfitabilitySimulation): SimulationResults => ({
+  coutVariableUnitaire: sim.coutVariableUnitaire,
+  chargesFixesTotales: sim.chargesFixesTotales,
+  coutCompletUnitaire: sim.coutCompletUnitaire,
+  beneficeUnitaire: sim.beneficeUnitaire,
+  tauxMarge: sim.tauxMarge,
+  tauxMarque: sim.tauxMarque,
+  coutMaximalAcceptable: sim.coutMaximalAcceptable,
+  prixPlancher: sim.prixPlancher,
+  prixMinimumRecommande: sim.prixMinimumRecommande,
+  prixPremium: sim.prixPremium,
+  seuilRentabiliteCA: sim.seuilRentabiliteCA,
+  seuilRentabiliteVolume: sim.seuilRentabiliteVolume,
+  roiPct: sim.roiPct,
+  statutRentabilite: sim.statutRentabilite,
+});
+
+// GET /api/v1/crm/profitability/simulations/:id/previsionnel-vs-reel — rentabilité avancée
+// (2026-09-26). Ne fonctionne que pour une simulation liée à un produit du catalogue (productId) :
+// sans lien, aucune vente réelle n'est automatiquement rattachable. Les ventes réelles sont
+// mesurées sur les factures ENVOYÉES (pas les brouillons) depuis dateLancement (ou la création de
+// la simulation si non renseignée) jusqu'à maintenant — voir comparePrevisionnelVsReel pour la
+// limite assumée sur le "bénéfice réel" (approximation, pas un coût réellement constaté).
+export const getPrevisionnelVsReel = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const simulation = await findSimulation(req, res);
+    if (!simulation) return;
+
+    if (!simulation.productId) {
+      res.status(400).json({ error: 'Cette simulation n\'est liée à aucun produit du catalogue : impossible de retrouver ses ventes réelles automatiquement.' });
+      return;
+    }
+
+    const depuis = simulation.dateLancement ? new Date(simulation.dateLancement) : simulation.createdAt;
+    const invoices = await Invoice.findAll({
+      where: { companyId: simulation.companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.gte]: depuis } },
+      attributes: ['id'],
+    });
+    const invoiceIds = invoices.map((i) => i.id);
+    const lines = invoiceIds.length
+      ? await InvoiceLine.findAll({ where: { invoiceId: { [Op.in]: invoiceIds }, productId: simulation.productId } })
+      : [];
+
+    const quantiteReelle = lines.reduce((sum, l) => sum + l.quantite, 0);
+    const caReel = lines.reduce((sum, l) => sum + l.quantite * l.prixUnitaire * (1 - l.remisePct / 100), 0);
+
+    const comparaison = comparePrevisionnelVsReel(toInputs(simulation), toResults(simulation), { quantiteReelle, caReel });
+    res.status(200).json({ depuis: depuis.toISOString(), ...comparaison });
+  } catch (error) {
+    console.error('Erreur getPrevisionnelVsReel :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// GET /api/v1/crm/profitability/tresorerie?semaines=&soldeActuel= — rentabilité avancée
+// (2026-09-26). Projette les encaissements (factures envoyées non soldées) et décaissements
+// (commandes fournisseur non soldées) à venir, semaine par semaine. `soldeActuel` (optionnel,
+// défaut 0) permet d'obtenir un solde cumulé projeté — Naatalix ne suit aucun compte
+// bancaire/caisse : sans cette valeur, seul le flux NET par semaine est significatif, pas un solde
+// absolu. Les échéances déjà dépassées sont regroupées dans le premier bucket ("en retard").
+export const getTresorerie = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const companyId = req.user!.companyId!;
+    const nbSemaines = Math.min(Math.max(Number(req.query.semaines) || 8, 1), 26);
+    const soldeActuel = Number(req.query.soldeActuel) || 0;
+    const now = new Date();
+
+    const [creances, dettes] = await Promise.all([
+      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', paymentStatus: { [Op.ne]: 'payee' } } }),
+      PurchaseOrder.findAll({ where: { companyId, statut: { [Op.in]: ['envoyee', 'confirmee', 'recue'] }, soldeRestant: { [Op.gt]: 0 } } }),
+    ]);
+
+    const semaineIndex = (date: Date | null): number => {
+      if (!date) return 0; // pas d'échéance connue : traité comme déjà en retard (à traiter en priorité)
+      const jours = Math.floor((new Date(date).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      if (jours < 0) return 0; // en retard
+      return Math.min(Math.floor(jours / 7) + 1, nbSemaines); // 1 = semaine en cours, etc. ; au-delà : dernier bucket "et après"
+    };
+
+    const buckets = Array.from({ length: nbSemaines + 1 }, () => ({ encaissements: 0, decaissements: 0 }));
+    for (const inv of creances) buckets[semaineIndex(inv.dateEcheance)].encaissements += inv.soldeRestant;
+    for (const po of dettes) buckets[semaineIndex(po.dateEcheance)].decaissements += po.soldeRestant;
+
+    let solde = soldeActuel;
+    const semaines = buckets.map((b, i) => {
+      const net = b.encaissements - b.decaissements;
+      solde += net;
+      return {
+        semaine: i === 0 ? 'en_retard' : i === nbSemaines ? `semaine_${i}_et_apres` : `semaine_${i}`,
+        encaissementsPrevus: b.encaissements,
+        decaissementsPrevus: b.decaissements,
+        fluxNet: net,
+        soldeProjete: solde,
+      };
+    });
+
+    res.status(200).json({
+      soldeActuelFourni: Number(req.query.soldeActuel) ? soldeActuel : null,
+      totalCreances: creances.reduce((s, i) => s + i.soldeRestant, 0),
+      totalDettesFournisseurs: dettes.reduce((s, o) => s + o.soldeRestant, 0),
+      semaines,
+    });
+  } catch (error) {
+    console.error('Erreur getTresorerie :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// GET /api/v1/crm/profitability/score — rentabilité avancée (2026-09-26). Voir
+// profitabilityCalculationService.computeProfitabilityScore pour la formule et ses poids —
+// proposés par défaut, jamais présentés comme validés par la direction, toujours renvoyés avec le
+// détail par critère (transparence assumée plutôt qu'une boîte noire).
+export const getProfitabilityScore = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const companyId = req.user!.companyId!;
+    const now = new Date();
+    const debutMoisCourant = new Date(now.getFullYear(), now.getMonth(), 1);
+    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [caMoisCourant, caMoisPrecedent, simulationsActives, unpaidInvoices, stockItems, unpaidOrders] = await Promise.all([
+      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.gte]: debutMoisCourant } } }),
+      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.between]: [debutMoisPrecedent, debutMoisCourant] } } }),
+      ProfitabilitySimulation.findAll({ where: { companyId, statut: 'active' } }),
+      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', paymentStatus: { [Op.ne]: 'payee' } } }),
+      StockItem.findAll({ where: { companyId } }),
+      PurchaseOrder.findAll({ where: { companyId, statut: { [Op.in]: ['envoyee', 'confirmee', 'recue'] }, soldeRestant: { [Op.gt]: 0 } } }),
+    ]);
+
+    const sum = (invs: Invoice[]) => invs.reduce((s, i) => s + i.totalTTC, 0);
+    const caCourant = sum(caMoisCourant);
+    const caPrecedent = sum(caMoisPrecedent);
+    const croissanceCaPct = caPrecedent > 0 ? ((caCourant - caPrecedent) / caPrecedent) * 100 : (caCourant > 0 ? 100 : 0);
+
+    const creances = unpaidInvoices.reduce((s, i) => s + i.soldeRestant, 0);
+    const ratioCreancesSurCAPct = caCourant > 0 ? (creances / caCourant) * 100 : 0;
+
+    const pctSimulationsRentables = simulationsActives.length > 0
+      ? (simulationsActives.filter((s) => s.statutRentabilite === 'vert').length / simulationsActives.length) * 100
+      : 100; // aucune simulation active : ne pénalise pas le score par défaut
+
+    const pctStockSain = stockItems.length > 0
+      ? (stockItems.filter((i) => i.quantite > 0 && (i.seuilAlerte === null || i.quantite > i.seuilAlerte)).length / stockItems.length) * 100
+      : 100;
+
+    const enRetard = unpaidOrders.filter((o) => o.dateEcheance && new Date(o.dateEcheance) < now).length;
+    const pctEcheancesFournisseursRespectees = unpaidOrders.length > 0
+      ? ((unpaidOrders.length - enRetard) / unpaidOrders.length) * 100
+      : 100;
+
+    const resultat = computeProfitabilityScore({
+      croissanceCaPct, ratioCreancesSurCAPct, pctSimulationsRentables, pctStockSain, pctEcheancesFournisseursRespectees,
+    });
+
+    res.status(200).json(resultat);
+  } catch (error) {
+    console.error('Erreur getProfitabilityScore :', error);
     res.status(500).json({ error: 'Une erreur est survenue.' });
   }
 };

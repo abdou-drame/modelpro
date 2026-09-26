@@ -5,6 +5,7 @@ import { Customer } from './Customer';
 import { Contact } from './Contact';
 import { SalesOrder } from './SalesOrder';
 import { User } from './User';
+import { Site } from './Site';
 
 // Facture Naatalix (ROADMAP_BACKEND.md §7.3). Modèle Naatalix séparé du `Payment` ModèlePro
 // (paiements marketplace via PayTech/Wave/Orange Money) — voir InvoicePayment pour les
@@ -21,6 +22,8 @@ export class Invoice extends Model {
   declare customerId: number;
   declare contactId: number | null;
   declare salesOrderId: number | null;
+  // Reporting multisite (2026-09-26) — voir Quote.siteId.
+  declare siteId: number | null;
   declare type: 'facture' | 'avoir';
   declare avoirDeFactureId: number | null;
   declare statut: 'brouillon' | 'envoyee' | 'annulee';
@@ -75,6 +78,12 @@ Invoice.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: SalesOrder, key: 'id' },
+      onDelete: 'SET NULL',
+    },
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: Site, key: 'id' },
       onDelete: 'SET NULL',
     },
     type: {
@@ -166,5 +175,6 @@ Invoice.belongsTo(SalesOrder, { foreignKey: 'salesOrderId', as: 'salesOrder' });
 SalesOrder.hasOne(Invoice, { foreignKey: 'salesOrderId', as: 'invoice' });
 Invoice.belongsTo(Invoice, { foreignKey: 'avoirDeFactureId', as: 'factureOrigine' });
 Invoice.belongsTo(User, { foreignKey: 'createdByUserId', as: 'createdBy' });
+Invoice.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
 
 export default Invoice;

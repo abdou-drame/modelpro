@@ -1199,6 +1199,49 @@ L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel d�
 
 - Prochaine étape : au choix de l'utilisateur — rentabilité avancée (à préciser), reporting multisite, ou étendre le journal d'activité/les alertes e-mail au pipeline commercial.
 
+## 2026-09-26 — Reporting multisite + Rentabilité avancée (prévisionnel/réel, trésorerie, score /100)
+
+- Objectif : l'utilisateur a choisi de traiter les deux plus gros chantiers restants ensemble. Clarifié au préalable par questions ciblées (les deux items étaient marqués "à préciser") :
+  - Rentabilité avancée : prévisionnel vs réel automatisé + trésorerie avancée + score /100 — **pas** l'assistant IA (nécessiterait une vraie API IA, coût et clé à fournir, hors périmètre pour l'instant).
+  - Reporting multisite : confirmé qu'on fait le changement de structure de données (ajout d'un site sur chaque document commercial), pas juste une maquette.
+
+### Reporting multisite
+
+- Ajout de `siteId` (nullable) sur `Quote`, `SalesOrder`, `Invoice`, `PurchaseOrder` — nouvelle association `belongsTo(Site)` sur chacun. Nullable à dessein : un document déjà existant ou une entreprise mono-site n'ont pas à en avoir un, `hasFeature`/le reste du système ne dépend jamais de sa présence.
+- Nouveau `src/services/siteService.ts` — `resolveSiteId(companyId, requestedSiteId)` : le site demandé s'il appartient bien à l'entreprise, sinon le site principal, sinon le premier site actif trouvé. **Ne bloque jamais** la création d'un document, y compris si un `siteId` d'une autre entreprise est envoyé par erreur (retombe silencieusement sur le site principal — testé explicitement).
+- Câblé dans les 4 `create*` (body `siteId` optionnel) + hérité automatiquement dans les conversions/dérivations : devis → commande (`convertQuoteToOrder`), commande → facture (`convertOrderToInvoice`), facture → avoir (`createCreditNote`).
+- Nouvelle clé `PLAN_FEATURE_KEYS.REPORTING_SITE` (Business uniquement, cahier §13 "Consolidation multisite"/"Reporting par site") — ajoutée à `BUSINESS_FEATURES`.
+- Dashboard (`dashboardController.buildSiteIndicators`) : nouvelle section `parSite` — CA, nombre de ventes, achats et valeur de stock ventilés par site sur la période, gated par `REPORTING_SITE`. Un document sans site (créé avant cette migration) apparaît sous "Sans site" plutôt que d'être silencieusement exclu du total.
+- Migration : `crm_quotes.site_id`, `crm_sales_orders.site_id`, `crm_invoices.site_id`, `crm_purchase_orders.site_id` (VARCHAR→INTEGER, toutes nullable).
+- Tests : `src/__tests__/multisite.test.ts` (8) — site par défaut = principal, site explicite conservé et hérité en cascade (devis→commande→facture→avoir), repli silencieux sur le site principal si le site fourni appartient à une autre entreprise, ventilation `parSite` du dashboard, `parSite` à `null` sans la fonctionnalité (formule Essentiel).
+
+### Rentabilité avancée
+
+- Trois nouvelles fonctions PURES dans `profitabilityCalculationService.ts` (mêmes principes que le moteur existant — testables sans DB/API) :
+  - `comparePrevisionnelVsReel` — écarts quantité/CA/bénéfice entre le prévisionnel d'une simulation et le réel. **Limite assumée et documentée dans le code** : le "bénéfice réel" est une approximation (coûts prévisionnels réappliqués au volume réel, Naatalix ne trace aucun coût réel par vente) — jamais présenté comme un chiffre exact, toujours nommé `reelApprox`.
+  - `computeProfitabilityScore` — score /100 combinant 5 critères mesurables automatiquement (croissance du CA 25%, santé des créances 25%, rentabilité des simulations actives 20%, santé du stock 15%, ponctualité fournisseurs 15%). **Formule et poids proposés par défaut, non validés par la direction** — transparence assumée en contrepartie : le détail noté par critère est toujours renvoyé avec le score, jamais une boîte noire.
+- Trois nouveaux endpoints dans `profitabilityController.ts`/`profitabilityRoutes.ts`, tous gatés `RENTABILITE_AVANCEE` (clé déjà existante, Pro+) :
+  - `GET /simulations/:id/previsionnel-vs-reel` — ne fonctionne que pour une simulation liée à un produit du catalogue (`productId`), sinon 400 explicite (pas de rattachement automatique possible sans lien). Ventes réelles mesurées sur les factures ENVOYÉES depuis `dateLancement` (ou la création de la simulation).
+  - `GET /tresorerie?semaines=&soldeActuel=` — projette encaissements (créances clients) et décaissements (dettes fournisseurs) semaine par semaine. `soldeActuel` optionnel (Naatalix ne suit aucun compte bancaire/caisse) : sans lui, seul le flux NET par semaine est significatif, pas un solde absolu.
+  - `GET /score` — score de rentabilité /100 avec détail par critère.
+- Tests : `src/__tests__/profitabilityCalculation.test.ts` (+11, fonctions pures), `src/__tests__/profitabilityAdvanced.test.ts` (6, intégration complète : comparaison réelle après une vraie facture envoyée, refus propre sans produit lié, trésorerie avec créance à venir + dette en retard, score borné 0-100 avec poids=100, isolation entre entreprises).
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit && npm run build     → OK
+  npx jest multisite.test.ts profitabilityAdvanced.test.ts profitabilityCalculation.test.ts → 45/45
+  npm test (suite complète)             → 460/462, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental)
+  ```
+  Vérifié aussi en conditions réelles sur PostgreSQL : les 4 colonnes `site_id` confirmées après migration automatique ; cycle complet testé via `curl` (facture réelle créée → dashboard `parSite` ventile bien le CA sur le site principal, score `/100` calculé sur des données réelles). Note opérationnelle : les lignes `saas_plans` de cette base de dev dataient d'avant l'ajout de `REPORTING_SITE` (même piège que documenté le 2026-09-24 — `findOrCreate` ne met jamais à jour un plan existant) — retruncaté pour reseeder, comme la fois précédente.
+
+- Limites connues / non couvert :
+  - Le "bénéfice réel" du prévisionnel vs réel reste une approximation (voir ci-dessus) — un vrai suivi de coût réel par vente serait un chantier à part (comptabilité analytique).
+  - La trésorerie ne connaît aucun solde de caisse/banque réel (Naatalix n'a pas ce concept) — `soldeActuel` doit être fourni manuellement à chaque appel si un solde cumulé a un sens pour l'entreprise.
+  - Le score /100 et ses poids ne sont pas validés par la direction ATAABA — à discuter si le retour terrain le justifie.
+  - Assistant IA (rentabilité) explicitement écarté par l'utilisateur pour cette itération.
+
+- Prochaine étape : au choix de l'utilisateur — SMS/WhatsApp (bloqué en attendant un prestataire), doc OpenAPI/CI/CD, ou valider/ajuster la formule du score de rentabilité avec la direction.
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module

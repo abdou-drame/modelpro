@@ -16,6 +16,7 @@ import { Company } from '../models/Company';
 import { generateSalesOrderPdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
 import { recordCompanyActivity } from '../services/auditService';
+import { resolveSiteId } from '../services/siteService';
 
 const ORDER_STATUSES = ['brouillon', 'confirmee', 'en_preparation', 'livree', 'annulee'] as const;
 
@@ -91,7 +92,7 @@ const buildLineData = async (companyId: number, raw: any, ordre: number) => {
 export const createOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const companyId = req.user!.companyId!;
-    const { customerId, contactId, dateLivraisonPrevue, notes, remiseGlobale, lines } = req.body;
+    const { customerId, contactId, siteId, dateLivraisonPrevue, notes, remiseGlobale, lines } = req.body;
 
     if (!customerId) { res.status(400).json({ error: 'customerId requis.' }); return; }
 
@@ -113,6 +114,8 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
       }
     }
 
+    const resolvedSiteId = await resolveSiteId(companyId, siteId);
+
     const order = await sequelize.transaction(async (t) => {
       const numero = await nextDocumentNumber(companyId, 'CMD', t);
 
@@ -121,6 +124,7 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
         numero,
         customerId: customer.id,
         contactId: contactId || null,
+        siteId: resolvedSiteId,
         dateLivraisonPrevue: dateLivraisonPrevue || null,
         notes: notes || null,
         remiseGlobale: remiseGlobale !== undefined ? Number(remiseGlobale) : 0,
@@ -176,6 +180,7 @@ export const convertQuoteToOrder = async (req: AuthenticatedRequest, res: Respon
         numero,
         customerId: quote.customerId,
         contactId: quote.contactId,
+        siteId: quote.siteId,
         quoteId: quote.id,
         statut: 'confirmee',
         notes: quote.notes,

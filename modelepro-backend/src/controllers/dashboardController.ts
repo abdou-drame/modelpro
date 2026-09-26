@@ -14,6 +14,7 @@ import { Supplier } from '../models/Supplier';
 import { PurchaseOrder } from '../models/PurchaseOrder';
 import { CrmTask } from '../models/CrmTask';
 import { User } from '../models/User';
+import { Site } from '../models/Site';
 import { hasFeature, PLAN_FEATURE_KEYS } from '../services/subscriptionService';
 
 // Tableau de bord de pilotage (ROADMAP_BACKEND.md §8, cahier des charges §11). Les indicateurs
@@ -269,6 +270,48 @@ const buildTeamIndicators = async (companyId: number, from: Date, to: Date) => {
   };
 };
 
+// --- Reporting multisite (Business uniquement, cahier §13 "Consolidation multisite"/"Reporting
+// par site") — ventile chiffre d'affaires, ventes, achats et valeur de stock par site. Un document
+// sans site rattaché (créé avant l'ajout de siteId, ou entreprise sans site actif) apparaît sous
+// "Sans site" plutôt que d'être silencieusement exclu.
+const SANS_SITE = 'Sans site';
+const buildSiteIndicators = async (companyId: number, from: Date, to: Date) => {
+  const sites = await Site.findAll({ where: { companyId } });
+  const siteById = new Map(sites.map((s) => [s.id, s.nom]));
+  const siteLabel = (id: number | null) => (id !== null && siteById.has(id) ? siteById.get(id)! : SANS_SITE);
+
+  const [invoicesPeriode, ordersPeriode, achatsPeriode, stockItems] = await Promise.all([
+    Invoice.findAll({ where: { companyId, statut: 'envoyee', dateEmission: { [Op.between]: [from, to] } } }),
+    SalesOrder.findAll({ where: { companyId, statut: { [Op.in]: ['confirmee', 'en_preparation', 'livree'] }, createdAt: { [Op.between]: [from, to] } } }),
+    PurchaseOrder.findAll({ where: { companyId, statut: { [Op.in]: ['envoyee', 'confirmee', 'recue'] }, dateCommande: { [Op.between]: [from, to] } } }),
+    StockItem.findAll({ where: { companyId } }),
+  ]);
+
+  const parSite = new Map<string, { ca: number; nombreVentes: number; achats: number; valeurStock: number }>();
+  const entry = (label: string) => {
+    if (!parSite.has(label)) parSite.set(label, { ca: 0, nombreVentes: 0, achats: 0, valeurStock: 0 });
+    return parSite.get(label)!;
+  };
+  for (const s of sites) entry(s.nom);
+
+  for (const inv of invoicesPeriode) {
+    entry(siteLabel(inv.siteId)).ca += inv.type === 'avoir' ? -inv.totalTTC : inv.totalTTC;
+  }
+  for (const o of ordersPeriode) {
+    entry(siteLabel(o.siteId)).nombreVentes += 1;
+  }
+  for (const o of achatsPeriode) {
+    entry(siteLabel(o.siteId)).achats += o.totalTTC;
+  }
+  for (const item of stockItems) {
+    entry(siteLabel(item.siteId)).valeurStock += item.quantite * item.coutMoyenPondere;
+  }
+
+  return Array.from(parSite.entries())
+    .map(([site, v]) => ({ site, ...v }))
+    .sort((a, b) => b.ca - a.ca);
+};
+
 // GET /api/v1/crm/dashboard?from=&to=
 // Le tableau de bord "CA/ventes" (commercial de base + finance) est accessible à toutes les
 // formules. Les sections "avancées" (produits, stocks, fournisseurs, pipeline commercial) et le
@@ -281,19 +324,21 @@ export const getDashboard = async (req: AuthenticatedRequest, res: Response): Pr
     const { from, to } = parsePeriod(req.query);
     const now = new Date();
 
-    const [avance, pipeline, reportingUtilisateur] = await Promise.all([
+    const [avance, pipeline, reportingUtilisateur, reportingSite] = await Promise.all([
       hasFeature(companyId, PLAN_FEATURE_KEYS.DASHBOARD_AVANCE),
       hasFeature(companyId, PLAN_FEATURE_KEYS.CRM_PIPELINE),
       hasFeature(companyId, PLAN_FEATURE_KEYS.REPORTING_UTILISATEUR),
+      hasFeature(companyId, PLAN_FEATURE_KEYS.REPORTING_SITE),
     ]);
 
-    const [commercial, finance, produits, stocks, fournisseurs, equipeCommerciale] = await Promise.all([
+    const [commercial, finance, produits, stocks, fournisseurs, equipeCommerciale, parSite] = await Promise.all([
       buildCommercialIndicators(companyId, from, to, now, pipeline),
       buildFinanceIndicators(companyId, from, to),
       avance ? buildProductIndicators(companyId, from, to) : Promise.resolve(null),
       avance ? buildStockIndicators(companyId, from, to) : Promise.resolve(null),
       avance ? buildSupplierIndicators(companyId, from, to) : Promise.resolve(null),
       reportingUtilisateur ? buildTeamIndicators(companyId, from, to) : Promise.resolve(null),
+      reportingSite ? buildSiteIndicators(companyId, from, to) : Promise.resolve(null),
     ]);
 
     res.status(200).json({
@@ -304,6 +349,7 @@ export const getDashboard = async (req: AuthenticatedRequest, res: Response): Pr
       stocks,
       fournisseurs,
       equipeCommerciale,
+      parSite,
     });
   } catch (error) {
     console.error('Erreur getDashboard :', error);

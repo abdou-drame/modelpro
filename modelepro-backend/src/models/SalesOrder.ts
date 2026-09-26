@@ -5,6 +5,7 @@ import { Customer } from './Customer';
 import { Contact } from './Contact';
 import { Quote } from './Quote';
 import { User } from './User';
+import { Site } from './Site';
 
 // Commande commerciale Naatalix (ROADMAP_BACKEND.md §7.2). Modèle volontairement distinct du
 // modèle `Order` ModèlePro (commandes artisan/marketplace, couplé à Artisan/Creation) — même
@@ -17,6 +18,8 @@ export class SalesOrder extends Model {
   declare customerId: number;
   declare contactId: number | null;
   declare quoteId: number | null;
+  // Reporting multisite (2026-09-26) — voir Quote.siteId.
+  declare siteId: number | null;
   declare statut: 'brouillon' | 'confirmee' | 'en_preparation' | 'livree' | 'annulee';
   declare dateCommande: Date;
   declare dateLivraisonPrevue: Date | null;
@@ -66,6 +69,12 @@ SalesOrder.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: Quote, key: 'id' },
+      onDelete: 'SET NULL',
+    },
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: Site, key: 'id' },
       onDelete: 'SET NULL',
     },
     statut: {
@@ -132,5 +141,6 @@ SalesOrder.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 SalesOrder.belongsTo(Quote, { foreignKey: 'quoteId', as: 'quote' });
 Quote.hasOne(SalesOrder, { foreignKey: 'quoteId', as: 'salesOrder' });
 SalesOrder.belongsTo(User, { foreignKey: 'createdByUserId', as: 'createdBy' });
+SalesOrder.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
 
 export default SalesOrder;

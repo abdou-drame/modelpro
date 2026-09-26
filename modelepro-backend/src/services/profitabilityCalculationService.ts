@@ -184,3 +184,80 @@ export const computeTargetProfit = (
     ventesParMois: ventesParJour * 30,
   };
 };
+
+// Rentabilité avancée (2026-09-26) : prévisionnel vs réel automatisé — écarts entre ce qui était
+// simulé et ce qui s'est réellement passé (ventes réelles du produit lié à la simulation).
+// LIMITE ASSUMÉE : le coût variable unitaire et les charges fixes réels ne sont pas mesurés
+// automatiquement (pas de comptabilité analytique en temps réel dans Naatalix) — le "bénéfice réel"
+// est donc une APPROXIMATION qui réapplique les coûts PRÉVISIONNELS de la simulation au volume
+// RÉEL, pas un vrai coût constaté. Toujours renvoyé sous le nom `reelApprox`, jamais présenté comme
+// un chiffre exact, pour ne pas induire en erreur.
+export interface ActualsInput {
+  quantiteReelle: number;
+  caReel: number;
+}
+
+export interface PrevisionnelVsReelResult {
+  quantite: { prevue: number; reelle: number; ecartPct: number | null };
+  ca: { prevu: number; reel: number; ecartPct: number | null };
+  benefice: { prevu: number; reelApprox: number; ecartPct: number | null };
+}
+
+const ecartPct = (prevu: number, reel: number): number | null => (prevu !== 0 ? ((reel - prevu) / Math.abs(prevu)) * 100 : null);
+
+export const comparePrevisionnelVsReel = (
+  inputs: SimulationInputs,
+  results: SimulationResults,
+  actuals: ActualsInput
+): PrevisionnelVsReelResult => {
+  const caPrevu = inputs.prixEnvisage * inputs.quantitePrevue;
+  const beneficePrevu = results.beneficeUnitaire * inputs.quantitePrevue;
+  const beneficeReelApprox = actuals.caReel - results.coutVariableUnitaire * actuals.quantiteReelle - results.chargesFixesTotales;
+
+  return {
+    quantite: { prevue: inputs.quantitePrevue, reelle: actuals.quantiteReelle, ecartPct: ecartPct(inputs.quantitePrevue, actuals.quantiteReelle) },
+    ca: { prevu: caPrevu, reel: actuals.caReel, ecartPct: ecartPct(caPrevu, actuals.caReel) },
+    benefice: { prevu: beneficePrevu, reelApprox: beneficeReelApprox, ecartPct: ecartPct(beneficePrevu, beneficeReelApprox) },
+  };
+};
+
+// Score de rentabilité /100 (2026-09-26) — combine 5 critères mesurables automatiquement à partir
+// des données réelles de l'entreprise. FORMULE ET POIDS PROPOSÉS PAR DÉFAUT (pas validés par la
+// direction ATAABA à ce stade) : transparence totale assumée en contrepartie — le détail noté par
+// critère est toujours renvoyé avec le score final, jamais une boîte noire, pour que la formule
+// puisse être discutée/ajustée plutôt que subie.
+export interface ScoreInputs {
+  croissanceCaPct: number; // (CA période courante - CA période précédente) / CA période précédente × 100
+  ratioCreancesSurCAPct: number; // créances impayées / CA période × 100 (0 = idéal, plus haut = pire)
+  pctSimulationsRentables: number; // % de simulations actives en statut "vert" (0-100)
+  pctStockSain: number; // % d'articles de stock sans alerte ni rupture (0-100)
+  pctEcheancesFournisseursRespectees: number; // % d'échéances fournisseurs non dépassées (0-100)
+}
+
+export interface ScoreResult {
+  score: number;
+  details: Array<{ critere: string; poids: number; valeurBrute: number; note: number }>;
+}
+
+const clamp = (n: number, min = 0, max = 100): number => Math.max(min, Math.min(max, n));
+
+export const computeProfitabilityScore = (inputs: ScoreInputs): ScoreResult => {
+  // Croissance du CA : -20% ou moins → 0, 0% → 50, +20% ou plus → 100 (linéaire entre les deux).
+  const noteCroissance = clamp(50 + (inputs.croissanceCaPct / 20) * 50);
+  // Créances : 0% du CA → 100, 50% ou plus → 0 (linéaire).
+  const noteCreances = clamp(100 - (inputs.ratioCreancesSurCAPct / 50) * 100);
+  const noteSimulations = clamp(inputs.pctSimulationsRentables);
+  const noteStock = clamp(inputs.pctStockSain);
+  const noteFournisseurs = clamp(inputs.pctEcheancesFournisseursRespectees);
+
+  const details: ScoreResult['details'] = [
+    { critere: 'Croissance du chiffre d\'affaires', poids: 25, valeurBrute: inputs.croissanceCaPct, note: noteCroissance },
+    { critere: 'Santé des créances clients', poids: 25, valeurBrute: inputs.ratioCreancesSurCAPct, note: noteCreances },
+    { critere: 'Rentabilité des simulations actives', poids: 20, valeurBrute: inputs.pctSimulationsRentables, note: noteSimulations },
+    { critere: 'Santé du stock', poids: 15, valeurBrute: inputs.pctStockSain, note: noteStock },
+    { critere: 'Ponctualité des paiements fournisseurs', poids: 15, valeurBrute: inputs.pctEcheancesFournisseursRespectees, note: noteFournisseurs },
+  ];
+
+  const score = Math.round(details.reduce((sum, d) => sum + (d.note * d.poids) / 100, 0));
+  return { score, details };
+};

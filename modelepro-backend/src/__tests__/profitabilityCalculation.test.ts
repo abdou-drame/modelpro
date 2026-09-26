@@ -4,6 +4,8 @@ import {
   computeSensitivity,
   computeDiscountSimulation,
   computeTargetProfit,
+  comparePrevisionnelVsReel,
+  computeProfitabilityScore,
   CostLine,
   SimulationInputs,
 } from '../services/profitabilityCalculationService';
@@ -205,5 +207,99 @@ describe('profitabilityCalculationService — computeTargetProfit', () => {
   it('retourne null si le bénéfice unitaire est nul ou négatif (objectif inatteignable en l’état)', () => {
     expect(computeTargetProfit(1000000, 0, 10000, 'mois')).toBeNull();
     expect(computeTargetProfit(1000000, -500, 10000, 'mois')).toBeNull();
+  });
+});
+
+describe('profitabilityCalculationService — comparePrevisionnelVsReel', () => {
+  const inputs: SimulationInputs = {
+    prixEnvisage: 10000,
+    quantitePrevue: 100,
+    margeCibleType: 'marque',
+    margeCiblePct: 30,
+    margePremiumBonusPct: 20,
+    investissementInitial: null,
+  };
+  const costs: CostLine[] = [{ montant: 6000, type: 'variable' }, { montant: 50000, type: 'fixe' }];
+  const results = computeResults(inputs, costs);
+  // coutVariableUnitaire = 6000, chargesFixesTotales = 50000, beneficeUnitaire = 10000 - 6000 - 500 = 3500
+
+  it('quantité et CA réels supérieurs au prévu : écarts positifs', () => {
+    const cmp = comparePrevisionnelVsReel(inputs, results, { quantiteReelle: 120, caReel: 1300000 });
+    expect(cmp.quantite.prevue).toBe(100);
+    expect(cmp.quantite.reelle).toBe(120);
+    expect(cmp.quantite.ecartPct).toBeCloseTo(20, 5);
+    expect(cmp.ca.prevu).toBe(1000000); // 10000 * 100
+    expect(cmp.ca.ecartPct).toBeCloseTo(30, 5); // (1300000-1000000)/1000000
+    // bénéfice réel approx = 1300000 - 6000*120 - 50000 = 1300000 - 720000 - 50000 = 530000
+    expect(cmp.benefice.reelApprox).toBe(530000);
+    expect(cmp.benefice.prevu).toBe(350000); // beneficeUnitaire(3500) * 100
+  });
+
+  it('quantité réelle nulle : CA et bénéfice réels nuls, écarts négatifs à -100%', () => {
+    const cmp = comparePrevisionnelVsReel(inputs, results, { quantiteReelle: 0, caReel: 0 });
+    expect(cmp.quantite.ecartPct).toBeCloseTo(-100, 5);
+    expect(cmp.ca.ecartPct).toBeCloseTo(-100, 5);
+    expect(cmp.benefice.reelApprox).toBe(-50000); // 0 - 0 - chargesFixesTotales
+  });
+
+  it('valeur prévue nulle : écart en pourcentage non défini (null), pas une division par zéro', () => {
+    const cmp = comparePrevisionnelVsReel({ ...inputs, quantitePrevue: 0 }, results, { quantiteReelle: 10, caReel: 100000 });
+    expect(cmp.quantite.ecartPct).toBeNull();
+    expect(cmp.ca.ecartPct).toBeNull();
+  });
+});
+
+describe('profitabilityCalculationService — computeProfitabilityScore', () => {
+  it('toutes les notes au maximum → score de 100, détail complet renvoyé', () => {
+    const result = computeProfitabilityScore({
+      croissanceCaPct: 20,
+      ratioCreancesSurCAPct: 0,
+      pctSimulationsRentables: 100,
+      pctStockSain: 100,
+      pctEcheancesFournisseursRespectees: 100,
+    });
+    expect(result.score).toBe(100);
+    expect(result.details).toHaveLength(5);
+    expect(result.details.reduce((s, d) => s + d.poids, 0)).toBe(100);
+  });
+
+  it('toutes les notes au pire → score de 0', () => {
+    const result = computeProfitabilityScore({
+      croissanceCaPct: -20,
+      ratioCreancesSurCAPct: 50,
+      pctSimulationsRentables: 0,
+      pctStockSain: 0,
+      pctEcheancesFournisseursRespectees: 0,
+    });
+    expect(result.score).toBe(0);
+  });
+
+  it('situation neutre (croissance nulle, aucune créance, reste à 50%) → score autour de 50', () => {
+    const result = computeProfitabilityScore({
+      croissanceCaPct: 0,
+      ratioCreancesSurCAPct: 0,
+      pctSimulationsRentables: 50,
+      pctStockSain: 50,
+      pctEcheancesFournisseursRespectees: 50,
+    });
+    // croissance→50, créances→100, simulations→50, stock→50, fournisseurs→50
+    // = 50*0.25 + 100*0.25 + 50*0.20 + 50*0.15 + 50*0.15 = 12.5+25+10+7.5+7.5 = 62.5 → arrondi 63
+    expect(result.score).toBe(63);
+  });
+
+  it('les valeurs hors bornes sont ramenées entre 0 et 100 (pas de score négatif ou > 100)', () => {
+    const result = computeProfitabilityScore({
+      croissanceCaPct: 500,
+      ratioCreancesSurCAPct: -10,
+      pctSimulationsRentables: 200,
+      pctStockSain: -5,
+      pctEcheancesFournisseursRespectees: 150,
+    });
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+    for (const d of result.details) {
+      expect(d.note).toBeGreaterThanOrEqual(0);
+      expect(d.note).toBeLessThanOrEqual(100);
+    }
   });
 });

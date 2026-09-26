@@ -12,6 +12,7 @@ import { Company } from '../models/Company';
 import { generateQuotePdf } from '../services/documentPdfGenerators';
 import { toCsv, sendCsv } from '../services/csvExportService';
 import { recordCompanyActivity } from '../services/auditService';
+import { resolveSiteId } from '../services/siteService';
 
 const QUOTE_STATUSES = ['brouillon', 'envoye', 'accepte', 'refuse', 'expire'] as const;
 
@@ -76,7 +77,7 @@ const buildLineData = async (companyId: number, raw: any, ordre: number) => {
 export const createQuote = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const companyId = req.user!.companyId!;
-    const { customerId, contactId, dateValidite, notes, remiseGlobale, lines } = req.body;
+    const { customerId, contactId, siteId, dateValidite, notes, remiseGlobale, lines } = req.body;
 
     if (!customerId) { res.status(400).json({ error: 'customerId requis.' }); return; }
 
@@ -98,6 +99,8 @@ export const createQuote = async (req: AuthenticatedRequest, res: Response): Pro
       }
     }
 
+    const resolvedSiteId = await resolveSiteId(companyId, siteId);
+
     const quote = await sequelize.transaction(async (t) => {
       const numero = await nextDocumentNumber(companyId, 'DEV', t);
 
@@ -106,6 +109,7 @@ export const createQuote = async (req: AuthenticatedRequest, res: Response): Pro
         numero,
         customerId: customer.id,
         contactId: contactId || null,
+        siteId: resolvedSiteId,
         dateValidite: dateValidite || null,
         notes: notes || null,
         remiseGlobale: remiseGlobale !== undefined ? Number(remiseGlobale) : 0,

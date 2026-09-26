@@ -4,6 +4,7 @@ import { Company } from './Company';
 import { Supplier } from './Supplier';
 import { SupplierContact } from './SupplierContact';
 import { User } from './User';
+import { Site } from './Site';
 
 // Commande fournisseur (ROADMAP_BACKEND.md §7.4). Même principe que SalesOrder côté ventes :
 // `statut` (cycle du document) + `historiqueStatuts` (trace légère, pas un audit trail
@@ -15,6 +16,8 @@ export class PurchaseOrder extends Model {
   declare numero: string;
   declare supplierId: number;
   declare contactId: number | null;
+  // Reporting multisite (2026-09-26) — voir Quote.siteId. Ici : le site RÉCEPTEUR de la commande.
+  declare siteId: number | null;
   declare statut: 'brouillon' | 'envoyee' | 'confirmee' | 'recue' | 'annulee';
   declare dateCommande: Date;
   declare dateEcheance: Date | null;
@@ -57,6 +60,12 @@ PurchaseOrder.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: SupplierContact, key: 'id' },
+      onDelete: 'SET NULL',
+    },
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: Site, key: 'id' },
       onDelete: 'SET NULL',
     },
     statut: {
@@ -131,5 +140,6 @@ PurchaseOrder.belongsTo(Supplier, { foreignKey: 'supplierId', as: 'supplier' });
 Supplier.hasMany(PurchaseOrder, { foreignKey: 'supplierId', as: 'purchaseOrders' });
 PurchaseOrder.belongsTo(SupplierContact, { foreignKey: 'contactId', as: 'contact' });
 PurchaseOrder.belongsTo(User, { foreignKey: 'createdByUserId', as: 'createdBy' });
+PurchaseOrder.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
 
 export default PurchaseOrder;
