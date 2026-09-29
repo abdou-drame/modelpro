@@ -46,6 +46,7 @@ import './models/StockItem';
 import './models/StockMovement';
 import './models/ProfitabilitySimulation';
 import './models/ProfitabilityCost';
+import './models/FinancialHealthSnapshot';
 import './models/AuditLog';
 import './models/SubscriptionPlan';
 import './models/CompanySubscription';

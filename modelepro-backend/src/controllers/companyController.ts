@@ -107,7 +107,7 @@ export const updateMyCompany = async (req: AuthenticatedRequest, res: Response):
     const company = await Company.findByPk(req.user!.companyId!);
     if (!company) { res.status(404).json({ error: 'Entreprise introuvable.' }); return; }
 
-    const { nom, ninea, rccm, adresse, telephone, email, logoUrl, coordonneesPaiement, mentionsCommerciales, paytrackActif } = req.body;
+    const { nom, ninea, rccm, adresse, telephone, email, logoUrl, coordonneesPaiement, mentionsCommerciales, paytrackActif, objectifCaMensuelFcfa } = req.body;
     if (nom !== undefined) company.nom = nom;
     if (ninea !== undefined) company.ninea = ninea;
     if (rccm !== undefined) company.rccm = rccm;
@@ -118,6 +118,7 @@ export const updateMyCompany = async (req: AuthenticatedRequest, res: Response):
     if (coordonneesPaiement !== undefined) company.coordonneesPaiement = coordonneesPaiement;
     if (mentionsCommerciales !== undefined) company.mentionsCommerciales = mentionsCommerciales;
     if (paytrackActif !== undefined) company.paytrackActif = Boolean(paytrackActif);
+    if (objectifCaMensuelFcfa !== undefined) company.objectifCaMensuelFcfa = objectifCaMensuelFcfa === null ? null : Number(objectifCaMensuelFcfa);
     await company.save();
     await recordCompanyActivity(req, 'entreprise.parametres_modifies', 'Company', company.id, { champs: Object.keys(req.body) });
 

@@ -23,6 +23,7 @@ import {
   getPrevisionnelVsReel,
   getTresorerie,
   getProfitabilityScore,
+  getFinancialHealthHistory,
 } from '../controllers/profitabilityController';
 
 const router = Router();
@@ -46,6 +47,7 @@ router.get('/supplier-comparison', advanced, supplierComparison);
 // Rentabilité avancée (2026-09-26) : prévisionnel vs réel, trésorerie, score /100.
 router.get('/tresorerie', advanced, getTresorerie);
 router.get('/score', advanced, getProfitabilityScore);
+router.get('/score/historique', advanced, getFinancialHealthHistory);
 
 router.get('/simulations', listSimulations);
 router.post('/simulations', canWrite, createSimulation);

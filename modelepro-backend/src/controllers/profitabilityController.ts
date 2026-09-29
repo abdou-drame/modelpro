@@ -14,7 +14,9 @@ import {
   computeDiscountSimulation,
   computeTargetProfit,
   comparePrevisionnelVsReel,
-  computeProfitabilityScore,
+  computeFinancialHealthScore,
+  describeFinancialHealth,
+  FinancialHealthInputs,
   CostLine,
   SimulationInputs,
   SimulationResults,
@@ -24,6 +26,9 @@ import { Invoice } from '../models/Invoice';
 import { InvoiceLine } from '../models/InvoiceLine';
 import { PurchaseOrder } from '../models/PurchaseOrder';
 import { StockItem } from '../models/StockItem';
+import { StockMovement } from '../models/StockMovement';
+import { Company } from '../models/Company';
+import { FinancialHealthSnapshot } from '../models/FinancialHealthSnapshot';
 
 const NATURES = ['produit', 'service', 'projet', 'commerce', 'production', 'importation', 'transformation', 'prestation', 'autre'] as const;
 const COST_CATEGORIES = ['achat_production', 'transport_logistique', 'frais_paiement', 'marketing', 'rh_fiscal', 'autre'] as const;
@@ -608,54 +613,150 @@ export const getTresorerie = async (req: AuthenticatedRequest, res: Response): P
   }
 };
 
-// GET /api/v1/crm/profitability/score — rentabilité avancée (2026-09-26). Voir
-// profitabilityCalculationService.computeProfitabilityScore pour la formule et ses poids —
-// proposés par défaut, jamais présentés comme validés par la direction, toujours renvoyés avec le
-// détail par critère (transparence assumée plutôt qu'une boîte noire).
+// Rassemble les ratios réels de l'entreprise pour le mois en cours (calendaire, du 1er du mois à
+// maintenant) et les convertit en FinancialHealthInputs. Point d'écriture unique appelé par
+// getFinancialHealthScore — voir profitabilityCalculationService.computeFinancialHealthScore pour
+// le détail des limites assumées sur chaque ratio (coût courant vs coût historique, "court terme"
+// = échéance ≤ 30 jours, etc.).
+const buildFinancialHealthInputs = async (companyId: number): Promise<FinancialHealthInputs> => {
+  const now = new Date();
+  const debutMoisCourant = new Date(now.getFullYear(), now.getMonth(), 1);
+  const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const dansTrenteJours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const ilYA90Jours = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const joursEcoulesMoisCourant = Math.max(1, Math.floor((now.getTime() - debutMoisCourant.getTime()) / (24 * 60 * 60 * 1000)));
+
+  const [
+    facturesMoisCourant, facturesMoisPrecedent, unpaidInvoices, stockItems, unpaidOrders,
+    commandesAchatMoisCourant, sortiesRecentes, company,
+  ] = await Promise.all([
+    Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.gte]: debutMoisCourant } } }),
+    Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.between]: [debutMoisPrecedent, debutMoisCourant] } } }),
+    Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', paymentStatus: { [Op.ne]: 'payee' } } }),
+    StockItem.findAll({ where: { companyId } }),
+    PurchaseOrder.findAll({ where: { companyId, statut: { [Op.in]: ['envoyee', 'confirmee', 'recue'] }, soldeRestant: { [Op.gt]: 0 } } }),
+    PurchaseOrder.findAll({ where: { companyId, statut: { [Op.ne]: 'brouillon' }, dateCommande: { [Op.gte]: debutMoisCourant } } }),
+    StockMovement.findAll({ where: { companyId, type: 'sortie', createdAt: { [Op.gte]: ilYA90Jours } } }),
+    Company.findByPk(companyId),
+  ]);
+
+  const sumTTC = (docs: Array<{ totalTTC: number }>) => docs.reduce((s, d) => s + d.totalTTC, 0);
+  const caCourant = sumTTC(facturesMoisCourant);
+  const caPrecedent = sumTTC(facturesMoisPrecedent);
+  const croissanceCaPct = caPrecedent > 0 ? ((caCourant - caPrecedent) / caPrecedent) * 100 : (caCourant > 0 ? 100 : 0);
+
+  // Coût moyen "réel" par produit : moyenne pondérée du coût actuel du produit sur tous les sites
+  // (limite assumée : coût ACTUEL, pas le coût historique en vigueur au moment de chaque vente).
+  const coutParProduit = new Map<number, number>();
+  const cumulParProduit = new Map<number, { quantite: number; valeur: number }>();
+  for (const item of stockItems) {
+    const cur = cumulParProduit.get(item.productId) || { quantite: 0, valeur: 0 };
+    cur.quantite += item.quantite;
+    cur.valeur += item.quantite * item.coutMoyenPondere;
+    cumulParProduit.set(item.productId, cur);
+  }
+  for (const [productId, { quantite, valeur }] of cumulParProduit) {
+    if (quantite > 0) coutParProduit.set(productId, valeur / quantite);
+  }
+
+  const invoiceIdsMoisCourant = facturesMoisCourant.map((f) => f.id);
+  const lignesMoisCourant = invoiceIdsMoisCourant.length
+    ? await InvoiceLine.findAll({ where: { invoiceId: { [Op.in]: invoiceIdsMoisCourant } } })
+    : [];
+  let caHTVendu = 0;
+  let coutVendu = 0;
+  for (const ligne of lignesMoisCourant) {
+    const caLigneHT = ligne.quantite * ligne.prixUnitaire * (1 - ligne.remisePct / 100);
+    caHTVendu += caLigneHT;
+    if (ligne.productId && coutParProduit.has(ligne.productId)) {
+      coutVendu += ligne.quantite * (coutParProduit.get(ligne.productId) as number);
+    }
+  }
+  const margeBrutePct = caHTVendu > 0 ? ((caHTVendu - coutVendu) / caHTVendu) * 100 : 0;
+
+  const creancesTotal = unpaidInvoices.reduce((s, i) => s + i.soldeRestant, 0);
+  const tauxImpayesPct = caCourant > 0 ? (creancesTotal / caCourant) * 100 : 0;
+  const dsoJours = caCourant > 0 ? (creancesTotal / caCourant) * joursEcoulesMoisCourant : 0;
+
+  const estCourtTerme = (dateEcheance: Date | string | null) => !dateEcheance || new Date(dateEcheance) <= dansTrenteJours;
+  const creancesCourtTerme = unpaidInvoices.filter((i) => estCourtTerme(i.dateEcheance)).reduce((s, i) => s + i.soldeRestant, 0);
+  const dettesTotal = unpaidOrders.reduce((s, o) => s + o.soldeRestant, 0);
+  const dettesCourtTerme = unpaidOrders.filter((o) => estCourtTerme(o.dateEcheance)).reduce((s, o) => s + o.soldeRestant, 0);
+  const ratioLiquiditePct = dettesCourtTerme > 0 ? (creancesCourtTerme / dettesCourtTerme) * 100 : (creancesCourtTerme > 0 ? 200 : 100);
+
+  const achatsCourant = sumTTC(commandesAchatMoisCourant);
+  const dpoJours = achatsCourant > 0 ? (dettesTotal / achatsCourant) * joursEcoulesMoisCourant : 0;
+  const enRetard = unpaidOrders.filter((o) => o.dateEcheance && new Date(o.dateEcheance) < now).length;
+  const tauxEcheancesRespecteesPct = unpaidOrders.length > 0 ? ((unpaidOrders.length - enRetard) / unpaidOrders.length) * 100 : 100;
+
+  const valeurStockActuelle = stockItems.reduce((s, i) => s + i.quantite * i.coutMoyenPondere, 0);
+  const rotationStock = valeurStockActuelle > 0 ? coutVendu / valeurStockActuelle : 0;
+
+  const cleMouvement = (productId: number, siteId: number) => `${productId}_${siteId}`;
+  const produitsAvecSortieRecente = new Set(sortiesRecentes.map((m) => cleMouvement(m.productId, m.siteId)));
+  const itemsAvecStock = stockItems.filter((i) => i.quantite > 0);
+  const pctStockDormant = itemsAvecStock.length > 0
+    ? (itemsAvecStock.filter((i) => !produitsAvecSortieRecente.has(cleMouvement(i.productId, i.siteId))).length / itemsAvecStock.length) * 100
+    : 0;
+
+  const objectifCaAtteintPct = company?.objectifCaMensuelFcfa ? (caCourant / company.objectifCaMensuelFcfa) * 100 : null;
+
+  return {
+    margeBrutePct, ratioLiquiditePct, tauxImpayesPct, dsoJours, croissanceCaPct,
+    objectifCaAtteintPct, rotationStock, pctStockDormant, dpoJours, tauxEcheancesRespecteesPct,
+  };
+};
+
+// GET /api/v1/crm/profitability/score — rentabilité avancée. Score de SANTÉ FINANCIÈRE /100
+// (reformulé 2026-09-29 suite à la méthodologie de M. Bamba, direction ATAABA — voir
+// profitabilityCalculationService.ts pour la formule, les poids et les limites assumées).
+// Enregistre aussi un instantané mensuel (voir FinancialHealthSnapshot) pour permettre
+// l'évolution dans le temps (getFinancialHealthHistory).
 export const getProfitabilityScore = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const companyId = req.user!.companyId!;
-    const now = new Date();
-    const debutMoisCourant = new Date(now.getFullYear(), now.getMonth(), 1);
-    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const inputs = await buildFinancialHealthInputs(companyId);
+    const resultat = computeFinancialHealthScore(inputs);
+    const description = describeFinancialHealth(resultat);
 
-    const [caMoisCourant, caMoisPrecedent, simulationsActives, unpaidInvoices, stockItems, unpaidOrders] = await Promise.all([
-      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.gte]: debutMoisCourant } } }),
-      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', dateEmission: { [Op.between]: [debutMoisPrecedent, debutMoisCourant] } } }),
-      ProfitabilitySimulation.findAll({ where: { companyId, statut: 'active' } }),
-      Invoice.findAll({ where: { companyId, type: 'facture', statut: 'envoyee', paymentStatus: { [Op.ne]: 'payee' } } }),
-      StockItem.findAll({ where: { companyId } }),
-      PurchaseOrder.findAll({ where: { companyId, statut: { [Op.in]: ['envoyee', 'confirmee', 'recue'] }, soldeRestant: { [Op.gt]: 0 } } }),
-    ]);
-
-    const sum = (invs: Invoice[]) => invs.reduce((s, i) => s + i.totalTTC, 0);
-    const caCourant = sum(caMoisCourant);
-    const caPrecedent = sum(caMoisPrecedent);
-    const croissanceCaPct = caPrecedent > 0 ? ((caCourant - caPrecedent) / caPrecedent) * 100 : (caCourant > 0 ? 100 : 0);
-
-    const creances = unpaidInvoices.reduce((s, i) => s + i.soldeRestant, 0);
-    const ratioCreancesSurCAPct = caCourant > 0 ? (creances / caCourant) * 100 : 0;
-
-    const pctSimulationsRentables = simulationsActives.length > 0
-      ? (simulationsActives.filter((s) => s.statutRentabilite === 'vert').length / simulationsActives.length) * 100
-      : 100; // aucune simulation active : ne pénalise pas le score par défaut
-
-    const pctStockSain = stockItems.length > 0
-      ? (stockItems.filter((i) => i.quantite > 0 && (i.seuilAlerte === null || i.quantite > i.seuilAlerte)).length / stockItems.length) * 100
-      : 100;
-
-    const enRetard = unpaidOrders.filter((o) => o.dateEcheance && new Date(o.dateEcheance) < now).length;
-    const pctEcheancesFournisseursRespectees = unpaidOrders.length > 0
-      ? ((unpaidOrders.length - enRetard) / unpaidOrders.length) * 100
-      : 100;
-
-    const resultat = computeProfitabilityScore({
-      croissanceCaPct, ratioCreancesSurCAPct, pctSimulationsRentables, pctStockSain, pctEcheancesFournisseursRespectees,
+    const debutMoisCourant = new Date();
+    debutMoisCourant.setDate(1);
+    debutMoisCourant.setHours(0, 0, 0, 0);
+    const [snapshot] = await FinancialHealthSnapshot.findOrCreate({
+      where: { companyId, mois: debutMoisCourant },
+      defaults: { companyId, mois: debutMoisCourant, score: resultat.score, details: JSON.stringify(resultat.details) },
     });
+    snapshot.score = resultat.score;
+    snapshot.details = JSON.stringify(resultat.details);
+    await snapshot.save();
 
-    res.status(200).json(resultat);
+    res.status(200).json({ ...resultat, ...description });
   } catch (error) {
     console.error('Erreur getProfitabilityScore :', error);
+    res.status(500).json({ error: 'Une erreur est survenue.' });
+  }
+};
+
+// GET /api/v1/crm/profitability/score/historique?mois=12 — évolution du score de santé
+// financière. Renvoie les instantanés MENSUELS RÉELLEMENT ENREGISTRÉS depuis la mise en place de
+// cette fonctionnalité — pas de reconstruction rétroactive (voir FinancialHealthSnapshot pour la
+// raison : le stock/les créances n'ont pas d'historique daté dans Naatalix).
+export const getFinancialHealthHistory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const companyId = req.user!.companyId!;
+    const limit = Math.min(Math.max(Number(req.query.mois) || 12, 1), 36);
+
+    const snapshots = await FinancialHealthSnapshot.findAll({
+      where: { companyId },
+      order: [['mois', 'DESC']],
+      limit,
+    });
+
+    res.status(200).json({
+      data: snapshots.reverse().map((s) => ({ mois: s.mois, score: s.score, details: JSON.parse(s.details) })),
+    });
+  } catch (error) {
+    console.error('Erreur getFinancialHealthHistory :', error);
     res.status(500).json({ error: 'Une erreur est survenue.' });
   }
 };

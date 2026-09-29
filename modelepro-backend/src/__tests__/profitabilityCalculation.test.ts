@@ -5,7 +5,9 @@ import {
   computeDiscountSimulation,
   computeTargetProfit,
   comparePrevisionnelVsReel,
-  computeProfitabilityScore,
+  computeFinancialHealthScore,
+  describeFinancialHealth,
+  FinancialHealthInputs,
   CostLine,
   SimulationInputs,
 } from '../services/profitabilityCalculationService';
@@ -249,51 +251,52 @@ describe('profitabilityCalculationService — comparePrevisionnelVsReel', () => 
   });
 });
 
-describe('profitabilityCalculationService — computeProfitabilityScore', () => {
-  it('toutes les notes au maximum → score de 100, détail complet renvoyé', () => {
-    const result = computeProfitabilityScore({
-      croissanceCaPct: 20,
-      ratioCreancesSurCAPct: 0,
-      pctSimulationsRentables: 100,
-      pctStockSain: 100,
-      pctEcheancesFournisseursRespectees: 100,
-    });
+describe('profitabilityCalculationService — computeFinancialHealthScore (méthodologie M. Bamba, 2026-09-29)', () => {
+  const maxInputs: FinancialHealthInputs = {
+    margeBrutePct: 50, ratioLiquiditePct: 100, tauxImpayesPct: 0, dsoJours: 30,
+    croissanceCaPct: 20, objectifCaAtteintPct: 100, rotationStock: 0.8, pctStockDormant: 0,
+    dpoJours: 30, tauxEcheancesRespecteesPct: 100,
+  };
+  const worstInputs: FinancialHealthInputs = {
+    margeBrutePct: 0, ratioLiquiditePct: 0, tauxImpayesPct: 50, dsoJours: 90,
+    croissanceCaPct: -20, objectifCaAtteintPct: 0, rotationStock: 0, pctStockDormant: 100,
+    dpoJours: 90, tauxEcheancesRespecteesPct: 0,
+  };
+  const midInputs: FinancialHealthInputs = {
+    margeBrutePct: 25, ratioLiquiditePct: 50, tauxImpayesPct: 25, dsoJours: 60,
+    croissanceCaPct: 0, objectifCaAtteintPct: null, rotationStock: 0.4, pctStockDormant: 50,
+    dpoJours: 60, tauxEcheancesRespecteesPct: 50,
+  };
+
+  it('toutes les notes au maximum → score de 100, 6 postes pondérés à 30/20/15/15/10/10', () => {
+    const result = computeFinancialHealthScore(maxInputs);
     expect(result.score).toBe(100);
-    expect(result.details).toHaveLength(5);
+    expect(result.details).toHaveLength(6);
     expect(result.details.reduce((s, d) => s + d.poids, 0)).toBe(100);
   });
 
   it('toutes les notes au pire → score de 0', () => {
-    const result = computeProfitabilityScore({
-      croissanceCaPct: -20,
-      ratioCreancesSurCAPct: 50,
-      pctSimulationsRentables: 0,
-      pctStockSain: 0,
-      pctEcheancesFournisseursRespectees: 0,
-    });
-    expect(result.score).toBe(0);
+    expect(computeFinancialHealthScore(worstInputs).score).toBe(0);
   });
 
-  it('situation neutre (croissance nulle, aucune créance, reste à 50%) → score autour de 50', () => {
-    const result = computeProfitabilityScore({
-      croissanceCaPct: 0,
-      ratioCreancesSurCAPct: 0,
-      pctSimulationsRentables: 50,
-      pctStockSain: 50,
-      pctEcheancesFournisseursRespectees: 50,
-    });
-    // croissance→50, créances→100, simulations→50, stock→50, fournisseurs→50
-    // = 50*0.25 + 100*0.25 + 50*0.20 + 50*0.15 + 50*0.15 = 12.5+25+10+7.5+7.5 = 62.5 → arrondi 63
-    expect(result.score).toBe(63);
+  it('tous les sous-indicateurs à mi-parcours → chaque poste note 50, score global 50', () => {
+    const result = computeFinancialHealthScore(midInputs);
+    expect(result.score).toBe(50);
+    for (const d of result.details) expect(d.note).toBe(50);
+  });
+
+  it('objectifCaAtteintPct non renseigné (null) : le sous-critère retombe sur la note de croissance du CA, sans pénaliser l\'entreprise', () => {
+    const result = computeFinancialHealthScore({ ...maxInputs, objectifCaAtteintPct: null });
+    const perfCa = result.details.find((d) => d.dimension === 'Performance du chiffre d\'affaires')!;
+    // croissanceCaPct: 20 → note 100 ; sans objectif, la moyenne (100+100)/2 reste 100.
+    expect(perfCa.note).toBe(100);
   });
 
   it('les valeurs hors bornes sont ramenées entre 0 et 100 (pas de score négatif ou > 100)', () => {
-    const result = computeProfitabilityScore({
-      croissanceCaPct: 500,
-      ratioCreancesSurCAPct: -10,
-      pctSimulationsRentables: 200,
-      pctStockSain: -5,
-      pctEcheancesFournisseursRespectees: 150,
+    const result = computeFinancialHealthScore({
+      margeBrutePct: 500, ratioLiquiditePct: -10, tauxImpayesPct: -5, dsoJours: 1000,
+      croissanceCaPct: 500, objectifCaAtteintPct: 500, rotationStock: 50, pctStockDormant: -20,
+      dpoJours: -10, tauxEcheancesRespecteesPct: 150,
     });
     expect(result.score).toBeGreaterThanOrEqual(0);
     expect(result.score).toBeLessThanOrEqual(100);
@@ -301,5 +304,17 @@ describe('profitabilityCalculationService — computeProfitabilityScore', () => 
       expect(d.note).toBeGreaterThanOrEqual(0);
       expect(d.note).toBeLessThanOrEqual(100);
     }
+  });
+
+  it('describeFinancialHealth : label selon le score + points forts/attention par dimension', () => {
+    const bon = describeFinancialHealth(computeFinancialHealthScore(maxInputs));
+    expect(bon.label).toBe('Excellente situation financière');
+    expect(bon.pointsForts.length).toBe(6);
+    expect(bon.pointsAttention).toHaveLength(0);
+
+    const mauvais = describeFinancialHealth(computeFinancialHealthScore(worstInputs));
+    expect(mauvais.label).toBe('Situation financière préoccupante');
+    expect(mauvais.pointsAttention.length).toBe(6);
+    expect(mauvais.pointsForts).toHaveLength(0);
   });
 });
