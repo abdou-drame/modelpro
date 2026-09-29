@@ -1,13 +1,18 @@
-# ModèlePro
+# ModèlePro / Naatalix
 
-Place de marché mobile mettant en relation clients et artisans (tailleurs, couturiers, artisans du textile) en Afrique de l'Ouest. Contexte sénégalais : monnaie FCFA, paiements Wave / Orange Money / Free Money.
+Place de marché mobile mettant en relation clients et artisans (tailleurs, couturiers, artisans du textile) en Afrique de l'Ouest (ModèlePro), sur laquelle est construit **Naatalix**, un module SaaS CRM/ERP multi-tenant destiné aux entreprises (clients, devis, commandes, facturation, stocks, fournisseurs, rentabilité, reporting multisite, facturation d'abonnement via DexPay...). Les deux vivent dans le même backend. Contexte sénégalais : monnaie FCFA, paiements Wave / Orange Money / Free Money / DexPay.
+
+Pour la référence complète des endpoints Naatalix, voir
+[`modelepro-backend/API_NAATALIX.md`](modelepro-backend/API_NAATALIX.md). Pour l'historique détaillé
+de chaque décision de conception (règles métier, tests, limites connues), voir
+[`JOURNAL.md`](JOURNAL.md).
 
 ## Structure du projet
 
 ```
 modelpro/
-├── modelepro-backend/   # API REST Node.js / Express / TypeScript
-└── modelpro-mobile/     # Application mobile React Native / Expo
+├── modelepro-backend/   # API REST Node.js / Express / TypeScript (ModèlePro + Naatalix)
+└── modelpro-mobile/     # Application mobile React Native / Expo (ModèlePro)
 ```
 
 ## Backend (`modelepro-backend`)
