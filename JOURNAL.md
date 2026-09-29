@@ -1266,6 +1266,43 @@ L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel d�
 
 - Prochaine étape : au choix de l'utilisateur.
 
+## 2026-09-29 — Audit de préparation à la mise en production
+
+- Objectif : la matrice de fonctionnalités des 3 formules (NAATALIX_Formules_Fonctionnalites.docx) vérifiée exhaustivement contre le code — tout est implémenté (PDF devis/commande/facture/reçu/relevé client, quotas utilisateurs/sites, reporting par utilisateur/site, prévision de CA, export CSV). Rien de fonctionnel ne manquait. L'utilisateur a donc demandé un audit de ce qui reste à durcir avant la mise en ligne sur le VPS.
+
+- Points identifiés et corrigés :
+  - **`trust proxy` absent** — derrière Nginx sur le VPS, `express-rate-limit` aurait lu l'IP du proxy pour toutes les requêtes au lieu de l'IP réelle du client (rate limiting inefficace, ou blocage global). Activé conditionnellement (`NODE_ENV=production`) dans `app.ts`.
+  - **Aucun en-tête de sécurité** — `helmet` ajouté (CSP désactivée volontairement : API JSON pure, pas de HTML servi).
+  - **CORS totalement ouvert** (`cors()` sans restriction) — ajout d'une liste blanche optionnelle via `CORS_ORIGINS` (variable d'env, domaines séparés par virgules). Non définie = comportement actuel conservé (tout domaine autorisé), pour ne rien casser tant que les domaines définitifs du frontend ne sont pas connus.
+  - **Pas de handler 404/erreur JSON** — ajouté en fin de `app.ts` : route inconnue → JSON `{error: 'Route introuvable.'}` au lieu de la page HTML par défaut d'Express ; erreur non interceptée par un contrôleur → JSON générique 500 (jamais de stack trace exposée au client).
+  - **`.env.example` documentait une variable `DATABASE_URL` jamais lue par le code** (`src/config/database.ts` utilise en réalité `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD`) — aurait causé une vraie panne de connexion silencieuse au déploiement (retombée sur les valeurs par défaut `modelpro`/`postgres`/mot de passe vide). Corrigé pour refléter les variables réellement utilisées, plus ajout de `CORS_ORIGINS` et d'une note sur `NODE_ENV=production`.
+
+- Points vérifiés et jugés déjà corrects (aucun changement) :
+  - `JWT_SECRET` : refuse déjà de démarrer sans cette variable hors environnement de test (`config/database.ts`).
+  - `.env` bien absent du dépôt (`.gitignore` du backend), confirmé avant et après ce travail.
+  - `sequelize.sync({ force: false })` — ne risque jamais d'effacer les données en production.
+  - Upload local (`localUploadService.ts`) : extension dérivée du mimetype validé (jamais du nom de fichier client), protection anti-traversée de chemin (`..`) déjà en place.
+  - Hachage des mots de passe : bcrypt, 10 rounds — standard raisonnable.
+  - `npm audit` : 13 vulnérabilités (6 modérées, 7 hautes) dans les dépendances transitives — non traitées ici (`audit fix --force` peut casser des versions ; à examiner séparément, une par une, si le temps le permet avant la mise en ligne).
+  - CORS laissé ouvert par défaut (décision volontaire, pas un oubli) : c'est une API à jeton Bearer (pas de cookies), donc pas de vecteur CSRF classique ; à restreindre via `CORS_ORIGINS` dès que les domaines du frontend sont fixés.
+
+- Fichiers modifiés : `src/app.ts` (trust proxy, helmet, CORS_ORIGINS, handlers 404/erreur), `.env.example`, `package.json`/`package-lock.json` (ajout de la dépendance `helmet`).
+
+- Commandes exécutées / Résultats :
+  ```
+  npm install helmet          → OK (1 paquet ajouté)
+  npx tsc --noEmit             → OK
+  npm test (suite complète)    → 463/465, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental) — aucune régression
+  ```
+  Vérifié aussi en conditions réelles : serveur démarré localement, `curl /api/health` (200, en-têtes helmet présents) et `curl` sur une route inconnue (404 JSON propre, en-têtes de rate limiting visibles). Processus de test arrêté proprement ensuite.
+
+- Limites / décisions restantes avant la mise en ligne :
+  - `CORS_ORIGINS` doit être renseignée avec les vrais domaines du frontend une fois connus — sinon l'API reste ouverte à tout domaine (comportement actuel, pas une régression).
+  - `npm audit` (13 vulnérabilités) non traité — à revoir avant ou peu après la mise en ligne.
+  - Aucun outil de process management (PM2/systemd) ni configuration Nginx ne fait partie de ce dépôt — reste à mettre en place côté VPS (hors périmètre du code).
+
+- Prochaine étape : au choix de l'utilisateur — SMS/WhatsApp (bloqué sur le choix du prestataire), webhook DexPay réel (attend la mise en ligne), score de rentabilité (attend validation direction), ou traitement du `npm audit`.
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module

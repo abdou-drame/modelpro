@@ -1,5 +1,6 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import { apiLimiter } from './middlewares/rateLimitMiddleware';
@@ -80,7 +81,22 @@ dotenv.config();
 
 const app: Application = express();
 
-app.use(cors());
+// Nécessaire en production derrière un reverse proxy (Nginx sur le VPS) : sans ce réglage,
+// express-rate-limit lit l'IP du proxy pour toutes les requêtes (un seul "utilisateur" au sens
+// du rate limiting) au lieu de l'IP réelle du client transmise via X-Forwarded-For.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// En-têtes de sécurité de base (CSP désactivée : cette API ne sert pas de HTML, seulement du
+// JSON/fichiers statiques d'upload — une CSP par défaut casserait sans bénéfice ici).
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS_ORIGINS optionnelle (ex. "https://app.naatalix.com,https://admin.naatalix.com") : liste
+// blanche en production. Non définie = comportement historique (tout domaine autorisé), conservé
+// par défaut pour ne rien casser tant que les domaines définitifs ne sont pas connus.
+const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
+app.use(cors(allowedOrigins.length > 0 ? { origin: allowedOrigins } : {}));
 // rawBody conservé pour vérifier la signature HMAC des webhooks (intégration PayTrack).
 app.use(express.json({
   limit: '50mb',
@@ -122,6 +138,20 @@ app.use('/api/v1', clientRoutes);
 // Route de test pour la santé de l'API
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Le serveur répond et le routage est actif.' });
+});
+
+// Route inconnue : réponse JSON propre plutôt que la page HTML par défaut d'Express.
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: 'Route introuvable.' });
+});
+
+// Filet de sécurité final : toute erreur non gérée par un contrôleur (qui devrait normalement
+// répondre lui-même avec un try/catch, cf. conventions du projet) atterrit ici plutôt que de
+// laisser Express renvoyer sa page d'erreur HTML par défaut (qui inclut la stack trace hors
+// production). Ne doit normalement jamais servir en pratique.
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error('Erreur non gérée :', err);
+  res.status(500).json({ error: 'Une erreur interne est survenue.' });
 });
 
 export default app;
