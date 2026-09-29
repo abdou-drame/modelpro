@@ -1242,6 +1242,30 @@ L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel d�
 
 - Prochaine étape : au choix de l'utilisateur — SMS/WhatsApp (bloqué en attendant un prestataire), doc OpenAPI/CI/CD, ou valider/ajuster la formule du score de rentabilité avec la direction.
 
+## 2026-09-29 — Journal d'activité : extension au pipeline commercial, fournisseurs, produits
+
+- Objectif : l'utilisateur a demandé de finir les bouts identifiés comme non couverts dans le journal d'activité entreprise (2026-09-25), plutôt que de commencer un nouveau chantier. Clarifié au passage (questions posées en langage courant par l'utilisateur, confus sur certains points) : doc API mise de côté pour l'instant, webhook DexPay réel attend la mise en ligne (rien à faire de plus côté code avant ça), SMS/WhatsApp toujours bloqué sur le choix d'un prestataire — aucun changement sur ces trois points.
+
+- Même mécanisme que le 2026-09-25 (`recordCompanyActivity`, aucune nouvelle table), étendu à :
+  - `opportunityController.ts` — `createOpportunity` (`opportunite.creee`), `moveToStage` (`opportunite.etape_changee`, avec le nom de l'étape de destination dans les détails).
+  - `crmTaskController.ts` — `createTask` (`tache.creee` ou `rendezvous.cree` selon `type`, distinction faite dans le code car le cahier des charges nomme "Rendez-vous & prestations"/"Agenda" séparément même si c'est le même modèle `CrmTask`), `completeTask` (`tache.terminee`), `cancelTask` (`tache.annulee`). `assignTask`/`rescheduleTask` volontairement non loggés (jugés trop bas niveau/fréquents pour un flux d'activité).
+  - `supplierController.ts` — `createSupplier` (`fournisseur.cree`).
+  - `crmProductController.ts` — `createProduct` (`produit.cree`).
+
+- Tests ajoutés : `src/__tests__/activityLog.test.ts` (+3 tests) — création + changement d'étape d'une opportunité, cycle tâche (création/complétion) et rendez-vous (création/annulation) avec vérification que les deux types produisent des actions distinctes, création fournisseur + produit.
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit && npm run build   → OK
+  npx jest activityLog.test.ts        → 11/11 passants
+  npm test (suite complète)           → 463/465, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental)
+  ```
+  Vérifié aussi en conditions réelles sur PostgreSQL : création de fournisseur réelle suivie d'une lecture du journal via `curl`, entrées retrouvées avec le bon auteur. Données nettoyées ensuite.
+
+- Limites toujours assumées (non traitées ici, hors périmètre de cette extension) : la création de contacts (clients/fournisseurs) et les modifications de fiches existantes (hors statut/rôle) restent non loggées — seuls les événements "métier" (création, transitions de statut, paiements) le sont, pas chaque champ modifié.
+
+- Prochaine étape : au choix de l'utilisateur.
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module

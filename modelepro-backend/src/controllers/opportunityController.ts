@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Opportunity } from '../models/Opportunity';
 import { PipelineStage } from '../models/PipelineStage';
 import { Customer } from '../models/Customer';
+import { recordCompanyActivity } from '../services/auditService';
 
 const clampProbabilite = (value: unknown, fallback = 0): number => {
   const n = Number(value);
@@ -62,6 +63,7 @@ export const createOpportunity = async (req: AuthenticatedRequest, res: Response
     });
     applyStageEffect(opportunity, stage);
     await opportunity.save();
+    await recordCompanyActivity(req, 'opportunite.creee', 'Opportunity', opportunity.id, { nom: opportunity.nom, valeur: opportunity.valeur });
 
     res.status(201).json(opportunity);
   } catch (error) {
@@ -165,6 +167,7 @@ export const moveToStage = async (req: AuthenticatedRequest, res: Response): Pro
 
     applyStageEffect(opportunity, stage);
     await opportunity.save();
+    await recordCompanyActivity(req, 'opportunite.etape_changee', 'Opportunity', opportunity.id, { nom: opportunity.nom, versEtape: stage.nom, statut: opportunity.statut });
 
     res.status(200).json(opportunity);
   } catch (error) {

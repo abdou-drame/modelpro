@@ -8,6 +8,7 @@ import { SupplierProduct } from '../models/SupplierProduct';
 import { Product } from '../models/Product';
 import { PurchaseOrder } from '../models/PurchaseOrder';
 import { toCsv, sendCsv } from '../services/csvExportService';
+import { recordCompanyActivity } from '../services/auditService';
 
 // POST /api/v1/crm/suppliers
 export const createSupplier = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -20,6 +21,7 @@ export const createSupplier = async (req: AuthenticatedRequest, res: Response): 
       companyId, nom, ninea: ninea || null, email: email || null, telephone: telephone || null,
       adresse: adresse || null, conditionsPaiement: conditionsPaiement || null, notes: notes || null,
     });
+    await recordCompanyActivity(req, 'fournisseur.cree', 'Supplier', supplier.id, { nom: supplier.nom });
 
     res.status(201).json(supplier);
   } catch (error) {

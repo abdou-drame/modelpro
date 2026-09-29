@@ -5,6 +5,7 @@ import sequelize from '../config/database';
 import { Product } from '../models/Product';
 import { toCsv, sendCsv } from '../services/csvExportService';
 import { hasFeature, PLAN_FEATURE_KEYS } from '../services/subscriptionService';
+import { recordCompanyActivity } from '../services/auditService';
 
 const PRODUCT_TYPES = ['produit', 'service'] as const;
 
@@ -40,6 +41,7 @@ export const createProduct = async (req: AuthenticatedRequest, res: Response): P
       disponible: disponible !== undefined ? Boolean(disponible) : true,
       variantes: variantes ? JSON.stringify(variantes) : null,
     });
+    await recordCompanyActivity(req, 'produit.cree', 'Product', product.id, { nom: product.nom, type: product.type });
 
     res.status(201).json(product);
   } catch (error) {

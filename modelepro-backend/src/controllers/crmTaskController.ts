@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { CrmTask } from '../models/CrmTask';
 import { Customer } from '../models/Customer';
 import { Opportunity } from '../models/Opportunity';
+import { recordCompanyActivity } from '../services/auditService';
 
 const TASK_TYPES = ['tache', 'rappel', 'rendez_vous'] as const;
 const MANAGER_ROLES = ['admin', 'manager', 'commercial'];
@@ -50,6 +51,9 @@ export const createTask = async (req: AuthenticatedRequest, res: Response): Prom
       dateEcheance: echeance,
       rappelActif: Boolean(rappelActif),
     });
+    // type='rendez_vous' distingué de tache/rappel dans le journal (le cahier des charges les
+    // nomme séparément : "Rendez-vous & prestations"/"Agenda"), même si c'est le même modèle.
+    await recordCompanyActivity(req, task.type === 'rendez_vous' ? 'rendezvous.cree' : 'tache.creee', 'CrmTask', task.id, { titre: task.titre });
 
     res.status(201).json(task);
   } catch (error) {
@@ -188,6 +192,7 @@ export const cancelTask = async (req: AuthenticatedRequest, res: Response): Prom
     task.statut = 'annule';
     task.motifAnnulation = req.body.motif || null;
     await task.save();
+    await recordCompanyActivity(req, 'tache.annulee', 'CrmTask', task.id, { titre: task.titre });
 
     res.status(200).json(task);
   } catch (error) {
@@ -206,6 +211,7 @@ export const completeTask = async (req: AuthenticatedRequest, res: Response): Pr
     task.statut = 'fait';
     task.dateRealisation = new Date();
     await task.save();
+    await recordCompanyActivity(req, 'tache.terminee', 'CrmTask', task.id, { titre: task.titre });
 
     res.status(200).json(task);
   } catch (error) {

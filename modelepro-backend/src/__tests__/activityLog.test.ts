@@ -124,3 +124,50 @@ describe('Journal d’activité entreprise (visibilité d’équipe, distinct du
     await request(app).patch(`/api/v1/backoffice/companies/${companyId}/reactivate`).set('Authorization', `Bearer ${staffLogin.body.token}`);
   });
 });
+
+describe('Journal d’activité — extension au pipeline commercial, fournisseurs et produits (2026-09-29)', () => {
+  it('la création puis le déplacement d’une opportunité dans le pipeline apparaissent dans le journal', async () => {
+    const stages = await request(app).get('/api/v1/crm/pipeline-stages').set('Authorization', `Bearer ${adminToken}`);
+    const premiereEtape = stages.body[0].id;
+    const deuxiemeEtape = stages.body[1]?.id || premiereEtape;
+
+    const opp = await request(app).post('/api/v1/crm/opportunities').set('Authorization', `Bearer ${adminToken}`)
+      .send({ customerId, nom: 'Vente sac wax', stageId: premiereEtape, valeur: 100000 });
+    expect(opp.status).toBe(201);
+    await request(app).patch(`/api/v1/crm/opportunities/${opp.body.id}/stage`).set('Authorization', `Bearer ${adminToken}`).send({ stageId: deuxiemeEtape });
+
+    const res = await request(app).get('/api/v1/companies/me/activity-log?action=opportunite').set('Authorization', `Bearer ${adminToken}`);
+    const actions = res.body.data.map((e: any) => e.action);
+    expect(actions).toContain('opportunite.creee');
+    expect(actions).toContain('opportunite.etape_changee');
+  });
+
+  it('création, complétion et annulation d’une tâche/rendez-vous apparaissent dans le journal (types distincts)', async () => {
+    const tache = await request(app).post('/api/v1/crm/tasks').set('Authorization', `Bearer ${adminToken}`)
+      .send({ type: 'tache', titre: 'Relancer le client' });
+    await request(app).patch(`/api/v1/crm/tasks/${tache.body.id}/complete`).set('Authorization', `Bearer ${adminToken}`);
+
+    const rdv = await request(app).post('/api/v1/crm/tasks').set('Authorization', `Bearer ${adminToken}`)
+      .send({ type: 'rendez_vous', titre: 'Visite atelier' });
+    await request(app).patch(`/api/v1/crm/tasks/${rdv.body.id}/cancel`).set('Authorization', `Bearer ${adminToken}`).send({ motif: 'Client indisponible' });
+
+    const res = await request(app).get('/api/v1/companies/me/activity-log').set('Authorization', `Bearer ${adminToken}`);
+    const actions = res.body.data.map((e: any) => e.action);
+    expect(actions).toContain('tache.creee');
+    expect(actions).toContain('tache.terminee');
+    expect(actions).toContain('rendezvous.cree');
+    expect(actions).toContain('tache.annulee');
+  });
+
+  it('la création d’un fournisseur et d’un produit apparaissent dans le journal', async () => {
+    const supplier = await request(app).post('/api/v1/crm/suppliers').set('Authorization', `Bearer ${adminToken}`)
+      .send({ nom: 'Fournisseur Wax Dakar' });
+    const product = await request(app).post('/api/v1/crm/products').set('Authorization', `Bearer ${adminToken}`)
+      .send({ nom: 'Boubou brodé' });
+
+    const res = await request(app).get('/api/v1/companies/me/activity-log').set('Authorization', `Bearer ${adminToken}`);
+    const entries = res.body.data;
+    expect(entries.some((e: any) => e.action === 'fournisseur.cree' && e.objectId === supplier.body.id)).toBe(true);
+    expect(entries.some((e: any) => e.action === 'produit.cree' && e.objectId === product.body.id)).toBe(true);
+  });
+});
