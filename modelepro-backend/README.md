@@ -1,6 +1,13 @@
-# ModèlePro — Backend API V1
+# ModèlePro / Naatalix — Backend API V1
 
 Node.js · Express · TypeScript · Sequelize · PostgreSQL (SQLite en test)
+
+Ce backend unique sert deux volets du même produit :
+- **ModèlePro** — la marketplace mobile clients/artisans d'origine (endpoints documentés plus bas).
+- **Naatalix** — le module SaaS CRM/ERP multi-tenant construit dessus (clients, devis, commandes,
+  factures, stocks, fournisseurs, rentabilité, facturation d'abonnement...). Voir
+  **[API_NAATALIX.md](./API_NAATALIX.md)** pour la référence complète de ses endpoints, et
+  `../JOURNAL.md` pour l'historique détaillé de chaque décision de conception.
 
 ---
 
@@ -11,8 +18,8 @@ npm install
 npm run dev        # Développement (ts-node-dev, hot-reload sur http://localhost:5000)
 npm run build      # Compilation TypeScript → dist/
 npm start          # Production (node dist/server.js)
-npm test           # Tests automatisés Jest (12 suites, 98 tests, 100% PASS)
-npm run seed       # Peupler la base avec des données de test
+npm test           # Tests automatisés Jest (42 suites, 460+ tests, ~100% PASS)
+npm run seed       # Peupler la base avec des données de test (ModèlePro)
 ```
 
 ---
@@ -62,12 +69,14 @@ npm run seed
 
 ## 🔑 Variables d'environnement — `.env`
 
-Créer un fichier `.env` à la racine du projet :
+Voir `.env.example` pour la liste complète et à jour (copier/coller `cp .env.example .env`). Grandes lignes :
 
 ```env
 # Serveur
 PORT=5000
-NODE_ENV=development
+NODE_ENV=development          # "production" active trust proxy (voir app.ts, nécessaire derrière Nginx)
+APP_BASE_URL=http://localhost:5000
+CORS_ORIGINS=                 # vide = tout domaine autorisé ; liste blanche en prod (séparée par virgules)
 
 # JWT
 JWT_SECRET=remplace_par_une_cle_secrete_longue_et_aleatoire
@@ -78,13 +87,19 @@ DB_PORT=5432
 DB_NAME=modelpro
 DB_USER=postgres
 DB_PASSWORD=ton_mot_de_passe
+
+# Naatalix uniquement (optionnels en dev — fonctionnalités dégradées proprement si absents) :
+# SMTP_* (e-mail/OTP), DEXPAY_* (facturation d'abonnement), CLOUDINARY_* (hérité ModèlePro)
 ```
 
 > En mode `test` (ou si `JEST_WORKER_ID` est détecté), la base de données bascule automatiquement sur **SQLite in-memory** — aucune configuration PostgreSQL requise pour exécuter `npm test`.
 
 ---
 
-## 📡 Endpoints API — `BASE : /api/v1`
+## 📡 Endpoints API ModèlePro (marketplace) — `BASE : /api/v1`
+
+> Pour Naatalix (CRM/ERP entreprise : clients, devis, factures, stocks, fournisseurs, rentabilité,
+> DexPay...), voir **[API_NAATALIX.md](./API_NAATALIX.md)**, non listé ci-dessous.
 
 ### 🔐 Authentification & Push FCM — `authController` / `userController`
 | Méthode | Route | Rôle | Description |
@@ -201,7 +216,8 @@ src/
 ├── controllers/            # Contrôleurs contenant la logique métier par domaine
 ├── routes/                 # Définition des routes Express par domaine
 ├── services/               # Services partagés (ex: notificationService.ts)
-└── __tests__/              # 12 suites de tests automatisés (Jest & Supertest)
+└── __tests__/              # 42 suites de tests automatisés (Jest & Supertest)
 uploads/                    # Répertoire des fichiers statiques servis sous /uploads/
-SPECIFICATIONS_FRONT_MOBILE.md  # Guide complet d'intégration Frontend & Mobile
+SPECIFICATIONS_FRONT_MOBILE.md  # Guide complet d'intégration Frontend & Mobile (ModèlePro)
+API_NAATALIX.md             # Référence complète des endpoints Naatalix
 ```
