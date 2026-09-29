@@ -1,7 +1,9 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import { apiLimiter } from './middlewares/rateLimitMiddleware';
 
 // Importation de tous les modèles pour la synchronisation PostgreSQL / tests
 import './models/User';
@@ -18,6 +20,41 @@ import './models/Message';
 import './models/Notification';
 import './models/Payment';
 import './models/WalletTransaction';
+import './models/Company';
+import './models/Customer';
+import './models/Contact';
+import './models/PipelineStage';
+import './models/Opportunity';
+import './models/CrmTask';
+import './models/Product';
+import './models/DocumentCounter';
+import './models/Quote';
+import './models/QuoteLine';
+import './models/SalesOrder';
+import './models/SalesOrderLine';
+import './models/Invoice';
+import './models/InvoiceLine';
+import './models/InvoicePayment';
+import './models/Supplier';
+import './models/SupplierContact';
+import './models/SupplierProduct';
+import './models/PurchaseOrder';
+import './models/PurchaseOrderLine';
+import './models/PurchaseOrderPayment';
+import './models/Site';
+import './models/StockItem';
+import './models/StockMovement';
+import './models/ProfitabilitySimulation';
+import './models/ProfitabilityCost';
+import './models/AuditLog';
+import './models/SubscriptionPlan';
+import './models/CompanySubscription';
+import './models/SubscriptionEvent';
+import './models/PaytrackTransaction';
+import './models/PaytrackEvent';
+import './models/DexpayEvent';
+import './models/SupportTicket';
+import './models/SupportTicketMessage';
 
 // Importation des routes v1
 import authRoutes from './routes/authRoutes';
@@ -29,17 +66,50 @@ import messageRoutes from './routes/messageRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import userRoutes from './routes/userRoutes';
 import paymentRoutes from './routes/paymentRoutes';
+import companyRoutes from './routes/companyRoutes';
+import crmRoutes from './routes/crmRoutes';
+import supplierRoutes from './routes/supplierRoutes';
+import stockRoutes from './routes/stockRoutes';
+import profitabilityRoutes from './routes/profitabilityRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
+import backofficeRoutes from './routes/backofficeRoutes';
+import integrationRoutes from './routes/integrationRoutes';
+import supportRoutes from './routes/supportRoutes';
+import { handleWebhook as handleDexpayWebhook } from './controllers/dexpayController';
 
 dotenv.config();
 
 const app: Application = express();
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+// Nécessaire en production derrière un reverse proxy (Nginx sur le VPS) : sans ce réglage,
+// express-rate-limit lit l'IP du proxy pour toutes les requêtes (un seul "utilisateur" au sens
+// du rate limiting) au lieu de l'IP réelle du client transmise via X-Forwarded-For.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// En-têtes de sécurité de base (CSP désactivée : cette API ne sert pas de HTML, seulement du
+// JSON/fichiers statiques d'upload — une CSP par défaut casserait sans bénéfice ici).
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS_ORIGINS optionnelle (ex. "https://app.naatalix.com,https://admin.naatalix.com") : liste
+// blanche en production. Non définie = comportement historique (tout domaine autorisé), conservé
+// par défaut pour ne rien casser tant que les domaines définitifs ne sont pas connus.
+const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
+app.use(cors(allowedOrigins.length > 0 ? { origin: allowedOrigins } : {}));
+// rawBody conservé pour vérifier la signature HMAC des webhooks (intégration PayTrack).
+app.use(express.json({
+  limit: '50mb',
+  verify: (req: any, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Servir les fichiers téléversés de façon statique
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Garde-fou anti-abus global (Phase 5) — les endpoints sensibles (login/2FA) ont en plus leur
+// propre limite, plus stricte, posée directement dans authRoutes.ts.
+app.use('/api/v1', apiLimiter);
 
 // Points de terminaison (Endpoints)s de l'application
 app.use('/api/v1/users', userRoutes);
@@ -50,11 +120,38 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/companies', companyRoutes);
+app.use('/api/v1/crm', crmRoutes);
+app.use('/api/v1/crm', supplierRoutes);
+app.use('/api/v1/crm', stockRoutes);
+app.use('/api/v1/crm/profitability', profitabilityRoutes);
+app.use('/api/v1/crm/dashboard', dashboardRoutes);
+app.use('/api/v1/backoffice', backofficeRoutes);
+app.use('/api/v1/integrations', integrationRoutes);
+app.use('/api/v1/support', supportRoutes);
+// Alias : URL déjà configurée dans le tableau de bord marchand DexPay (2026-09-25). Le chemin
+// canonique reste /api/v1/integrations/dexpay/webhook (integrationRoutes.ts) ; les deux pointent
+// vers le même handler.
+app.post('/api/v1/webhooks/dexpay', handleDexpayWebhook);
 app.use('/api/v1', clientRoutes);
 
 // Route de test pour la santé de l'API
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Le serveur répond et le routage est actif.' });
+});
+
+// Route inconnue : réponse JSON propre plutôt que la page HTML par défaut d'Express.
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: 'Route introuvable.' });
+});
+
+// Filet de sécurité final : toute erreur non gérée par un contrôleur (qui devrait normalement
+// répondre lui-même avec un try/catch, cf. conventions du projet) atterrit ici plutôt que de
+// laisser Express renvoyer sa page d'erreur HTML par défaut (qui inclut la stack trace hors
+// production). Ne doit normalement jamais servir en pratique.
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error('Erreur non gérée :', err);
+  res.status(500).json({ error: 'Une erreur interne est survenue.' });
 });
 
 export default app;

@@ -189,6 +189,12 @@ export const markMessageAsRead = async (req: AuthenticatedRequest, res: Response
 
     if (!message) return res.status(404).json({ error: 'Message introuvable.' });
 
+    const order = await Order.findByPk(message.orderId);
+    if (!order) return res.status(404).json({ error: 'Commande introuvable.' });
+    const artisanProfileOfOrder = await Artisan.findByPk(order.artisanId, { attributes: ['userId'] });
+    const isParticipant = order.clientId === userId || artisanProfileOfOrder?.userId === userId;
+    if (!isParticipant) return res.status(403).json({ error: 'Vous n\'avez pas accès à ce message.' });
+
     message.lu = true;
     await message.save();
 

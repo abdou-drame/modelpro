@@ -60,8 +60,8 @@ beforeAll(async () => {
   });
 
   notificationId = notification.id;
-  clientToken = generateToken(clientUser.id, 'client');
-  artisanToken = generateToken(artisanUser.id, 'artisan');
+  clientToken = generateToken(clientUser.id, 'client', 0);
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
 });
 
 afterAll(async () => {

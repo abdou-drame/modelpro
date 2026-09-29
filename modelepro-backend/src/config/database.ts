@@ -23,6 +23,15 @@ const sequelize = new Sequelize(
   }
 );
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'SUPER_SECRET_KEY_MODELE_PRO_2026_ESTM';
+// Source unique du secret JWT (authMiddleware.ts et utils/auth.ts l'importent d'ici, ne pas
+// redéclarer de fallback ailleurs). En dehors des tests, JWT_SECRET doit venir de l'environnement :
+// un secret par défaut codé en dur permettrait de forger un token admin valide.
+export const JWT_SECRET: string = (() => {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (isTestEnv) return 'TEST_ONLY_JWT_SECRET_DO_NOT_USE_IN_PRODUCTION';
+  throw new Error(
+    "JWT_SECRET manquant. Définissez la variable d'environnement JWT_SECRET avant de démarrer le serveur."
+  );
+})();
 
 export default sequelize;

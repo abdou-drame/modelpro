@@ -24,8 +24,8 @@ beforeAll(async () => {
   const artisanProfile = await Artisan.create({ userId: artisanUser.id, métier: 'tailleur', atelier: 'Atelier 1', localisation: 'Dakar' });
   artisanId = artisanProfile.id;
 
-  artisanToken = generateToken(artisanUser.id, 'artisan');
-  clientToken = generateToken(clientUser.id, 'client');
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
+  clientToken = generateToken(clientUser.id, 'client', 0);
 
   const metier = await Metier.create({ nom: 'Tailoring', description: 'Confection de vêtements' });
 

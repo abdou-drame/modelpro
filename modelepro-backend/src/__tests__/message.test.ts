@@ -58,8 +58,8 @@ beforeAll(async () => {
 
   orderId = order.id;
 
-  clientToken = generateToken(clientUser.id, 'client');
-  artisanToken = generateToken(artisanUser.id, 'artisan');
+  clientToken = generateToken(clientUser.id, 'client', 0);
+  artisanToken = generateToken(artisanUser.id, 'artisan', 0);
 
   const externalUser = await User.create({
     nom: 'Externe',
@@ -71,7 +71,7 @@ beforeAll(async () => {
     statut: 'actif',
   });
 
-  externalToken = generateToken(externalUser.id, 'client');
+  externalToken = generateToken(externalUser.id, 'client', 0);
 });
 
 afterAll(async () => {
@@ -139,5 +139,28 @@ describe('Messagerie contextuelle', () => {
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body.length).toBeGreaterThan(0);
+  });
+
+  it('refuse à un utilisateur externe de marquer comme lu un message qui ne le concerne pas', async () => {
+    const message = await Message.findOne({ where: { orderId } });
+    expect(message).toBeTruthy();
+
+    const response = await request(app)
+      .patch(`/api/v1/messages/${message!.id}/read`)
+      .set('Authorization', `Bearer ${externalToken}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('permet au destinataire de marquer un message comme lu', async () => {
+    const message = await Message.findOne({ where: { orderId } });
+    expect(message).toBeTruthy();
+
+    const response = await request(app)
+      .patch(`/api/v1/messages/${message!.id}/read`)
+      .set('Authorization', `Bearer ${artisanToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.lu).toBe(true);
   });
 });
