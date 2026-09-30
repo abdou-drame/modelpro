@@ -1303,6 +1303,46 @@ L'utilisateur a vérifié les 3 points ouverts ci-dessus contre du code réel d�
 
 - Prochaine étape : au choix de l'utilisateur — SMS/WhatsApp (bloqué sur le choix du prestataire), webhook DexPay réel (attend la mise en ligne), score de rentabilité (attend validation direction), ou traitement du `npm audit`.
 
+## 2026-09-29 — Score de rentabilité → Score de santé financière (méthodologie M. Bamba)
+
+- Objectif : l'utilisateur a transmis à la direction ATAABA (M. Bamba) la question ouverte "comment calculer le score de rentabilité ?". Réponse reçue le jour même avec une méthodologie complète et un nom de fonctionnalité corrigé : **"Score de santé financière"** plutôt que "score de rentabilité" (la rentabilité ne dépend pas que du CA). Décomposition en 6 postes pondérés reprenant des ratios d'analyse financière standards (rentabilité/marges, liquidité/trésorerie, efficacité opérationnelle, solvabilité) :
+  - Rentabilité et marges — 30% (marge brute, marge nette, résultat d'exploitation)
+  - Liquidité et trésorerie — 20%
+  - Créances clients — 15% (taux d'impayés, DSO)
+  - Performance du CA — 15% (évolution, atteinte d'objectifs)
+  - Gestion des stocks — 10% (rotation, stock dormant)
+  - Dettes et fournisseurs — 10% (DPO, échéances respectées)
+  Le score doit être explicable (label + phrase de diagnostic par poste faible/fort), avec une évolution mensuelle affichée. M. Bamba a lui-même suggéré de partir sur cette méthodologie pour la V1 et de l'affiner ensuite — les seuils différenciés par secteur/taille d'entreprise sont donc explicitement reportés.
+
+- Limites de données identifiées et assumées AVANT implémentation (Naatalix ne trace pas tout ce que la méthodologie théorique suppose) :
+  - **Marge nette / résultat d'exploitation** : impossible à calculer — Naatalix ne suit aucune charge d'exploitation générale (loyer, salaires...), seulement le coût des marchandises vendues (via le stock). Le poste "Rentabilité et marges" repose donc uniquement sur la **marge brute réelle**.
+  - **Coût au moment de la vente** : approximé par le coût moyen pondéré ACTUEL du produit (`StockItem.coutMoyenPondere`), pas un coût historique daté (inexistant dans le modèle de données).
+  - **Objectifs de CA** : nécessitait un concept qui n'existait pas du tout — ajout d'un champ `Company.objectifCaMensuelFcfa` (nullable, saisi manuellement via `PUT /companies/me`). Sans lui, le sous-critère retombe sur la note de croissance du CA plutôt que de pénaliser une donnée non fournie.
+  - **Seuils différenciés par secteur/taille** : non implémenté (même seuils pour toutes les entreprises), reporté comme suggéré par M. Bamba.
+  - **Historique mensuel** : Naatalix ne conserve aucun instantané daté du stock/des créances — reconstruire le score pour un mois passé donnerait un résultat FAUX pour les postes stock. Décision : un instantané (`FinancialHealthSnapshot`) est enregistré à CHAQUE appel de `/score` (un par mois, mis à jour si rappelé), construisant un historique réel à partir de maintenant plutôt qu'une fausse reconstruction rétroactive.
+
+- Fichiers modifiés :
+  - `src/services/profitabilityCalculationService.ts` — remplace `computeProfitabilityScore`/`ScoreInputs`/`ScoreResult` (5 critères égaux, formule précédente non validée) par `computeFinancialHealthScore`/`FinancialHealthInputs`/`FinancialHealthResult` (6 postes pondérés 30/20/15/15/10/10, chaque poste = moyenne de 1-2 sous-indicateurs). Nouvelle fonction pure `describeFinancialHealth` : label (Excellente/Satisfaisante/Fragile/Préoccupante selon le score) + listes `pointsForts`/`pointsAttention` par poste (règles simples, pas d'IA, comme demandé).
+  - `src/models/Company.ts` — `objectifCaMensuelFcfa` (nullable).
+  - `src/controllers/companyController.ts` — `updateMyCompany` accepte `objectifCaMensuelFcfa`.
+  - `src/models/FinancialHealthSnapshot.ts` (nouveau) — un instantané par entreprise et par mois (`companyId`+`mois` unique).
+  - `src/controllers/profitabilityController.ts` — `buildFinancialHealthInputs` (nouveau, agrège les ratios réels du mois courant : lignes de factures pour la marge brute, créances/dettes "court terme" ≤30j pour la liquidité, formules DSO/DPO classiques `créances (ou dettes) / CA (ou achats) × jours`, rotation de stock `coût vendu / valeur du stock`, stock dormant via l'historique des sorties `StockMovement` sur 90 jours). `getProfitabilityScore` enregistre désormais un instantané mensuel. Nouveau `getFinancialHealthHistory` (`GET /score/historique?mois=`).
+  - `src/routes/profitabilityRoutes.ts` — route `/score/historique`.
+  - `src/app.ts`, `src/server.ts` — import du nouveau modèle, migration `companies.objectif_ca_mensuel_fcfa`.
+  - `API_NAATALIX.md` — section score mise à jour (nouvelle forme de réponse + `/score/historique`).
+
+- Tests : `src/__tests__/profitabilityCalculation.test.ts` (remplace les 4 tests de l'ancienne formule par 6 tests sur la nouvelle : score max/min/mi-parcours, repli `objectifCaAtteintPct: null` sur la croissance du CA, bornage 0-100, labels/points forts-attention de `describeFinancialHealth`). `src/__tests__/profitabilityAdvanced.test.ts` (+2 tests : instantané mensuel consultable via `/score/historique`, `objectifCaMensuelFcfa` renseigné influence bien le sous-indicateur correspondant ; le test existant passe de 5 à 6 postes attendus).
+
+- Commandes exécutées / Résultats :
+  ```
+  npx tsc --noEmit                                              → OK
+  npx jest profitabilityCalculation.test.ts profitabilityAdvanced.test.ts → 36/36 passants
+  npm test (suite complète)                                     → 467/469, 1 skip (PayTech, pré-existant), 1 échec Cloudinary (pré-existant, environnemental) — aucune régression
+  ```
+  Vérifié aussi en conditions réelles sur PostgreSQL : migration `companies.objectif_ca_mensuel_fcfa` confirmée après redémarrage, entreprise de test créée → `/score` renvoie un résultat cohérent (6 postes, label, points forts/attention) → `/score/historique` retrouve bien l'instantané du mois → `PUT /companies/me` avec `objectifCaMensuelFcfa` puis nouvel appel à `/score` confirme que le sous-indicateur "Atteinte de l'objectif mensuel" passe de `null`/note neutre à une valeur calculée (note du poste "Performance du CA" passée de 50 à 25 avec un objectif non atteint, cohérent). Données de test nettoyées ensuite.
+
+- Prochaine étape : transmettre à M. Bamba un aperçu du score calculé sur une vraie entreprise test pour validation finale de la formule (seuils de notation à l'intérieur de chaque poste — pas les poids, déjà fixés par lui).
+
 ## Modèle d'entrée pour les prochaines étapes
 
 ### Date - Module

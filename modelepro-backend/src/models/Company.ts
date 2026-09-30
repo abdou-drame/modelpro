@@ -19,6 +19,11 @@ export class Company extends Model {
   declare mentionsCommerciales: string | null;
   // Intégration PayTrack activable par l'admin de l'entreprise (Naatalix fonctionne sans, cahier §7).
   declare paytrackActif: boolean;
+  // Objectif de CA mensuel (FCFA), saisi manuellement par l'entreprise — Naatalix ne fixe aucun
+  // objectif automatiquement. Utilisé par le score de santé financière (poste "Performance du CA",
+  // sous-critère "atteinte de l'objectif") ; null = sous-critère neutre (voir
+  // profitabilityCalculationService.computeFinancialHealthScore).
+  declare objectifCaMensuelFcfa: number | null;
   declare statut: 'actif' | 'suspendu';
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -71,6 +76,10 @@ Company.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
+    },
+    objectifCaMensuelFcfa: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
     },
     statut: {
       type: DataTypes.ENUM('actif', 'suspendu'),

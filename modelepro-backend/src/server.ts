@@ -205,6 +205,7 @@ async function runAutoMigrations() {
     `ALTER TABLE crm_sales_orders ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
     `ALTER TABLE crm_invoices ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
     `ALTER TABLE crm_purchase_orders ADD COLUMN IF NOT EXISTS site_id INTEGER;`,
+    `ALTER TABLE companies ADD COLUMN IF NOT EXISTS objectif_ca_mensuel_fcfa DOUBLE PRECISION;`,
   ];
 
   for (const query of migrations) {

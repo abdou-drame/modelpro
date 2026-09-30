@@ -101,14 +101,17 @@ describe('Rentabilité avancée — Trésorerie prévisionnelle', () => {
   });
 });
 
-describe('Rentabilité avancée — Score /100', () => {
-  it('renvoie un score entre 0 et 100 avec le détail des 5 critères (poids = 100 au total)', async () => {
+describe('Rentabilité avancée — Score de santé financière /100 (méthodologie M. Bamba)', () => {
+  it('renvoie un score entre 0 et 100 avec le détail des 6 postes (poids = 100 au total) et une explication', async () => {
     const res = await request(app).get('/api/v1/crm/profitability/score').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.score).toBeGreaterThanOrEqual(0);
     expect(res.body.score).toBeLessThanOrEqual(100);
-    expect(res.body.details).toHaveLength(5);
+    expect(res.body.details).toHaveLength(6);
     expect(res.body.details.reduce((s: number, d: any) => s + d.poids, 0)).toBe(100);
+    expect(typeof res.body.label).toBe('string');
+    expect(Array.isArray(res.body.pointsForts)).toBe(true);
+    expect(Array.isArray(res.body.pointsAttention)).toBe(true);
   });
 
   it('isolation stricte : le score d’une entreprise ne dépend jamais des données d’une autre', async () => {
@@ -119,5 +122,25 @@ describe('Rentabilité avancée — Score /100', () => {
     expect(res.status).toBe(200);
     // Aucune donnée pour cette entreprise toute neuve : ne doit pas planter, score par défaut neutre.
     expect(res.body.score).toBeGreaterThanOrEqual(0);
+  });
+
+  it('enregistre un instantané mensuel consultable via /score/historique', async () => {
+    await request(app).get('/api/v1/crm/profitability/score').set('Authorization', `Bearer ${adminToken}`);
+    const res = await request(app).get('/api/v1/crm/profitability/score/historique').set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    const dernier = res.body.data[res.body.data.length - 1];
+    expect(dernier).toHaveProperty('mois');
+    expect(dernier).toHaveProperty('score');
+    expect(dernier.details).toHaveLength(6);
+  });
+
+  it('objectif de CA mensuel : renseigné sur l’entreprise, influence le poste "Performance du chiffre d’affaires"', async () => {
+    await request(app).put('/api/v1/companies/me').set('Authorization', `Bearer ${adminToken}`).send({ objectifCaMensuelFcfa: 10000 });
+    const res = await request(app).get('/api/v1/crm/profitability/score').set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    const perf = res.body.details.find((d: any) => d.dimension === 'Performance du chiffre d\'affaires');
+    const objectifIndicateur = perf.sousIndicateurs.find((s: any) => s.nom === 'Atteinte de l\'objectif mensuel (%)');
+    expect(objectifIndicateur.valeurBrute).not.toBeNull();
   });
 });

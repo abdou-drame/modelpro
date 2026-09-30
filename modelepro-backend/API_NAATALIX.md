@@ -53,7 +53,7 @@ suspendu/expiré renvoie `403 { code: 'SUBSCRIPTION_INACTIVE', ... }` sur les ro
 | `POST` | `/auth/2fa/verify` | Public (tempToken) | 2ᵉ étape de connexion si la 2FA est active |
 | `POST` | `/auth/logout` | Connecté | Invalide tous les jetons existants (`sessionVersion++`) |
 | `GET` | `/companies/me` | Connecté | Fiche de l'entreprise courante |
-| `PUT` | `/companies/me` | Admin | Modifier l'entreprise (identité, mentions PDF, etc.) |
+| `PUT` | `/companies/me` | Admin | Modifier l'entreprise (identité, mentions PDF, `objectifCaMensuelFcfa` pour le score de santé financière, etc.) |
 | `POST` | `/companies/me/logo` | Admin | Upload logo (`multipart/form-data`, champ `logo`, ≤5 Mo, PNG/JPEG/WEBP) |
 | `GET` | `/companies/members` | Connecté | Liste des membres de l'entreprise |
 | `POST` | `/companies/members` | Admin | Créer un membre (soumis au quota du plan) |
@@ -301,21 +301,43 @@ vs réel, trésorerie et score sont réservés Pro+ (`RENTABILITE_AVANCEE`).
 | `GET` | `/crm/profitability/supplier-comparison` | Comparer des fournisseurs (Pro+) |
 | `GET` | `/crm/profitability/simulations/:id/previsionnel-vs-reel` | Écart prévisionnel/réel (Pro+, nécessite un `productId` lié) |
 | `GET` | `/crm/profitability/tresorerie` | Projection encaissements/décaissements (Pro+, `?semaines=&soldeActuel=`) |
-| `GET` | `/crm/profitability/score` | Score de rentabilité /100 (Pro+) |
+| `GET` | `/crm/profitability/score` | Score de santé financière /100 (Pro+) |
+| `GET` | `/crm/profitability/score/historique` | Évolution mensuelle du score (Pro+, `?mois=12`) |
 
-**`GET /crm/profitability/score`** :
+**`GET /crm/profitability/score`** — méthodologie définie avec la direction ATAABA (M. Bamba,
+2026-09-29) : 6 postes pondérés reprenant des ratios financiers standards (marge brute, ratio de
+liquidité, DSO, DPO, rotation de stock...). Voir `profitabilityCalculationService.ts` pour le détail
+des formules et des limites assumées (pas de marge nette faute de suivi des charges d'exploitation,
+seuils non encore différenciés par secteur/taille d'entreprise). Enregistre aussi un instantané
+mensuel consultable ensuite via `/score/historique`.
 ```json
 {
   "score": 74,
+  "label": "Situation financière satisfaisante",
+  "pointsForts": ["Bonne marge commerciale", "Bon recouvrement des créances"],
+  "pointsAttention": ["rotation des stocks insuffisante ou stock dormant"],
   "details": [
-    { "critere": "croissance_ca", "poids": 25, "note": 80, "commentaire": "CA en hausse de 12% sur la période précédente." },
-    { "critere": "sante_creances", "poids": 25, "note": 65, "commentaire": "..." },
-    { "critere": "simulations_rentables", "poids": 20, "note": 90, "commentaire": "..." },
-    { "critere": "sante_stock", "poids": 15, "note": 70, "commentaire": "..." },
-    { "critere": "ponctualite_fournisseurs", "poids": 15, "note": 55, "commentaire": "..." }
+    { "dimension": "Rentabilité et marges", "poids": 30, "note": 80,
+      "sousIndicateurs": [{ "nom": "Marge brute (%)", "valeurBrute": 40, "note": 80 }] },
+    { "dimension": "Liquidité et trésorerie", "poids": 20, "note": 65,
+      "sousIndicateurs": [{ "nom": "Ratio de liquidité court terme (%)", "valeurBrute": 65, "note": 65 }] },
+    { "dimension": "Créances clients", "poids": 15, "note": 70,
+      "sousIndicateurs": [
+        { "nom": "Taux d'impayés (%)", "valeurBrute": 10, "note": 80 },
+        { "nom": "Délai moyen d'encaissement — DSO (jours)", "valeurBrute": 35, "note": 60 }
+      ] },
+    { "dimension": "Performance du chiffre d'affaires", "poids": 15, "note": 75, "sousIndicateurs": ["..."] },
+    { "dimension": "Gestion des stocks", "poids": 10, "note": 40, "sousIndicateurs": ["..."] },
+    { "dimension": "Dettes et fournisseurs", "poids": 10, "note": 85, "sousIndicateurs": ["..."] }
   ]
 }
 ```
+
+**`GET /crm/profitability/score/historique?mois=6`** :
+```json
+{ "data": [{ "mois": "2026-08-01", "score": 68, "details": ["..."] }, { "mois": "2026-09-01", "score": 74, "details": ["..."] }] }
+```
+*(Historique réel à partir de la mise en place de la fonctionnalité — pas de reconstruction rétroactive, voir JOURNAL.md.)*
 
 **`GET /crm/profitability/tresorerie?semaines=4`** :
 ```json
